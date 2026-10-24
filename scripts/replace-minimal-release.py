@@ -8,9 +8,10 @@ from pathlib import Path
 import argparse,datetime,hashlib,json,os,re,subprocess,time
 import requests
 if not __debug__:raise RuntimeError('Optimized Python disables acceptance assertions; run without -O or PYTHONOPTIMIZE')
-p=argparse.ArgumentParser();p.add_argument('--assets',type=Path,required=True);p.add_argument('--clearance',type=Path,required=True);p.add_argument('--inventory',type=Path,required=True);p.add_argument('--backup-root',type=Path,required=True);p.add_argument('--notes',type=Path,required=True);p.add_argument('--evidence',type=Path,required=True);p.add_argument('--phase',choices=['check','delete','upload','publish','verify'],default='check');a=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('--assets',type=Path,required=True);p.add_argument('--clearance',type=Path,required=True);p.add_argument('--inventory',type=Path,required=True);p.add_argument('--backup-root',type=Path,required=True);p.add_argument('--notes',type=Path,required=True);p.add_argument('--evidence',type=Path,required=True);p.add_argument('--phase',choices=['check','pause','delete','upload','publish','verify'],default='check');a=p.parse_args()
 REPO='huwany1/MDcard';API='https://api.github.com/repos/'+REPO;TAG='v0.1.0';a.evidence.mkdir(parents=True,exist_ok=True)
 PENDING_NOTE='历史应用压缩包已删除；本发布记录和标签继续保留。0.1.0 的上传与公开下载验收正在进行，完成前暂停应用下载，请以官网实际下载状态为准。'
+PAUSE_NOTE='MDcard 0.1.0 发行替换与校验进行中，当前正式应用下载入口暂停。以下旧应用资产不再作为当前发行入口，待下一阶段实际移除；本发布记录和历史标签继续保留。'
 COMPLETE_NOTE='旧应用压缩包已由 MDcard 0.1.0 取代；本发布记录和历史标签继续保留。最新发行：https://github.com/'+REPO+'/releases/tag/v0.1.0 。下载校验结果以最新发行验收报告为准。'
 def sha(path):
  with path.open('rb') as f:return hashlib.file_digest(f,'sha256').hexdigest()
@@ -70,7 +71,25 @@ assert not unexpected,'New old application assets appeared; inventory and back u
 if a.phase in ['delete','upload','publish']:
  assert clear['publicEntriesUnavailableVerified'] is True,'Public entry transition has not been independently verified'
  assert clear['publicUnavailableEvidence'],'Missing public transition evidence'
-if a.phase=='delete':
+if a.phase=='pause':
+ # This phase requires frozen local acceptance, but deliberately does not
+ # require a public-unavailable clearance that can only exist after this patch.
+ for release in releases:
+  old=[item for item in inventory if item['releaseId']==release['id'] and item['id'] in old_ids]
+  if not old or release['tag_name']==TAG:continue
+  body=release.get('body') or ''
+  if body.startswith(PAUSE_NOTE):continue
+  for item in old:
+   url=re.escape(item['url'])
+   body=re.sub(r'\[([^\]]*)\]\('+url+r'(?:\s+"[^"]*")?\)',r'\1（旧下载入口暂停）',body)
+   body=re.sub(r'<a\b[^>]*href=[\"\x27]'+url+r'[\"\x27][^>]*>(.*?)</a>',r'\1（旧下载入口暂停）',body,flags=re.I|re.S)
+   body=body.replace(item['url'],'（旧下载入口暂停）')
+  body=PAUSE_NOTE+'\n\n<details>\n<summary>历史说明，仅代表原发行时状态</summary>\n\n'+body+'\n\n</details>\n'
+  request('PATCH',API+'/releases/'+str(release['id']),json={'body':body});record('historical-release-paused',releaseId=release['id'])
+elif a.phase=='delete':
+ for release in releases:
+  if any(item['releaseId']==release['id'] for item in inventory if item['id'] in old_ids):
+   assert PAUSE_NOTE in (release.get('body') or '') or PENDING_NOTE in (release.get('body') or ''),'Pause and independently verify historical release entries before deletion'
  for item in all_assets:
   if item['id'] not in old_ids:continue
   expected=next(old for old in inventory if old['id']==item['id'])
@@ -84,7 +103,8 @@ if a.phase=='delete':
   body=release.get('body') or ''
   for item in old:body=body.replace(item['url'],'https://github.com/'+REPO+'/releases/tag/v0.1.0')
   note=PENDING_NOTE
-  if note not in body:body=note+'\n\n'+body
+  if PAUSE_NOTE in body:body=body.replace(PAUSE_NOTE,note)
+  elif note not in body:body=note+'\n\n'+body
   request('PATCH',API+'/releases/'+str(release['id']),json={'body':body});record('historical-release-downloads-updated',releaseId=release['id'])
 elif a.phase=='upload':
  remaining=[item for item in all_assets if item['id'] in old_ids];assert not remaining,'Old application assets remain; finish deletion first'

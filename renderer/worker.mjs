@@ -8,6 +8,7 @@ import {spawn} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import {existsSync} from 'node:fs';
+import {isCliEntry} from './export-process.mjs';
 
 const root=path.dirname(fileURLToPath(import.meta.url));
 const sha=s=>createHash('sha256').update(s).digest('hex');
@@ -84,7 +85,7 @@ export async function render(request,signal) {
 }
 export async function close(){await browser?.close();browser=undefined;}
 
-if(process.argv[1] && path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
+if(isCliEntry(import.meta.url)) {
   const lines=createInterface({input:process.stdin,crlfDelay:Infinity});
   for await(const line of lines) {
     if(line.length>150000){process.stdout.write(JSON.stringify({ok:false,error:'IPC line too large'})+'\n');continue;}

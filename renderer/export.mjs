@@ -24,7 +24,7 @@ import {AllPackages} from 'mathjax-full/js/input/tex/AllPackages.js';
 import {render as richRender,close as richClose} from './worker.mjs';
 import {finalizeDocx} from './export-docx.mjs';
 import {portableFontCss,portableSvg} from './export-fonts.mjs';
-import {runOwned} from './export-process.mjs';
+import {runOwned,isCliEntry} from './export-process.mjs';
 
 const ROOT=path.dirname(fileURLToPath(import.meta.url));
 const MAX_RESOURCE=20*1024*1024;
@@ -381,7 +381,7 @@ export async function exportDocument(request,onProgress=()=>{}){
   }catch(e){if(o.signal.aborted&&e.stage!=='timeout'&&e.stage!=='cleanup')fail('timeout','Export exceeded its task deadline',e.line,e.resource);throw e;}finally{clearTimeout(timeout);await browser?.close().catch(()=>{});await richClose().catch(()=>{});await rm(work,{recursive:true,force:true});}
 }
 
-if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
+if(isCliEntry(import.meta.url)){
   // JSON request path avoids shell quoting, command injection and stdout ambiguity.
   const requestPath=process.argv[2];let request;
   const emit=e=>process.stdout.write(JSON.stringify(e)+'\n');

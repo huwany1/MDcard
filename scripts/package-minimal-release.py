@@ -92,7 +92,7 @@ for platform in ['windows','linux']:
         native_source=RENDERER/'node_modules'/package
         if not native_source.exists():native_source=source/'renderer/node_modules'/package
         for f in native_source.rglob('*'):
-            if f.is_file() and not f.name.lower().startswith(('readme','changelog')):
+            if f.is_file() and not f.name.lower().startswith(('readme','changelog')) and f.suffix.lower() not in {'.h','.hpp','.a','.la','.lib','.pdb','.obj','.o','.pc','.cmake'}:
                 node_paths['node_modules/'+package+'/'+f.relative_to(native_source).as_posix()]='OS-specific Sharp/libvips native runtime for image exports'
     module_roots=set()
     for name,reason in sorted(node_paths.items()):
@@ -125,7 +125,7 @@ for platform in ['windows','linux']:
     java_names+=['lib/modules','lib/jvm.cfg','lib/tzdb.dat','lib/psfont.properties.ja','lib/psfontj2d.properties','lib/security/default.policy','conf/security/java.security','conf/security/java.policy']
     if platform=='windows':java_names+=['lib/fontconfig.bfc','lib/fontconfig.properties.src','lib/tzmappings']
     if A.jre_root:
-        omitted={'release','lib/classlist','lib/jrt-fs.jar','lib/jexec','lib/libjsig.so','lib/server/libjsig.so','conf/security/policy/README.txt','bin/ucrtbase.dll'}
+        omitted={'release','lib/classlist','lib/jrt-fs.jar','lib/jexec','lib/libjsig.so','lib/server/libjsig.so','lib/fontconfig.properties.src','conf/security/policy/README.txt','bin/ucrtbase.dll'}
         java_names=[f.relative_to(java).as_posix() for f in java.rglob('*') if f.is_file() and not f.relative_to(java).as_posix().startswith(('legal/','conf/security/policy/limited/')) and f.relative_to(java).as_posix() not in omitted and not f.name.startswith('api-ms-win-') and f.suffix.lower() not in ['.lib','.a','.h','.jfc','.jsa'] and (f.parent.name!='bin' or f.name in ['java','java.exe'] or f.suffix.lower()=='.dll')]
     for name in java_names:
         if not (java/name).exists(): continue
@@ -208,10 +208,19 @@ for platform in ['windows','linux']:
     else:
         with tarfile.open(archive,'w:gz',compresslevel=6) as t:t.add(stage,arcname='.',filter=permissions)
     before=json.loads((source/'manifest.json').read_text('utf8'))['files']
+    old_files={item['path']:{'bytes':item['bytes'],'sha256':item['sha256']} for item in before}
+    old_files['manifest.json']={'bytes':(source/'manifest.json').stat().st_size,'sha256':sha(source/'manifest.json')}
+    new_files={item['path']:{'bytes':item['bytes'],'sha256':item['sha256']} for item in files}
+    new_files['manifest.json']={'bytes':(stage/'manifest.json').stat().st_size,'sha256':sha(stage/'manifest.json')}
+    added=set(new_files)-set(old_files);deleted=set(old_files)-set(new_files)
+    changed={name for name in set(old_files)&set(new_files) if old_files[name]!=new_files[name]}
+    old_bytes=sum(item['bytes'] for item in old_files.values());new_bytes=sum(item['bytes'] for item in new_files.values())
+    changes={'addedPaths':len(added),'addedBytes':sum(new_files[name]['bytes'] for name in added),'deletedPaths':len(deleted),'deletedBytes':sum(old_files[name]['bytes'] for name in deleted),'changedPaths':len(changed),'changedBytesDelta':sum(new_files[name]['bytes']-old_files[name]['bytes'] for name in changed),'netSavedBytes':old_bytes-new_bytes,'manifestIncludedInTotals':True}
+    assert old_bytes+changes['addedBytes']-changes['deletedBytes']+changes['changedBytesDelta']==new_bytes
     removed=[x for x in before if x['path'] not in actual]
     stats=collections.defaultdict(lambda:{'files':0,'bytes':0})
     for x in removed:s=stats[category(x['path'])];s['files']+=1;s['bytes']+=x['bytes']
-    package={'platform':platform,'version':'0.1.0','stage':platform,'archive':archive.name,'bytes':archive.stat().st_size,'sha256':sha(archive),'binary':{'path':exe,'bytes':(stage/exe).stat().st_size,'sha256':sha(stage/exe)},'manifestSHA256':sha(stage/'manifest.json'),'payloadFiles':len(actual),'sourceCommit':COMMIT,'before':{'payloadFiles':len(before)+1,'payloadBytes':sum(x['bytes'] for x in before)},'after':{'payloadFiles':len(actual),'payloadBytes':sum(p.stat().st_size for p in stage.rglob('*') if p.is_file())},'removedCategories':dict(stats),'extraFiles':0}
+    package={'platform':platform,'version':'0.1.0','stage':platform,'archive':archive.name,'bytes':archive.stat().st_size,'sha256':sha(archive),'binary':{'path':exe,'bytes':(stage/exe).stat().st_size,'sha256':sha(stage/exe)},'manifestSHA256':sha(stage/'manifest.json'),'payloadFiles':len(actual),'sourceCommit':COMMIT,'before':{'payloadFiles':len(old_files),'payloadBytes':old_bytes},'after':{'payloadFiles':len(new_files),'payloadBytes':new_bytes},'pathChangeStats':changes,'removedCategories':dict(stats),'extraFiles':0}
     packages.append(package);print(json.dumps(package,ensure_ascii=False),flush=True)
 index={'schema':1,'product':'MDcard','version':'0.1.0','sourceCommit':COMMIT,'createdAt':NOW,'status':'candidate-awaiting-clean-environment-acceptance','passed':False,'packages':packages,'criteria':{f'C0{i}':{'status':'未验证'} for i in range(1,8)},'remoteReplacementPerformed':False}
 (OUT/'MDcard-0.1.0-release.json').write_text(json.dumps(index,ensure_ascii=False,indent=2)+'\n',encoding='utf8')

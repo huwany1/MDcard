@@ -1,8 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 MDcard contributors
 import {spawn} from 'node:child_process';
-import {readdirSync,readFileSync} from 'node:fs';
+import {readdirSync,readFileSync,realpathSync} from 'node:fs';
 import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+
+// Node normalizes an entry's module URL, while argv can retain Windows \\?\
+// prefixes or a filesystem alias. Compare actual files, not those spellings.
+// Imported modules (including eval/stdin callers with a non-file argv) stay APIs.
+export function isCliEntry(moduleURL,entry=process.argv[1]){
+ if(!entry)return false;
+ try{return realpathSync.native(entry)===realpathSync.native(fileURLToPath(moduleURL));}
+ catch{return false;}
+}
 
 const pause=()=>new Promise(resolve=>setTimeout(resolve,1));
 function identity(pid){
