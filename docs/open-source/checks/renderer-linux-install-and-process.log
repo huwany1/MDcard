@@ -1,0 +1,18 @@
+v24.21.0
+npm warn deprecated mathjax-full@3.2.2: Version 4 replaces this package with the scoped package @mathjax/src
+
+added 310 packages in 3m
+Bundled local KaTeX/mhchem, Mermaid, DOMPurify, flowchart.js and embedded KaTeX fonts.
+✔ Linux cancellation resolves only after detached descendants are terminal (197.530354ms)
+✔ converter lifecycle: natural completion, exit error and missing executable (7.041973ms)
+✔ a pre-aborted converter never starts (1.701482ms)
+✔ an exited leader with inherited descendant pipes obeys timeout and terminates its owned session (107.131777ms)
+✔ abort waits for converter and inherited pipes, preserves old target and allows retry (13.754253ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 414.401416
