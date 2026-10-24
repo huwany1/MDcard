@@ -3003,7 +3003,14 @@ impl ReadingState {
         self.flush();
     }
     pub fn migrated_path(&mut self, doc: &Document, old: &Path) {
-        let old = path_key(old);
+        // The old file no longer exists after rename. Re-canonicalizing an
+        // aliased parent (e.g. Windows 8.3 TEMP) can produce a different key.
+        // Migrate the key already bound to this document's persisted identity.
+        let old = self
+            .records
+            .get(&doc.id)
+            .and_then(|record| record.path.clone())
+            .unwrap_or_else(|| path_key(old));
         let Some(next) = doc.path.as_deref().map(path_key) else {
             return;
         };
@@ -3137,9 +3144,22 @@ mod tests {
         for clear_neighbor in [false, true] {
             let temp = tempfile::tempdir().unwrap();
             let path = temp.path().join("state.json");
-            let old = temp.path().join("original.md");
+            // A parent alias reproduces Windows short TEMP paths on Unix too:
+            // the existing file canonicalizes, but its removed old name cannot.
+            #[cfg(unix)]
+            let source_dir = {
+                let actual = temp.path().join("actual");
+                fs::create_dir(&actual).unwrap();
+                let alias = temp.path().join("alias");
+                std::os::unix::fs::symlink(&actual, &alias).unwrap();
+                alias
+            };
+            #[cfg(not(unix))]
+            let source_dir = temp.path().to_owned();
+            let old = source_dir.join("original.md");
             let source = "Original 中文🙂 source\n".repeat(100);
             fs::write(&old, &source).unwrap();
+            let old_key = path_key(&old);
             let mut doc = Document::open(&old).unwrap();
             let id;
             {
@@ -3177,6 +3197,11 @@ mod tests {
                 serde_json::to_string(&disk).unwrap()
             );
             let moved = &disk.records[&path_key(next)];
+            assert!(
+                disk.records
+                    .get(&old_key)
+                    .is_none_or(|record| record.deleted)
+            );
             assert_eq!(moved.id, id);
             assert!(
                 !moved.views.is_empty(),
