@@ -1,0 +1,11 @@
+# Portable website source; keep canonical samples and raw evidence byte-for-byte.
+*.md text eol=lf
+*.html text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.css text eol=lf
+*.json text eol=lf
+*.ps1 text eol=lf
+samples/** -text whitespace=cr-at-eol,-blank-at-eof
+evidence/** -text whitespace=cr-at-eol,-blank-at-eof
+src/assets/** -text whitespace=cr-at-eol,-blank-at-eof

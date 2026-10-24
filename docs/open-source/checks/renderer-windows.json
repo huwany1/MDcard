@@ -1,0 +1,279 @@
+{
+  "runId": "3c49a47a-79e0-4f20-8a2b-c4cada3bc5c3",
+  "date": "2026-10-24T11:29:24.695Z",
+  "passed": true,
+  "results": [
+    {
+      "name": "matrix",
+      "dark": false,
+      "key": "bfcb2aef3b662dc3663de4b5657ca1e11f227431418ac8c60bcfa8146713ca8f",
+      "width": 93,
+      "height": 69,
+      "ms": 159.19940000000042,
+      "blockedRequests": 0
+    },
+    {
+      "name": "matrix",
+      "dark": true,
+      "key": "8c67ad4969b802bc0db88b4371b4589c4500129cc0c150d99a2dcc61d8197146",
+      "width": 93,
+      "height": 69,
+      "ms": 41.43669999999929,
+      "blockedRequests": 0
+    },
+    {
+      "name": "aligned",
+      "dark": false,
+      "key": "fe14a1aefc996084a85ea7b85a79ba73e5584a5cbf8886056237ff6887b7db70",
+      "width": 102,
+      "height": 75,
+      "ms": 45.121000000000095,
+      "blockedRequests": 0
+    },
+    {
+      "name": "aligned",
+      "dark": true,
+      "key": "2ab82828814f55b9aa1d7be9b90cd653190fadc14d70e4468aa706c758cc7203",
+      "width": 102,
+      "height": 75,
+      "ms": 44.19390000000021,
+      "blockedRequests": 0
+    },
+    {
+      "name": "calculus",
+      "dark": false,
+      "key": "3dfa3544cfb2955c3c188e22bcc2d980f9b51478179365ec71df63cd162f2518",
+      "width": 190,
+      "height": 69,
+      "ms": 40.960299999999734,
+      "blockedRequests": 0
+    },
+    {
+      "name": "calculus",
+      "dark": true,
+      "key": "0cecc6d86a709417788b68cf68642434a1e33ddffc27831c988e0d6cc0efc8e0",
+      "width": 190,
+      "height": 69,
+      "ms": 46.2501000000002,
+      "blockedRequests": 0
+    },
+    {
+      "name": "greek",
+      "dark": false,
+      "key": "b4c152e3e14e272ee3ea31772822fa69e46d34b71e8d2d325b08e500f1aef3ca",
+      "width": 122,
+      "height": 45,
+      "ms": 47.583700000000135,
+      "blockedRequests": 0
+    },
+    {
+      "name": "greek",
+      "dark": true,
+      "key": "89eeb54c92d66d2374ada016c559dd2fcce521a409beaf01eb08da221aa8aab9",
+      "width": 122,
+      "height": 45,
+      "ms": 48.961599999999635,
+      "blockedRequests": 0
+    },
+    {
+      "name": "chemistry",
+      "dark": false,
+      "key": "62014bf509fc4e8ca2fc8c76e1d3cc28d5c637d0be7c51d495c4c980591bceb4",
+      "width": 209,
+      "height": 43,
+      "ms": 46.797199999999975,
+      "blockedRequests": 0
+    },
+    {
+      "name": "chemistry",
+      "dark": true,
+      "key": "dc64cf4610f333ffeb69ba245c990a15f46a3ae0e6dc72e56bf1ca7251b1e311",
+      "width": 209,
+      "height": 43,
+      "ms": 42.404599999999846,
+      "blockedRequests": 0
+    },
+    {
+      "name": "numeric",
+      "dark": false,
+      "key": "4fc6805e4cf91e0d21710d99a68da1c4d00a35d79c01835eb38e43884aee7be1",
+      "width": 49,
+      "height": 43,
+      "ms": 46.250600000000304,
+      "blockedRequests": 0
+    },
+    {
+      "name": "numeric",
+      "dark": true,
+      "key": "008078ca7957754f7c8907e50d62475753988edae4e0c160f288fd92c411390d",
+      "width": 49,
+      "height": 43,
+      "ms": 48.0021999999999,
+      "blockedRequests": 0
+    },
+    {
+      "name": "mermaid-korean",
+      "dark": false,
+      "key": "474c1646e7ab18556ff8696733dbf2a9e28c972e04a34a560a81e358a7897e4c",
+      "width": 386,
+      "height": 77,
+      "ms": 402.9564999999993,
+      "blockedRequests": 0
+    },
+    {
+      "name": "mermaid-korean",
+      "dark": true,
+      "key": "cf2eca3c0a471590af499584ac4a159994dadcbcb8e68083fac150da23c8a510",
+      "width": 386,
+      "height": 80,
+      "ms": 74.78920000000016,
+      "blockedRequests": 0
+    },
+    {
+      "name": "mermaid-flow",
+      "dark": false,
+      "key": "8f856de2adee62ba04394e5395a066d4d524676bcdcf3d656d6dbe3aa89b8459",
+      "width": 206,
+      "height": 402,
+      "ms": 89.31930000000011,
+      "blockedRequests": 0
+    },
+    {
+      "name": "mermaid-flow",
+      "dark": true,
+      "key": "0be52995593efe113f1ff83921274174c2d9c8b27d22b8000ddacb22774652b6",
+      "width": 206,
+      "height": 402,
+      "ms": 88.73630000000048,
+      "blockedRequests": 0
+    },
+    {
+      "name": "mermaid-sequence",
+      "dark": false,
+      "key": "038d3391a67a20c38d723b66a72ebab51f2034d06f8d52da56bc5169c50dbd86",
+      "width": 466,
+      "height": 363,
+      "ms": 110.58940000000075,
+      "blockedRequests": 0
+    },
+    {
+      "name": "mermaid-sequence",
+      "dark": true,
+      "key": "925c58f2fdf73a193448bc6fcb091d7c07b7684bbae55fda9e2e66ae6a8c2427",
+      "width": 466,
+      "height": 363,
+      "ms": 74.19819999999982,
+      "blockedRequests": 0
+    },
+    {
+      "name": "mermaid-mindmap",
+      "dark": false,
+      "key": "e48959262dd2bd57a8b00a7f498db9ed73a15bc718dfff4505898e4b2e865816",
+      "width": 275,
+      "height": 192,
+      "ms": 80.67870000000039,
+      "blockedRequests": 0
+    },
+    {
+      "name": "mermaid-mindmap",
+      "dark": true,
+      "key": "a9be328dbb29052ea77384fc568853a398f2da868a237b987333f35a6d933197",
+      "width": 275,
+      "height": 192,
+      "ms": 74.97349999999915,
+      "blockedRequests": 0
+    },
+    {
+      "name": "plantuml-flow",
+      "dark": false,
+      "key": "f665eaaa11a540f0a92d9bcf44904a33b33339388842240e1e0474cde3b92a13",
+      "width": 116,
+      "height": 227,
+      "ms": 874.3917999999994,
+      "blockedRequests": 0
+    },
+    {
+      "name": "plantuml-flow",
+      "dark": true,
+      "key": "808387320cfaa228b5422bd413873d7e25bc4f378899686e0ad45d4499cd2616",
+      "width": 116,
+      "height": 227,
+      "ms": 693.6540999999997,
+      "blockedRequests": 0
+    },
+    {
+      "name": "plantuml-sequence",
+      "dark": false,
+      "key": "39e0cf435ef3e21a65008bf7413301c0a870bea3e5d9ace024580051370d09a4",
+      "width": 139,
+      "height": 191,
+      "ms": 1492.835799999999,
+      "blockedRequests": 0
+    },
+    {
+      "name": "plantuml-sequence",
+      "dark": true,
+      "key": "d618179f4bc7434420553591bd0fabe64b11b3228ad4bb9a046148a6586a76bb",
+      "width": 139,
+      "height": 191,
+      "ms": 661.9808999999987,
+      "blockedRequests": 0
+    },
+    {
+      "name": "plantuml-mindmap",
+      "dark": false,
+      "key": "eef87847d0ca25c185f19cb58802b1de214ae77b54252176924d808fc761e025",
+      "width": 239,
+      "height": 157,
+      "ms": 627.0139999999992,
+      "blockedRequests": 0
+    },
+    {
+      "name": "plantuml-mindmap",
+      "dark": true,
+      "key": "b30d9948f6a2fc208326af9d4aa3a421d6a7aed20c7d884caade6141c78fdb9d",
+      "width": 239,
+      "height": 157,
+      "ms": 548.7085999999999,
+      "blockedRequests": 0
+    },
+    {
+      "name": "flowchart-comparison",
+      "dark": false,
+      "key": "d6a891c0ca2c7cfb810b685ed329fa5f3752a972e51d076792e2f9b62fdc5f9d",
+      "width": 172,
+      "height": 328,
+      "ms": 73.65020000000004,
+      "blockedRequests": 0
+    },
+    {
+      "name": "flowchart-comparison",
+      "dark": true,
+      "key": "c3a795b6bc020204ada31be8dff68522124a2c8e4e543e852889091446cb5f39",
+      "width": 172,
+      "height": 328,
+      "ms": 46.48519999999917,
+      "blockedRequests": 0
+    },
+    {
+      "name": "flowchart",
+      "dark": false,
+      "key": "6d2481845ef5399be2890bc5767a8a4f1a2faebdfb088e1ac28066cd72dbf513",
+      "width": 85,
+      "height": 269,
+      "ms": 44.52090000000135,
+      "blockedRequests": 0
+    },
+    {
+      "name": "flowchart",
+      "dark": true,
+      "key": "a293538c34fe082461da480496223a88c5c74421b4fe201f2de3ce54b3c3eea3",
+      "width": 85,
+      "height": 269,
+      "ms": 57.540899999999965,
+      "blockedRequests": 0
+    }
+  ],
+  "maliciousRejected": 7,
+  "recoveredAfterError": true
+}

@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+[toolchain]
+channel = "1.92.0"
+profile = "minimal"
+components = ["rustfmt", "clippy"]

@@ -1,0 +1,60 @@
+{
+  "passed": true,
+  "published_at": "2026-10-24T04:33:19.106057+00:00",
+  "product_commit": "40b5e3bb16e1658e333cf2fddf965a22d4e878ff",
+  "acceptance_commit": "0bea1e9b0c1fa453a7fddd75cb53def2c6639aff",
+  "rebuilt": false,
+  "repacked": false,
+  "latest_sha256": "7092c6fc9d592923097604975e8994e79e9a82b2cbd117e2f78f62311512c4b4",
+  "packages": [
+    {
+      "platform": "windows",
+      "stage": "D:\\MDcard\\dist\\windows",
+      "archive": "D:\\MDcard\\dist\\MDcard-0.1.1-precision-b-20261024-r29-windows-x64.zip",
+      "archive_sha256": "efabd1e02c64715b55e2c0eedf2e5b5f542f761ee370d121a2c5086889692412",
+      "binary_sha256": "face40f4af716c004b39e4ce992af088dedda171f924a73df8cf8504eefb67e1",
+      "manifest_files": 22059,
+      "source_commit": "8c09f82daad47f623d9020b2370dfe57123ba80f",
+      "binary_source_commit": "40b5e3bb16e1658e333cf2fddf965a22d4e878ff",
+      "build_id": "precision-b-20261024-r29",
+      "release_name": "R29",
+      "release_channel": "stable",
+      "acceptance_status": "passed",
+      "promoted_at": "2026-10-24T04:33:19.106057+00:00",
+      "acceptance_commit": "0bea1e9b0c1fa453a7fddd75cb53def2c6639aff",
+      "promotion_record": "evidence/release-r29-2026-10-24/promotion.json",
+      "evidence_archive": "artifacts/reading-precision/delivery/MDcard-reading-precision-evidence-20261024-r29.zip",
+      "evidence_archive_sha256": "a6a8b848ca85c78eba77f269de11bea8e1de78196dde5c12635c6cee8cbdd3fc"
+    },
+    {
+      "platform": "linux",
+      "stage": "D:\\MDcard\\dist\\linux",
+      "archive": "D:\\MDcard\\dist\\MDcard-0.1.1-precision-b-20261024-r29-linux-x64.tar.gz",
+      "archive_sha256": "3771f142d7b8f1e6bec21059c1d82d559b33bcc62aea13c82fd20fddaab509ab",
+      "binary_sha256": "b438bd9e042366a77c63bcb9f6ccc989414119788959086cec98114f2c6cd9cf",
+      "manifest_files": 22003,
+      "source_commit": "8c09f82daad47f623d9020b2370dfe57123ba80f",
+      "binary_source_commit": "40b5e3bb16e1658e333cf2fddf965a22d4e878ff",
+      "build_id": "precision-b-20261024-r29",
+      "release_name": "R29",
+      "release_channel": "stable",
+      "acceptance_status": "passed",
+      "promoted_at": "2026-10-24T04:33:19.106057+00:00",
+      "acceptance_commit": "0bea1e9b0c1fa453a7fddd75cb53def2c6639aff",
+      "promotion_record": "evidence/release-r29-2026-10-24/promotion.json",
+      "evidence_archive": "artifacts/reading-precision/delivery/MDcard-reading-precision-evidence-20261024-r29.zip",
+      "evidence_archive_sha256": "a6a8b848ca85c78eba77f269de11bea8e1de78196dde5c12635c6cee8cbdd3fc"
+    }
+  ],
+  "new_directory_gui": [
+    {
+      "path": "evidence/reading-precision/master/release-r29-promoted-20261024-reflow-read/result.json",
+      "sha256": "c96731980f94110b55d2a061be9a426e3ce98713362949943f976927a8017921"
+    },
+    {
+      "path": "evidence/reading-precision/implementation/release-r29-promoted-20261024/result.json",
+      "sha256": "1918f4375af03aedcbaa5adb9359d3640e3525a754c4324690e34e3d362ac7bf"
+    }
+  ],
+  "boundary": "Local official release promotion authorized by user. Accepted executable/archive/manifest bytes unchanged; embedded acceptanceCandidate is the immutable build-time snapshot. Official stable channel and completed external acceptance are recorded in latest/promotion. No new version-wide performance or full38 rerun claim; prior accepted scope preserved."
+}

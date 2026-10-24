@@ -1,0 +1,9 @@
+{
+  "purpose": "Original offline HTML transport; public HTML preview may receive hosting security injection",
+  "html_filename": "从原稿到作品.html",
+  "html_bytes": 151708,
+  "html_sha256": "e27ccfd357dd736cb5bb09a52f667183c6944dfdae5919176d839da598ce3c9e",
+  "zip_bytes": 75891,
+  "zip_sha256": "ee2f97ec7a2ac4c13b061476e494e8bb46ea38a38ebeb82d999d0e14d40bed57",
+  "canonical_source_sha256": "24d49068a1f115a24bbbf4525c7a774015bc526f9e0c84836bd51f0d9dbff3a6"
+}

@@ -1,0 +1,8 @@
+{
+  "windows": {
+    "url": "https://github.com/huwany1/MDcard/releases/download/v0.1.1-20261024/MDcard-0.1.1-icon-suite-20261024-r3-windows-x64.zip"
+  },
+  "linux": {
+    "url": "https://github.com/huwany1/MDcard/releases/download/v0.1.1-20261024/MDcard-0.1.1-precision-b-20261024-r29-linux-x64.tar.gz"
+  }
+}

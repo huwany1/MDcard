@@ -1,0 +1,27 @@
+{
+  "verified_source_stage": "f9a74cd2aa97b4091254dcdb89e6f6e85e002e80",
+  "authorization_header_sent": false,
+  "results": [
+    {
+      "path": "LICENSE",
+      "http": 200,
+      "bytes": 34020,
+      "sha256": "d8a6cc31abc16b6748c7a21f21611f5a1ec33f67d22ca23d7da1c19b95496bee",
+      "request_authorization_header": false
+    },
+    {
+      "path": "src/main.rs",
+      "http": 200,
+      "bytes": 217244,
+      "sha256": "9bda5f83a16127fb7400c71ee697668b37c02c3b99152e5fcb4320b0ea73877a",
+      "request_authorization_header": false
+    },
+    {
+      "path": "README.md",
+      "http": 200,
+      "bytes": 5123,
+      "sha256": "b147dcc36e0188cbaf0736275bffb6de24545139ba5bba3d82c790a9d6d43e27",
+      "request_authorization_header": false
+    }
+  ]
+}

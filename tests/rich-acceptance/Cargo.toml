@@ -1,0 +1,9 @@
+[package]
+license = "AGPL-3.0-only"
+name = "rich-independent-acceptance"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+pulldown-cmark = "0.13"
+egui = "=0.33.3"

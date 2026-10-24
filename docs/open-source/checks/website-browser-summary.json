@@ -1,0 +1,27 @@
+{
+  "recorded_at": "2026-10-24T11:28:57.658Z",
+  "url": "http://127.0.0.1:4181/",
+  "passed": true,
+  "zoom": {
+    "factor": 2,
+    "method": "Chromium chrome.tabs.setZoom(2), real tab zoom",
+    "viewport": "1440x1000",
+    "inner_width": 720,
+    "scroll_width": 720,
+    "dpr": 2,
+    "passed": true
+  },
+  "errors": [],
+  "performance": [],
+  "performance_mode": "not_run: SKIP_PERFORMANCE=1; no new performance conclusion",
+  "viewport_widths": [
+    360,
+    390,
+    768,
+    1024,
+    1440,
+    1920
+  ],
+  "browser_version": "155.0.4283.62",
+  "note": "Fresh clone local site; performance deliberately skipped; machine paths and CPU profile omitted from public summary."
+}

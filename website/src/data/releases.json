@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-10-24T10:29:06.443Z",
+  "source": "dist/latest.json",
+  "releases": [
+    {
+      "platform": "windows",
+      "version": "0.1.1",
+      "release_name": "Icon Suite R3",
+      "build_id": "icon-suite-20261024-r3",
+      "architecture": "x86_64",
+      "filename": "MDcard-0.1.1-icon-suite-20261024-r3-windows-x64.zip",
+      "bytes": 603792422,
+      "sha256": "a3b480372171bb1c8b9514e77e7be1c8a54d740970c06f9f6ca8741e82da1258",
+      "binary_sha256": "32b781a8b0915f96443b5e827281fc4fc395dabf04a0f340d85c048c03f696c4",
+      "updated_at": "2026-10-24T07:23:52.361621+00:00",
+      "source_commit": "4e5b9783e4150a9f87786d009b6aa38fec80eab6",
+      "binary_source_commit": "9fe090ea938a35b9f5d14ea647d7377b65fd5ab4",
+      "promotion_record": "artifacts/icon-integration-20261024/implementation/release/promotion.json",
+      "download_url": "https://github.com/huwany1/MDcard/releases/download/v0.1.1-20261024/MDcard-0.1.1-icon-suite-20261024-r3-windows-x64.zip",
+      "download_status": "available",
+      "installation": [
+        "下载后核对 SHA256；将完整 ZIP 解压到可写目录。",
+        "双击完整目录里的 MDcard.exe。请保留 renderer、assets 等伴随资源。",
+        "随附 Create-MDcardShortcut.ps1 可创建快捷方式。"
+      ]
+    },
+    {
+      "platform": "linux",
+      "version": "0.1.1",
+      "release_name": "R29",
+      "build_id": "precision-b-20261024-r29",
+      "architecture": "x86_64",
+      "filename": "MDcard-0.1.1-precision-b-20261024-r29-linux-x64.tar.gz",
+      "bytes": 655893443,
+      "sha256": "3771f142d7b8f1e6bec21059c1d82d559b33bcc62aea13c82fd20fddaab509ab",
+      "binary_sha256": "b438bd9e042366a77c63bcb9f6ccc989414119788959086cec98114f2c6cd9cf",
+      "updated_at": "2026-10-24T04:33:19.106057+00:00",
+      "source_commit": "8c09f82daad47f623d9020b2370dfe57123ba80f",
+      "binary_source_commit": "40b5e3bb16e1658e333cf2fddf965a22d4e878ff",
+      "promotion_record": "evidence/release-r29-2026-10-24/promotion.json",
+      "download_url": "https://github.com/huwany1/MDcard/releases/download/v0.1.1-20261024/MDcard-0.1.1-precision-b-20261024-r29-linux-x64.tar.gz",
+      "download_status": "available",
+      "installation": [
+        "需 x86_64 Linux 桌面；当前二进制基于 Debian 12 / glibc 2.36。",
+        "安装页面列出的桌面运行依赖；使用 tar -xzf 完整解压 tar.gz。",
+        "在解压目录运行 chmod +x mdcard，然后 ./mdcard。"
+      ]
+    }
+  ]
+}

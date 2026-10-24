@@ -1,0 +1,9 @@
+{
+  "binary_sha256": "036ec2c72f7675bca5eed1ee1104d4b438b9dac05b10653f709968bae5c1df1b",
+  "compiled_source_stage": "clean clone of imported Rust source, before Windows-only CI lint equivalent change",
+  "environment": "Debian 12, Xvfb, software rendering",
+  "command": "XDG_RUNTIME_DIR=/tmp/mdcard-runtime MDCARD_AUTO_QUIT_SECONDS=3 xvfb-run -a /target/release/mdcard",
+  "timeout_seconds": 40,
+  "exit_code": 0,
+  "scope": "Actual native Linux startup and controlled auto exit; not full GUI or platform acceptance"
+}

@@ -1,0 +1,28 @@
+# Generated build output, release packages, and verification artifacts.
+/target/
+/dist/
+/artifacts/
+/evidence/
+/tests/*-acceptance/target/
+/tests/reading-precision-implementation/target/
+
+# Renderer dependencies, bundles, and downloaded runtimes are rebuilt as needed.
+/renderer/node_modules/
+/renderer/vendor/
+/renderer/runtime/
+
+# Editor and operating-system metadata.
+/.idea/
+/.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+*.tmp
+__pycache__/
+
+# Local website QA output and private hosting configuration.
+/website/evidence/
+/website/.openai/

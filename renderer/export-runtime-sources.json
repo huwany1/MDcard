@@ -1,0 +1,42 @@
+{
+  "windows": {
+    "java": {
+      "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1%2B1/OpenJDK21U-jre_x64_windows_hotspot_21.0.12.1_1.zip",
+      "filename": "OpenJDK21U-jre_x64_windows_hotspot_21.0.12.1_1.zip",
+      "verification": "Adoptium published SHA256",
+      "sha256": "d35f31e712f0fcf6ac5a093edc90204fbff22f720ba3950bd09d331d5e621636"
+    },
+    "pandoc": {
+      "url": "https://github.com/jgm/pandoc/releases/download/3.12.1/pandoc-3.12.1-windows-x86_64.zip",
+      "filename": "pandoc-3.12.1-windows.zip",
+      "verification": "HTTPS official GitHub release; transport-observed SHA256 pinned after first acquisition",
+      "sha256": "6ef431cb20b2c24a0371fc19200dc49d452be54b1b5c9239f3462841ef53e587"
+    },
+    "chromium": {
+      "url": "https://cdn.playwright.dev/builds/cft/156.0.8078.4/win64/chrome-win64.zip",
+      "filename": "chrome-156.0.8078.4-win64.zip",
+      "verification": "HTTPS official Playwright CDN; transport-observed SHA256 pinned after first acquisition",
+      "sha256": "220021ecfdad08c116fc71a153e65e3861ba841c531afc4f7acc7bd5d44b41db"
+    }
+  },
+  "linux": {
+    "java": {
+      "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1%2B1/OpenJDK21U-jre_x64_linux_hotspot_21.0.12.1_1.tar.gz",
+      "filename": "OpenJDK21U-jre_x64_linux_hotspot_21.0.12.1_1.tar.gz",
+      "verification": "Adoptium published SHA256",
+      "sha256": "2413149700df0f7d440500a84a8f764c535f21e5a5e87d38328b64eec2c5b500"
+    },
+    "pandoc": {
+      "url": "https://github.com/jgm/pandoc/releases/download/3.12.1/pandoc-3.12.1-linux-amd64.tar.gz",
+      "filename": "pandoc-3.12.1-linux.tar.gz",
+      "verification": "HTTPS official GitHub release; transport-observed SHA256 pinned after first acquisition",
+      "sha256": "d0c90410e90204c9ca83b8539fac5c7aed01fd537207e4585849f8abc5df20b8"
+    },
+    "chromium": {
+      "url": "https://cdn.playwright.dev/builds/cft/156.0.8078.4/linux64/chrome-linux64.zip",
+      "filename": "chrome-156.0.8078.4-linux64.zip",
+      "verification": "HTTPS official Playwright CDN; transport-observed SHA256 pinned after first acquisition",
+      "sha256": "43fd31766c7533a02dda2ded5ad50c2f861cd5400be7509c0abad71129f79d79"
+    }
+  }
+}

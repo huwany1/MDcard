@@ -1,0 +1,9 @@
+{
+  "source_commit": "39ffb198f77123bf8924e2b07122ebd0a2b12b56",
+  "fixture": "Unix parent directory symlink reproduces removed-old-name canonicalization mismatch; Windows original short TEMP fixture retained",
+  "before_fix": {"exit_code": 101, "failure": "old canonical key remained active instead of a tombstone"},
+  "after_fix": {"focused_test_exit": 0, "reading_state_tests_passed": 42, "reading_state_tests_failed": 0, "windows_gnu_clippy_exit": 0},
+  "assertions": ["old key removed or tombstoned", "same document identity", "preview offset retained", "selection retained", "manuscript source bytes retained"],
+  "fix": "migrated_path uses the persisted path already bound to the document identity, with the existing path_key(old) fallback only when no stored path exists",
+  "independent_master_review": "passed"
+}

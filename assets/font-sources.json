@@ -1,0 +1,94 @@
+[
+  {
+    "path": "assets/NotoSansJP.ttf",
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansjp/NotoSansJP%5Bwght%5D.ttf",
+    "sha256": "c2f3b4d463500a2ddcd3849cded1fceeb9fd6d1c32e6cbecd568453ba50fc68f",
+    "bytes": 9589900
+  },
+  {
+    "path": "assets/NotoSansJP-OFL.txt",
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansjp/OFL.txt",
+    "sha256": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9",
+    "bytes": 4388
+  },
+  {
+    "path": "assets/NotoSansKR.ttf",
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf",
+    "sha256": "194018e6b2b293a7964f037b25c0249ce1418bc9ab3c971060a03aa57861e252",
+    "bytes": 10414588
+  },
+  {
+    "path": "assets/NotoSansKR-OFL.txt",
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanskr/OFL.txt",
+    "sha256": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9",
+    "bytes": 4388
+  },
+  {
+    "path": "assets/NotoSansTC.ttf",
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanstc/NotoSansTC%5Bwght%5D.ttf",
+    "sha256": "864727d210d54f2537bbe23b3a839436c3992af72de9322af5270897246bd44f",
+    "bytes": 11941968
+  },
+  {
+    "path": "assets/NotoSansTC-OFL.txt",
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanstc/OFL.txt",
+    "sha256": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9",
+    "bytes": 4388
+  },
+  {
+    "path": "assets/MDcardDiagramSans-Regular.ttf",
+    "source": "assets/NotoSansSC.ttf",
+    "generator": "scripts/generate-diagram-font.py; fonttools 4.61.1; wght=400; OFL family renamed",
+    "sha256": "0fa37a0b37999c876bb03e708df7632a77c915233cfeb99539a13fd0c6096997",
+    "bytes": 10595928
+  },
+  {
+    "path": "assets/MDcardDiagramSansKR-Regular.ttf",
+    "source": "assets/NotoSansKR.ttf",
+    "generator": "scripts/generate-diagram-font.py; fonttools 4.61.1; wght=400; OFL family renamed",
+    "sha256": "f37b3d2ec50bd2dbe87789cfe2729efb0afb820820b5b893dc2466ab78db9654",
+    "bytes": 6224880
+  },
+  {
+    "path": "assets/MDcardUISansJP-Regular.ttf",
+    "source": "assets/NotoSansJP.ttf",
+    "generator": "scripts/generate-ui-fonts.py; fonttools; wght=400; OFL family renamed",
+    "sha256": "0c0c65af946b19502e189c1ee7d661e2a3bf3c457013bee00c9e9f627e4fe5ea",
+    "bytes": 5766812
+  },
+  {
+    "path": "assets/MDcardUISansTC-Regular.ttf",
+    "source": "assets/NotoSansTC.ttf",
+    "generator": "scripts/generate-ui-fonts.py; fonttools; wght=400; OFL family renamed",
+    "sha256": "6717d73ad6fe027d65a2abed82e78f3e6c18dc02fb3764c03288ab913988fd81",
+    "bytes": 7149108
+  },
+  {
+    "path": "assets/NotoSansSC.ttf",
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf",
+    "sha256": "a3041811a78c361b1de50f953c805e0244951c21c5bd412f7232ef0d899af0da",
+    "bytes": 17772300,
+    "verification": "embedded copyright/license inspected; Google Fonts upstream family URL; baseline bytes retained"
+  },
+  {
+    "path": "assets/OFL.txt",
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/OFL.txt",
+    "sha256": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9",
+    "bytes": 4388,
+    "verification": "embedded copyright/license inspected; Google Fonts upstream family URL; baseline bytes retained"
+  },
+  {
+    "path": "assets/NotoEmoji.ttf",
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/notoemoji/NotoEmoji%5Bwght%5D.ttf",
+    "sha256": "de6c18832938afc99caf132b39d6a30a19bac7f2e812e28db2535b4608d27551",
+    "bytes": 1982596,
+    "verification": "embedded copyright/license inspected; Google Fonts upstream family URL; baseline bytes retained"
+  },
+  {
+    "path": "assets/NotoEmoji-OFL.txt",
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/notoemoji/OFL.txt",
+    "sha256": "500bb1ccf43df7bbb522112f9133a52b16e1c35e809632f5d8609b179152de5b",
+    "bytes": 4330,
+    "verification": "embedded copyright/license inspected; Google Fonts upstream family URL; baseline bytes retained"
+  }
+]

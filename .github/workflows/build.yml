@@ -1,0 +1,51 @@
+name: Open source checks
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  desktop:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+      - uses: dtolnay/rust-toolchain@1.92.0
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libegl1-mesa-dev
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --locked --all-targets -- -D warnings
+      - run: cargo test --locked
+      - run: cargo build --locked --release
+  renderer-and-site:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: renderer/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: renderer
+      - run: npm run build
+        working-directory: renderer
+      - run: python3 scripts/prepare-development.py
+      - run: npx --no-install playwright install --with-deps chromium
+        working-directory: renderer
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ./runtime/browsers
+      - run: npm test
+        working-directory: renderer
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ./runtime/browsers
+      - run: node --test export-process.test.mjs
+        working-directory: renderer
+      - run: node website/scripts/build.mjs

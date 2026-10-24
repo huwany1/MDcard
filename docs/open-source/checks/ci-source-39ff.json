@@ -1,0 +1,54 @@
+{
+  "source_commit": "39ffb198f77123bf8924e2b07122ebd0a2b12b56",
+  "run_id": 40092696769,
+  "url": "https://github.com/huwany1/MDcard/actions/runs/40092696769",
+  "event": "push",
+  "observed_by": "implementation agent and independent master",
+  "status": "completed",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "id": 120868465335,
+      "name": "desktop (ubuntu-22.04)",
+      "conclusion": "success",
+      "checks": [
+        "fmt",
+        "clippy -D warnings",
+        "cargo test --locked",
+        "release build"
+      ]
+    },
+    {
+      "id": 120868465461,
+      "name": "renderer-and-site",
+      "conclusion": "success",
+      "checks": [
+        "clean npm ci",
+        "bundle",
+        "pinned PlantUML",
+        "official Chromium download",
+        "30 engine/theme cases",
+        "5 lifecycle tests",
+        "static site build"
+      ]
+    },
+    {
+      "id": 120868465494,
+      "name": "desktop (windows-latest)",
+      "conclusion": "success",
+      "checks": [
+        "native MSVC environment",
+        "fmt",
+        "clippy -D warnings",
+        "cargo test --locked",
+        "release build"
+      ]
+    }
+  ],
+  "previous_failed_runs_retained": [
+    40091251272,
+    40091775545
+  ],
+  "duplicate_pr_workflow": "Not needed for the acceptance gate; see GitHub Actions for its live state. No assertion that queued/running jobs passed.",
+  "final_documentation_commits": "Only documentation/evidence changes follow this tested source commit. Any subsequent queued CI is not counted as passed."
+}
