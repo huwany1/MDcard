@@ -51,7 +51,7 @@ PlantUML 需 Java 17+；Word/EPUB 等可选管线需 Pandoc。完整命令、额
 
 当前不含自动保存和稿件崩溃恢复；原子保存、外部修改检测和关闭提示不能替代备份。阅读位置状态不包含草稿正文。HTTP(S) 图片和点击外链可能联网；不能把本机渲染概括为应用永不访问网络。
 
-[历史 Windows 验收使用 Windows 11 / 125% DPI，Linux 使用 Debian 12 / X11；其他 DPI、Wayland、桌面和驱动组合未全面验证。没有 macOS 正式包。历史性能数据仅适用于其记录环境，不代表所有设备或物理屏幕延迟。本次开源验证的命令和结果见验收报告](docs/open-source/ACCEPTANCE.md)；后续方向见[成熟度路线图](docs/MATURITY_ROADMAP.md)。
+历史 Windows 验收使用 Windows 11 / 125% DPI，Linux 使用 Debian 12 / X11；其他 DPI、Wayland、桌面和驱动组合未全面验证。没有 macOS 正式包。历史性能数据仅适用于其记录环境，不代表所有设备或物理屏幕延迟。本次开源验证的命令和结果见[验收报告](docs/open-source/ACCEPTANCE.md)；后续方向见[成熟度路线图](docs/MATURITY_ROADMAP.md)。
 
 源码导入基线与旧发行包二进制身份分别记录；本次构建不会声称与旧包二进制逐字节一致。原始本地日志、截图、部署配置与私人状态不公开，历史文档是设计和验收摘要，不能视作本次重新运行。
 

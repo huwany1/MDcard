@@ -45,8 +45,9 @@ export async function render({kind,source,dark,inline,font=18,svg:inputSvg}) {
     target.innerHTML=DOMPurify.sanitize(html,{USE_PROFILES:{html:true,mathMl:true,svg:true,svgFilters:true},FORBID_TAGS:forbidden,FORBID_ATTR:['href','src','onerror','onclick']});
   } else {
     if(kind==='mermaid') {
+      if(/^\s*flowchart-elk\b/im.test(source)) throw Error('ELK layout is not included in this build; use the default Dagre layout.');
       if(/%%\s*\{|^\s*---|^\s*click\s+\w+\s+(?:call|href|["'])/im.test(source)) throw Error('Diagram configuration and callbacks are disabled.');
-      mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:dark?'dark':'default',fontFamily:'MDcard Diagram Sans, MDcard Diagram Sans KR, sans-serif',htmlLabels:false,maxTextSize:65536,maxEdges:500,secure:['securityLevel','secure','startOnLoad','maxTextSize','maxEdges','theme','htmlLabels','themeCSS','themeVariables','flowchart','sequence','fontFamily']});
+      mermaid.initialize({startOnLoad:false,layout:'dagre',securityLevel:'strict',theme:dark?'dark':'default',fontFamily:'MDcard Diagram Sans, MDcard Diagram Sans KR, sans-serif',htmlLabels:false,maxTextSize:65536,maxEdges:500,secure:['securityLevel','secure','startOnLoad','maxTextSize','maxEdges','theme','htmlLabels','themeCSS','themeVariables','flowchart','sequence','fontFamily']});
       svg=(await mermaid.render('diagram',source)).svg;
     } else if(kind==='flow') {
       // flowchart.js/Raphael supports URL labels. Navigation is never part of our source language.

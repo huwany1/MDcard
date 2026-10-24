@@ -26,4 +26,4 @@ src/data/releases.json 是当前正式 Windows R3 / Linux R29 的构建输入，
 
 公开画面和演示素材的来源见[ASSETS.md](ASSETS.md)，功能陈述边界见[CLAIMS.md](CLAIMS.md)。样例在 samples/从原稿到作品.md，HTML/PDF/ZIP是该公开稿件的真实导出。网页三态仅解释视图，没有在线编辑或本地文件能力。自有网站源码 AGPL-3.0-only；既有产品包仍按随附许可识别。
 
-[旧的原始浏览器报告、部署日志、安装状态与一次性上传脚本不公开；本次开源报告](../docs/open-source/ACCEPTANCE.md)给出范围和检查。旧 ACCEPTANCE / OBSERVATIONS 只记录历史，不能作为本次重新验证或部署声明。
+旧的原始浏览器报告、部署日志、安装状态与一次性上传脚本不公开；[本次开源报告](../docs/open-source/ACCEPTANCE.md)给出范围和检查。旧 ACCEPTANCE / OBSERVATIONS 只记录历史，不能作为本次重新验证或部署声明。

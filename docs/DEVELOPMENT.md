@@ -91,6 +91,6 @@ node scripts/serve.mjs
 
 主 CI 执行 Windows/Linux cargo 检查、renderer Linux 真实引擎/进程测试、网站构建；运行状态看 GitHub Actions，排队不算通过。tests 下独立 Cargo 工程含锁文件和相对 source include，按需 cargo run/test --manifest-path tests/对应目录/Cargo.toml --locked。
 
-[scripts 内大量 verify-*.ps1 / verify-*.py 及 package-*.py 是保留的历史验收和候选打包工具。它们可能写死旧候选路径、/work 或本地产品包，需按参数和环境调整，也可能需要 xdotool、Xvfb、pywinauto、Pillow、字体工具或独立证据目录。这些不属于干净编译的必要步骤；其历史通过不自动变成本次通过。当前开源验证见报告](open-source/ACCEPTANCE.md)。
+scripts 内大量 verify-*.ps1 / verify-*.py 及 package-*.py 是保留的历史验收和候选打包工具。它们可能写死旧候选路径、/work 或本地产品包，需按参数和环境调整，也可能需要 xdotool、Xvfb、pywinauto、Pillow、字体工具或独立证据目录。这些不属于干净编译的必要步骤；其历史通过不自动变成本次通过。当前开源验证见[报告](open-source/ACCEPTANCE.md)。
 
 本次验证使用干净 Git 克隆；依赖注册表缓存和编译缓存可复用，但没有复制私人资源。可复现开发入口指依赖与输入可取得，不承诺所有机器二进制逐字节一致或旧包完全重现。
