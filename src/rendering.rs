@@ -3,6 +3,13 @@
 use eframe::egui_wgpu::{WgpuSetup, WgpuSetupCreateNew};
 use std::sync::Arc;
 
+pub const COMPATIBILITY_ENV: &str = "MDCARD_AUTOMATIC_SOFTWARE_COMPATIBILITY";
+
+pub fn automatic_compatibility() -> bool {
+    cfg!(target_os = "windows")
+        && std::env::var_os(COMPATIBILITY_ENV).is_some_and(|value| value == "1")
+}
+
 pub fn software_setup(language: crate::localization::Language) -> WgpuSetup {
     let mut setup = WgpuSetupCreateNew::default();
     // Do not consult WGPU_BACKEND: disabling acceleration must never enable a GPU.

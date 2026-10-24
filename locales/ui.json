@@ -338,7 +338,8 @@
     "The original text was missing or ambiguous; a safer position was used.": "The original text was missing or ambiguous; a safer position was used.",
     "No reliable match; an approximate position was used.": "No reliable match; an approximate position was used.",
     "No valid saved position; started at the top.": "No valid saved position; started at the top.",
-    "The saved text could not be shown reliably; the previous position was kept.": "The saved text could not be shown reliably; the previous position was kept."
+    "The saved text could not be shown reliably; the previous position was kept.": "The saved text could not be shown reliably; the previous position was kept.",
+    "Automatic graphics compatibility · GPU preference retained": "Automatic graphics compatibility · GPU preference retained"
   },
   "zh-CN": {
     "APPEARANCE": "外观",
@@ -679,7 +680,8 @@
     "The original text was missing or ambiguous; a safer position was used.": "原文字不存在或无法区分，已恢复到较可靠的位置。",
     "No reliable match; an approximate position was used.": "无法可靠定位文字，已使用近似位置。",
     "No valid saved position; started at the top.": "没有有效阅读位置，从顶部开始。",
-    "The saved text could not be shown reliably; the previous position was kept.": "未能可靠显示原文字，已保留先前的位置记录。"
+    "The saved text could not be shown reliably; the previous position was kept.": "未能可靠显示原文字，已保留先前的位置记录。",
+    "Automatic graphics compatibility · GPU preference retained": "自动图形兼容 · 保留 GPU 偏好"
   },
   "zh-TW": {
     "APPEARANCE": "外觀",
@@ -1020,7 +1022,8 @@
     "The original text was missing or ambiguous; a safer position was used.": "原文字不存在或無法區分，已還原至較可靠的位置。",
     "No reliable match; an approximate position was used.": "無法可靠定位文字，已使用近似位置。",
     "No valid saved position; started at the top.": "沒有有效閱讀位置，從頂部開始。",
-    "The saved text could not be shown reliably; the previous position was kept.": "未能可靠顯示原文字，已保留先前的位置記錄。"
+    "The saved text could not be shown reliably; the previous position was kept.": "未能可靠顯示原文字，已保留先前的位置記錄。",
+    "Automatic graphics compatibility · GPU preference retained": "自動圖形相容 · 保留 GPU 偏好"
   },
   "ko": {
     "APPEARANCE": "화면 모드",
@@ -1361,7 +1364,8 @@
     "The original text was missing or ambiguous; a safer position was used.": "원래 텍스트가 없거나 구별할 수 없어 더 확실한 위치를 사용했습니다.",
     "No reliable match; an approximate position was used.": "확실한 일치 항목이 없어 대략적인 위치를 사용했습니다.",
     "No valid saved position; started at the top.": "유효한 저장 위치가 없어 처음부터 표시했습니다.",
-    "The saved text could not be shown reliably; the previous position was kept.": "저장된 텍스트를 확실하게 표시할 수 없어 이전 위치 기록을 유지했습니다."
+    "The saved text could not be shown reliably; the previous position was kept.": "저장된 텍스트를 확실하게 표시할 수 없어 이전 위치 기록을 유지했습니다.",
+    "Automatic graphics compatibility · GPU preference retained": "자동 그래픽 호환 모드 · GPU 설정 유지"
   },
   "ja": {
     "APPEARANCE": "外観",
@@ -1702,7 +1706,8 @@
     "The original text was missing or ambiguous; a safer position was used.": "元のテキストがないか区別できないため、より確かな位置に復元しました。",
     "No reliable match; an approximate position was used.": "確実に一致する場所がなく、おおよその位置を使いました。",
     "No valid saved position; started at the top.": "有効な保存位置がないため、先頭から表示しました。",
-    "The saved text could not be shown reliably; the previous position was kept.": "保存したテキストを確実に表示できず、以前の位置記録を保持しました。"
+    "The saved text could not be shown reliably; the previous position was kept.": "保存したテキストを確実に表示できず、以前の位置記録を保持しました。",
+    "Automatic graphics compatibility · GPU preference retained": "グラフィックス互換モード · GPU 設定を保持"
   },
   "ru": {
     "APPEARANCE": "ОФОРМЛЕНИЕ",
@@ -2043,6 +2048,7 @@
     "The original text was missing or ambiguous; a safer position was used.": "Исходный текст отсутствует или неоднозначен; использована более надёжная позиция.",
     "No reliable match; an approximate position was used.": "Надёжного совпадения нет; использована приблизительная позиция.",
     "No valid saved position; started at the top.": "Нет действительной сохранённой позиции; открыт верх документа.",
-    "The saved text could not be shown reliably; the previous position was kept.": "Сохранённый текст не удалось надёжно показать; прежняя запись позиции сохранена."
+    "The saved text could not be shown reliably; the previous position was kept.": "Сохранённый текст не удалось надёжно показать; прежняя запись позиции сохранена.",
+    "Automatic graphics compatibility · GPU preference retained": "Автосовместимость графики · настройка GPU сохранена"
   }
 }

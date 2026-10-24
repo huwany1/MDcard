@@ -12,9 +12,43 @@ fn main() {
     }
     let out = PathBuf::from(env::var_os("OUT_DIR").unwrap());
     let rc = out.join("mdcard-icon.rc");
+    let version = env::var("CARGO_PKG_VERSION").expect("Cargo product version");
+    let major = env::var("CARGO_PKG_VERSION_MAJOR").unwrap();
+    let minor = env::var("CARGO_PKG_VERSION_MINOR").unwrap();
+    let patch = env::var("CARGO_PKG_VERSION_PATCH").unwrap();
     fs::write(
         &rc,
-        format!("1 ICON \"{}\"\n", icon.to_string_lossy().replace('\\', "/")),
+        format!(
+            r#"1 ICON "{}"
+1 VERSIONINFO
+FILEVERSION {major},{minor},{patch},0
+PRODUCTVERSION {major},{minor},{patch},0
+FILEFLAGSMASK 0x3fL
+FILEFLAGS 0x0L
+FILEOS 0x40004L
+FILETYPE 0x1L
+FILESUBTYPE 0x0L
+BEGIN
+ BLOCK "StringFileInfo"
+ BEGIN
+  BLOCK "040904b0"
+  BEGIN
+   VALUE "FileDescription", "MDcard\0"
+   VALUE "FileVersion", "{version}.0\0"
+   VALUE "InternalName", "MDcard\0"
+   VALUE "OriginalFilename", "MDcard.exe\0"
+   VALUE "ProductName", "MDcard\0"
+   VALUE "ProductVersion", "{version}\0"
+  END
+ END
+ BLOCK "VarFileInfo"
+ BEGIN
+  VALUE "Translation", 0x0409, 1200
+ END
+END
+"#,
+            icon.to_string_lossy().replace('\\', "/")
+        ),
     )
     .expect("write application icon resource");
     let msvc = env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("msvc");

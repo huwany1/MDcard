@@ -1452,6 +1452,8 @@ mod tests {
             preferences: preferences.clone(),
             saved_preferences: preferences,
             running_gpu: true,
+            requested_gpu_at_start: true,
+            automatic_compatibility: false,
             renderer: String::new(),
             palette,
             previous_palette: palette,

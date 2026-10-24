@@ -41,6 +41,8 @@ use localization::Language;
 use preferences::{Appearance, Preferences};
 use theme::{Palette, button};
 
+const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
+
 #[derive(Clone, Copy, PartialEq)]
 enum Mode {
     Edit,
@@ -165,6 +167,8 @@ struct Editor {
     preferences: Preferences,
     saved_preferences: Preferences,
     running_gpu: bool,
+    requested_gpu_at_start: bool,
+    automatic_compatibility: bool,
     renderer: String,
     palette: Palette,
     previous_palette: Palette,
@@ -301,6 +305,8 @@ impl Editor {
         let language = self.language;
         let p = self.palette;
         ui.set_min_width(270.0);
+        ui.label(RichText::new(format!("MDcard {APP_VERSION}")).strong());
+        ui.separator();
         ui.label(theme::label(language.text("LANGUAGE"), p));
         egui::ComboBox::from_id_salt("language")
             .selected_text(
@@ -400,7 +406,7 @@ impl Editor {
                 .small()
                 .color(p.muted),
         );
-        if self.preferences.gpu_acceleration != self.running_gpu {
+        if self.preferences.gpu_acceleration != self.requested_gpu_at_start {
             ui.label(
                 RichText::new(language.text("Restart required · your document stays open"))
                     .small()
@@ -408,6 +414,15 @@ impl Editor {
             );
         }
         ui.add_space(4.0);
+        if self.automatic_compatibility {
+            ui.label(
+                RichText::new(
+                    language.text("Automatic graphics compatibility · GPU preference retained"),
+                )
+                .small()
+                .color(p.muted),
+            );
+        }
         ui.label(
             RichText::new(if self.running_gpu {
                 language.text("Current: OpenGL (acceleration requested)")
@@ -625,7 +640,9 @@ impl Editor {
             native_corners: window_corners::NativeCorners::default(),
             native_icons: branding::NativeIcons::default(),
             language,
-            running_gpu: preferences.gpu_acceleration,
+            running_gpu: preferences.gpu_acceleration && !rendering::automatic_compatibility(),
+            requested_gpu_at_start: preferences.gpu_acceleration,
+            automatic_compatibility: rendering::automatic_compatibility(),
             saved_preferences: preferences.clone(),
             font_size: preferences.font_size,
             theme_key: (dark, preferences.accent),
@@ -2967,13 +2984,14 @@ impl eframe::App for Editor {
                         };
                         let lines = lines.to_string();
                         let characters = characters.to_string();
-                        let renderer = if self.preferences.gpu_acceleration != self.running_gpu {
-                            language.text("Restart required")
-                        } else if self.running_gpu {
-                            "OpenGL"
-                        } else {
-                            "CPU"
-                        };
+                        let renderer =
+                            if self.preferences.gpu_acceleration != self.requested_gpu_at_start {
+                                language.text("Restart required")
+                            } else if self.running_gpu {
+                                "OpenGL"
+                            } else {
+                                "CPU"
+                            };
                         let full = language.format(
                             "{renderer}    {lines} lines    {characters} characters",
                             &[
@@ -3286,6 +3304,13 @@ fn consume_file_search_shortcut(input: &mut egui::InputState) -> bool {
 }
 
 fn main() {
+    if std::env::args_os()
+        .skip(1)
+        .any(|arg| arg == "--version" || arg == "-V")
+    {
+        println!("MDcard {APP_VERSION}");
+        return;
+    }
     if let Err(error) = run() {
         let language = preferences::load()
             .ok()
@@ -3333,6 +3358,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .into());
         }
     }
+    let gpu_requested = preferences.gpu_acceleration;
+    let automatic_compatibility = rendering::automatic_compatibility();
+    let running_gpu = gpu_requested && !automatic_compatibility;
     let mut options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_icon(branding::window_icon())
@@ -3340,14 +3368,14 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             .with_min_inner_size([620.0, 420.0])
             .with_decorations(false)
             .with_title("MDcard"),
-        renderer: if preferences.gpu_acceleration {
+        renderer: if running_gpu {
             eframe::Renderer::Glow
         } else {
             eframe::Renderer::Wgpu
         },
         ..Default::default()
     };
-    if !preferences.gpu_acceleration {
+    if !running_gpu {
         options.wgpu_options.wgpu_setup = rendering::software_setup(
             preferences
                 .language
@@ -3360,22 +3388,54 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             options.viewport = options.viewport.with_inner_size([parts[0], parts[1]]);
         }
     }
-    eframe::run_native(
+    let creation_started = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let creation_observer = creation_started.clone();
+    let result = eframe::run_native(
         "MDcard",
         options,
         Box::new(move |cc| {
+            creation_observer.store(true, std::sync::atomic::Ordering::Release);
             let app = Editor::new(cc, path, preferences, settings_error);
             if let Some(file) = std::env::var_os("MDCARD_RENDERER_REPORT") {
                 std::fs::write(
                     file,
                     serde_json::to_vec_pretty(
-                        &serde_json::json!({"gpu_requested":app.running_gpu,"renderer":app.renderer,"settings_path":preferences::path(),"language":app.language.code(),"language_preference":app.preferences.language}),
+                        &serde_json::json!({"version":APP_VERSION,"gpu_requested":app.requested_gpu_at_start,"gpu_running":app.running_gpu,"automatic_compatibility":app.automatic_compatibility,"renderer":app.renderer,"settings_path":preferences::path(),"language":app.language.code(),"language_preference":app.preferences.language}),
                     )?,
                 )?;
             }
             Ok(Box::new(app))
         }),
-    )?;
+    );
+    if let Err(error) = result {
+        // Only recover a Windows graphics initialization failure before an
+        // editor/document exists. Never restart an editor containing user work.
+        let graphics_initialization = matches!(
+            error,
+            eframe::Error::OpenGL(_)
+                | eframe::Error::Glutin(_)
+                | eframe::Error::NoGlutinConfigs(..)
+        );
+        if cfg!(target_os = "windows")
+            && gpu_requested
+            && !automatic_compatibility
+            && !creation_started.load(std::sync::atomic::Ordering::Acquire)
+            && graphics_initialization
+        {
+            eprintln!(
+                "OpenGL initialization failed; using Windows CPU compatibility rendering: {error}"
+            );
+            // winit cannot safely recreate its event loop in this process.
+            // The one child inherits arguments, diagnostics and stdio. Its
+            // private marker selects WARP without writing the GPU preference.
+            let status = std::process::Command::new(std::env::current_exe()?)
+                .args(std::env::args_os().skip(1))
+                .env(rendering::COMPATIBILITY_ENV, "1")
+                .status()?;
+            std::process::exit(status.code().unwrap_or(1));
+        }
+        return Err(error.into());
+    }
     if let Err(error) = update_probe::finish() {
         eprintln!("Full-update observer final publication failed: {error}");
         std::process::exit(2);
