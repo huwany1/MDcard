@@ -208,10 +208,10 @@ impl NativeIcons {
                 let small_size = native::GetSystemMetricsForDpi(49, dpi);
                 let module = native::GetModuleHandleW(std::ptr::null());
                 // Resource 1 contains every optical ICO size; LoadImage selects its source.
-                let big =
-                    native::LoadImageW(module, 1usize as *const u16, 1, big_size, big_size, 0);
-                let small =
-                    native::LoadImageW(module, 1usize as *const u16, 1, small_size, small_size, 0);
+                // MAKEINTRESOURCEW(1) encodes an integer ID, not a memory pointer.
+                let resource_id = std::ptr::without_provenance::<u16>(1);
+                let big = native::LoadImageW(module, resource_id, 1, big_size, big_size, 0);
+                let small = native::LoadImageW(module, resource_id, 1, small_size, small_size, 0);
                 if big == 0 || small == 0 {
                     if big != 0 {
                         native::DestroyIcon(big);
@@ -238,7 +238,7 @@ impl NativeIcons {
     pub fn report(&self) -> serde_json::Value {
         #[cfg(target_os = "windows")]
         {
-            return self.icons.map(|icons|serde_json::json!({"dpi":icons.1,"big_pixels":icons.4,"small_pixels":icons.5,"source":"PE resource 1, LoadImageW size selection","big_handle":icons.2,"small_handle":icons.3})).unwrap_or(serde_json::Value::Null);
+            self.icons.map(|icons|serde_json::json!({"dpi":icons.1,"big_pixels":icons.4,"small_pixels":icons.5,"source":"PE resource 1, LoadImageW size selection","big_handle":icons.2,"small_handle":icons.3})).unwrap_or(serde_json::Value::Null)
         }
         #[cfg(not(target_os = "windows"))]
         {
