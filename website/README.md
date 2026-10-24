@@ -22,7 +22,7 @@ npx --no-install playwright install chromium
 
 ## 发布数据、素材与边界
 
-src/data/releases.json 是当前正式 Windows R3 / Linux R29 的构建输入，data/downloads.json 保存公开 URL，普通 build 不依赖上级 dist。维护者更新正式包时，可使用 scripts/releases.mjs 从自己的完整产品包重新计算后审核，不能把没有上传的本机路径写成下载地址。现有 GitHub Release、资产与 SHA256 保持原样。本次未重新部署线上产品页。
+src/data/releases.json 记录 0.1.0 的两平台来源、归档体积和哈希，data/downloads.json 保存实际公开 URL。普通 build 不依赖上级 dist；scripts/releases.mjs 接受显式发行索引路径。发布准备阶段的 URL 为 null，页面明确暂停下载；本地准备不代表已经上传或上线。完成本地验收后，先发布暂停下载状态，再替换 GitHub 资产，最后恢复经过公开下载复验的链接。
 
 公开画面和演示素材的来源见[ASSETS.md](ASSETS.md)，功能陈述边界见[CLAIMS.md](CLAIMS.md)。样例在 samples/从原稿到作品.md，HTML/PDF/ZIP是该公开稿件的真实导出。网页三态仅解释视图，没有在线编辑或本地文件能力。自有网站源码 AGPL-3.0-only；既有产品包仍按随附许可识别。
 
