@@ -9,6 +9,8 @@ import argparse,concurrent.futures,hashlib,json,os,shutil,tarfile,tempfile,urlli
 from pathlib import Path
 ROOT=Path(__file__).resolve().parent.parent
 p=argparse.ArgumentParser();p.add_argument('--proxy');p.add_argument('--platform',choices=['windows','linux','all'],default='all');p.add_argument('--discover',action='store_true');args=p.parse_args()
+if args.discover:
+ raise SystemExit('Redistribution builds require reviewed pinned unbranded Chromium sources and actual notices. Update export-runtime-sources.json explicitly; automatic Chrome-for-Testing discovery is disabled.')
 cache=ROOT/'artifacts/export-runtime';cache.mkdir(parents=True,exist_ok=True)
 opener=urllib.request.build_opener(urllib.request.ProxyHandler({'https':args.proxy,'http':args.proxy}) if args.proxy else urllib.request.ProxyHandler())
 specpath=ROOT/'renderer/export-runtime-sources.json'

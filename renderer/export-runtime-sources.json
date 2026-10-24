@@ -13,10 +13,15 @@
       "sha256": "6ef431cb20b2c24a0371fc19200dc49d452be54b1b5c9239f3462841ef53e587"
     },
     "chromium": {
-      "url": "https://cdn.playwright.dev/builds/cft/156.0.8078.4/win64/chrome-win64.zip",
-      "filename": "chrome-156.0.8078.4-win64.zip",
-      "verification": "HTTPS official Playwright CDN; transport-observed SHA256 pinned after first acquisition",
-      "sha256": "220021ecfdad08c116fc71a153e65e3861ba841c531afc4f7acc7bd5d44b41db"
+      "url": "https://github.com/ungoogled-software/ungoogled-chromium-windows/releases/download/155.0.8059.84-1.1/ungoogled-chromium_155.0.8059.84-1.1_windows_x64.zip",
+      "filename": "ungoogled-chromium_155.0.8059.84-1.1_windows_x64.zip",
+      "sha256": "ce4697b197faf3f8f7cb4838832930bdbd3f8c5be48a0e95dea9457c8293fab0",
+      "product": "ungoogled-chromium",
+      "version": "155.0.8059.84",
+      "buildTag": "155.0.8059.84-1.1",
+      "source": "https://github.com/ungoogled-software/ungoogled-chromium-windows/tree/155.0.8059.84-1.1",
+      "verification": "Official project GitHub release digest SHA256 verified; full actual chrome://credits retained",
+      "license": "BSD-3-Clause plus bundled component licences"
     }
   },
   "linux": {
@@ -33,10 +38,15 @@
       "sha256": "d0c90410e90204c9ca83b8539fac5c7aed01fd537207e4585849f8abc5df20b8"
     },
     "chromium": {
-      "url": "https://cdn.playwright.dev/builds/cft/156.0.8078.4/linux64/chrome-linux64.zip",
-      "filename": "chrome-156.0.8078.4-linux64.zip",
-      "verification": "HTTPS official Playwright CDN; transport-observed SHA256 pinned after first acquisition",
-      "sha256": "43fd31766c7533a02dda2ded5ad50c2f861cd5400be7509c0abad71129f79d79"
+      "url": "https://github.com/ungoogled-software/ungoogled-chromium-portablelinux/releases/download/156.0.8078.47-1/ungoogled-chromium-156.0.8078.47-1-x86_64_linux.tar.xz",
+      "filename": "ungoogled-chromium-156.0.8078.47-1-x86_64_linux.tar.xz",
+      "sha256": "3fd4ff6bc398a622f77c728ef80f00df41a10846fb60a647392a7983dc6ad28e",
+      "product": "ungoogled-chromium",
+      "version": "156.0.8078.47",
+      "buildTag": "156.0.8078.47-1",
+      "source": "https://github.com/ungoogled-software/ungoogled-chromium-portablelinux/tree/156.0.8078.47-1",
+      "verification": "Official project GitHub release digest SHA256 verified; full actual chrome://credits retained",
+      "license": "BSD-3-Clause plus bundled component licences"
     }
   }
 }
