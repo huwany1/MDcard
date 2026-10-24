@@ -1,18 +1,26 @@
-# MDcard
+# MDcard 0.1.0
 
 面向中文技术写作者的 Rust 原生 Markdown / 文本桌面编辑器，提供编辑、分屏、阅读、结构编辑、跨文件搜索、阅读位置恢复和本地公式图表渲染。
 
-[下载正式包](https://github.com/huwany1/MDcard/releases/tag/v0.1.1-20261024) · [产品页](https://mdcard-document-journey.wholeangel11.chatgpt.site/) · [构建说明](docs/DEVELOPMENT.md) · [文档导航](docs/README.md) · [报告问题](https://github.com/huwany1/MDcard/issues) · [贡献指南](CONTRIBUTING.md)
+[0.1.0 发行准备页](https://github.com/huwany1/MDcard/releases/tag/v0.1.0) · [产品页](https://mdcard-document-journey.wholeangel11.chatgpt.site/) · [构建说明](docs/DEVELOPMENT.md) · [文档导航](docs/README.md) · [报告问题](https://github.com/huwany1/MDcard/issues) · [贡献指南](CONTRIBUTING.md)
 
 ## 安装与运行
 
-Windows x86_64：[Icon Suite R3 ZIP](https://github.com/huwany1/MDcard/releases/download/v0.1.1-20261024/MDcard-0.1.1-icon-suite-20261024-r3-windows-x64.zip)。完整解压后运行 `MDcard.exe`，保留全部伴随资源。
+Windows / Linux 0.1.0 正在完成发行准备和公开下载闭环，完成前不提供应用压缩包下载。
 
-Linux x86_64：[R29 tar.gz](https://github.com/huwany1/MDcard/releases/download/v0.1.1-20261024/MDcard-0.1.1-precision-b-20261024-r29-linux-x64.tar.gz)。基于 Debian 12 / glibc 2.36，解压后运行 `chmod +x mdcard && ./mdcard`。Linux 桌面依赖和平台限制见[开发说明](docs/DEVELOPMENT.md)。
+0.1.0 发行目标是两平台采用同一冻结源码构建；完整解压后运行，保留 `renderer`、许可证和 `manifest.json`。无需另装 Node、Java、Chromium、Pandoc 或开发工具。
 
-请用现有 [SHA256SUMS.txt](https://github.com/huwany1/MDcard/releases/download/v0.1.1-20261024/SHA256SUMS.txt) 校验。两个正式包分别约 576 / 626 MiB，构建编号不同，随附 Node、Chromium、Java、Pandoc、字体和各自许可证。本次源码开源不替换或重新许可这些既有包，旧包的 MIT 权利及第三方授权保持有效。
+Windows 11 x64：运行 `MDcard.exe`。默认 OpenGL 不可用时自动使用 Windows 内置 CPU 图形后端，保留原 GPU 偏好；程序版本可用 `MDcard.exe --version` 查询。Windows 10 未作本轮支持声明。
 
-本轮源码的Windows路径别名重命名修复、ELK隔离和xmldom修复尚未重新打成发行包；旧R3/R29下载不会自动获得这些修复，仍可能存在相应边界问题。需要本轮修复请从源码构建，新安装包须另行验收发布。
+Linux x64：Debian 12 / glibc 2.36、X11 桌面，运行 `./mdcard`。系统需桌面图形/字体/音频库和可工作的原生文件对话框 portal；这些是系统桌面前提，应用运行时已随包提供。Debian 12 依赖：
+
+```sh
+sudo apt-get install libx11-6 libxcb1 libxkbcommon0 libxkbcommon-x11-0 libxcursor1 libxrandr2 libxi6 libgl1 libegl1 libvulkan1 mesa-vulkan-drivers libgl1-mesa-dri libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libatspi2.0-0 libcups2 libdrm2 libdbus-1-3 libgbm1 libasound2 libpango-1.0-0 libcairo2 libfontconfig1 libfreetype6 xdg-desktop-portal xdg-desktop-portal-gtk
+```
+
+校验资产与下载入口将在完整上传和下载复验后恢复；请勿使用历史应用包的校验值验证新包。本源码的自有应用版本统一 0.1.0；最终两平台构建提交、归档哈希及验收状态以包内 manifest.json 和独立发行元数据为准，对应源码保留在本仓库。逐文件白名单与用途、大小和 SHA256 位于包内 `manifest.json`；完整验收边界见[本次验收报告](https://github.com/huwany1/MDcard/blob/main/docs/releases/0.1.0-acceptance.json)和[正式发行索引](docs/releases/latest.json)。
+
+本源码包含路径别名重命名、ELK 隔离、xmldom 修复与最新已交付功能；本地公式图表和全部九种导出格式使用随包引擎。用户稿件、设置、源码快照、开发与测试工具、品牌交接资料和历史报告不随应用包分发。历史 MIT 授权继续保留；新应用包自有部分为 AGPL-3.0-only。
 
 ## 已有能力
 

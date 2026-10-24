@@ -40,12 +40,12 @@ Linux x64：Debian 12 / glibc 2.36、X11 桌面，运行 `./mdcard`。系统需�
 sudo apt-get install {libraries}
 ```
 
-{integrity}。两平台真实构建源为 [{source[:12]}]({source_url})，自有应用版本统一 0.1.0。逐文件白名单与用途、大小和 SHA256 位于包内 `manifest.json`；完整验收边界见[本次验收报告]({report})和[正式发行索引](docs/releases/latest.json)。
+{integrity.rstrip("。")}。两平台真实构建源为 [{source[:12]}]({source_url})，自有应用版本统一 0.1.0。逐文件白名单与用途、大小和 SHA256 位于包内 `manifest.json`；完整验收边界见[本次验收报告]({report})和[正式发行索引](docs/releases/latest.json)。
 
 本包包含路径别名重命名、ELK 隔离、xmldom 修复与最新已交付功能；本地公式图表和全部九种导出格式使用随包引擎。用户稿件、设置、源码快照、开发与测试工具、品牌交接资料和历史报告不随应用包分发。历史 MIT 授权继续保留；新应用包自有部分为 AGPL-3.0-only。
 
 '''
- readme=original.replace('# MDcard\n','# MDcard 0.1.0\n',1).replace('[下载正式包](https://github.com/huwany1/MDcard/releases/tag/v0.1.1-20261024)',title,1).replace(old_install,install)
+ readme=original.replace('# MDcard\n','# MDcard 0.1.0\n',1).replace('[下载正式包](https://github.com/huwany1/MDcard/releases/tag/v0.1.1-20261024)',title,1).replace('[0.1.0 发行准备页](https://github.com/huwany1/MDcard/releases/tag/v0.1.0)',title,1).replace(old_install,install)
  write(stage,'README.md',readme)
  navigation=(root/'docs/README.md').read_text('utf-8-sig')
  navigation_line=('当前 Windows / Linux 正式版本统一为 **0.1.0**。' if available else 'Windows / Linux 统一 0.1.0 发行准备和下载校验进行中，应用下载暂停。')+'运行和下载入口以[项目 README](../README.md)与[正式发行索引](releases/latest.json)为准。历史报告中的版本、路径和测试结果仅代表采集时状态，旧应用包不再作为当前下载入口。'

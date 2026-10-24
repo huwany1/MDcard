@@ -131,7 +131,7 @@ for platform in ['windows','linux']:
         if not (java/name).exists(): continue
         add(java/name,'renderer/runtime/java/'+name,'jlink module dependency closure selected by PlantUML jdeps; six supported locales; no JDK/debug/administrative launchers')
     add(source/'renderer/runtime/pandoc'/('pandoc.exe' if platform=='windows' else 'pandoc'),
-        'renderer/runtime/pandoc/'+('pandoc.exe' if platform=='windows' else 'pandoc'),'Bundled Pandoc executable for DOCX/EPUB; duplicate binaries and manuals omitted')
+        'renderer/runtime/pandoc/'+('pandoc.exe' if platform=='windows' else 'pandoc'),'Bundled Pandoc executable for DOCX/EPUB; duplicate binaries and manuals omitted'+('; original signed PE image retained byte-for-byte for publisher Authenticode verification, including its internal COFF/debug data' if platform=='windows' else ''))
     # Consolidate identical license texts once, with an attribution index naming
     # every original component path. No build tools or source snapshots included.
     legal={}

@@ -20,6 +20,9 @@ use std::{
     time::{Duration, Instant},
 };
 
+const RENDER_TIMEOUT: Duration = Duration::from_secs(18);
+const COLD_START_TIMEOUT: Duration = Duration::from_secs(60);
+
 #[derive(Clone, Deserialize)]
 struct Output {
     #[serde(skip)]
@@ -88,7 +91,7 @@ impl Worker {
                 let expired = watchdog_active
                     .lock()
                     .unwrap()
-                    .is_some_and(|t| t.elapsed() > Duration::from_secs(18));
+                    .is_some_and(|deadline| Instant::now() > deadline);
                 if watchdog_stop.load(Ordering::Relaxed) || expired {
                     let id = watchdog_pid.swap(0, Ordering::Relaxed);
                     if id != 0 {
@@ -143,6 +146,17 @@ impl Worker {
                     Err(_) => break,
                 };
                 let result = (|| -> Result<Output, String> {
+                    // A fresh Node/browser needs a bounded cold-start allowance.
+                    // Once any render succeeds, ordinary requests keep the 18s cap.
+                    // The watchdog and receive loop share this absolute deadline.
+                    let initialized = process.as_ref().is_some_and(|(_, _, _, ready)| *ready);
+                    let deadline = Instant::now()
+                        + if initialized {
+                            RENDER_TIMEOUT
+                        } else {
+                            COLD_START_TIMEOUT
+                        };
+                    *active.lock().unwrap() = Some(deadline);
                     if process.is_none() {
                         let mut child = command
                             .spawn()
@@ -165,21 +179,24 @@ impl Worker {
                                 }
                             }
                         });
-                        process = Some((child, input, line_rx));
+                        process = Some((child, input, line_rx, false));
                     }
-                    *active.lock().unwrap() = Some(Instant::now());
-                    let (_, input, lines) = process.as_mut().unwrap();
+                    let (_, input, lines, initialized) = process.as_mut().unwrap();
                     serde_json::to_writer(&mut *input, &request).map_err(|e| e.to_string())?;
                     input.write_all(b"\n").map_err(|e| e.to_string())?;
                     input.flush().map_err(|e| e.to_string())?;
-                    let deadline = Instant::now() + Duration::from_secs(18);
                     loop {
                         if stopping.load(Ordering::Relaxed) || Instant::now() > deadline {
                             return Err("Renderer timed out; the worker will restart.".into());
                         }
                         match lines.recv_timeout(Duration::from_millis(50)) {
                             Ok(line) => {
-                                return serde_json::from_str(&line).map_err(|e| e.to_string());
+                                let output: Output =
+                                    serde_json::from_str(&line).map_err(|e| e.to_string())?;
+                                if output.ok {
+                                    *initialized = true;
+                                }
+                                return Ok(output);
                             }
                             Err(mpsc::RecvTimeoutError::Timeout) => {}
                             Err(_) => {
@@ -190,7 +207,7 @@ impl Worker {
                 })();
                 *active.lock().unwrap() = None;
                 if result.is_err()
-                    && let Some((mut child, _, _)) = process.take()
+                    && let Some((mut child, _, _, _)) = process.take()
                 {
                     reap_worker(&mut child, &worker_pid);
                 }
@@ -207,7 +224,7 @@ impl Worker {
                 }));
                 ctx.request_repaint();
             }
-            if let Some((mut child, _, _)) = process.take() {
+            if let Some((mut child, _, _, _)) = process.take() {
                 reap_worker(&mut child, &worker_pid);
             }
         });
