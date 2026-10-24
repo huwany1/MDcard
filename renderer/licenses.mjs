@@ -16,4 +16,9 @@ const start=mhchem.indexOf('/********');const end=mhchem.indexOf('*/',start);
 if(start<0||end<start)throw Error('mhchem attribution header not found');
 parts.push('\nKaTeX mhchem embedded upstream attribution and adaptation notice\nSource: https://github.com/KaTeX/KaTeX/blob/v0.19.0/contrib/mhchem/mhchem.js\n'+mhchem.slice(start,end+2)+'\n');
 parts.push('\nPlantUML MIT build 1.2026.9\nSource: https://github.com/plantuml/plantuml/tree/v1.2026.9\nArtifact: https://github.com/plantuml/plantuml/releases/download/v1.2026.9/plantuml-mit-1.2026.9.jar\nSHA256: 835b2f2eb1d756da3f03bffdbd0baf252b4b858547a741ac8e972958a09c7f91\nThe MIT license applies to this explicitly selected MIT build. Other PlantUML distributions may have other licenses.\n');
-await writeFile('THIRD_PARTY_NOTICES.txt',parts.join('')+'\n'+await readFile('PlantUML-MIT-LICENSE.txt','utf8')+'\nNode.js runtime 24.21.0\n'+await readFile('Node-LICENSE.txt','utf8'));
+parts.push('\n'+await readFile('PlantUML-MIT-LICENSE.txt','utf8')+'\nNode.js runtime 24.21.0\n'+await readFile('Node-LICENSE.txt','utf8'));
+// npm installs host-specific optional binaries. Preserve reviewed notices from
+// other supported hosts; a Windows regeneration must not remove Linux LGPL text.
+let previous='';try{previous=await readFile('THIRD_PARTY_NOTICES.txt','utf8');}catch{}
+const missing=parts.filter(part=>!previous.includes(part));
+await writeFile('THIRD_PARTY_NOTICES.txt',previous+missing.join(''));
