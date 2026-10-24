@@ -10,7 +10,7 @@ import path from 'node:path';
 import {Worker} from 'node:worker_threads';
 import {killOwnedTree,runOwned} from './export-process.mjs';
 
-const terminal=async pid=>{try{const stat=await readFile(`/proc/${pid}/stat`,'utf8');return ['Z','X'].includes(stat.slice(stat.lastIndexOf(') ')+2).split(' ')[0]);}catch(e){if(e.code==='ENOENT')return true;throw e;}};
+const terminal=async pid=>{try{const stat=await readFile(`/proc/${pid}/stat`,'utf8');return ['Z','X'].includes(stat.slice(stat.lastIndexOf(') ')+2).split(' ')[0]);}catch(e){if(e.code==='ENOENT'||e.code==='ESRCH')return true;throw e;}};
 test('Linux cancellation resolves only after detached descendants are terminal', {skip:process.platform!=='linux'},async()=>{
  const loads=Array.from({length:4},()=>new Worker('let n=1;for(;;){n=(n*1664525+1013904223)>>>0}',{eval:true}));
  const unrelated=spawn('/bin/sleep',['30']);const unrelatedClose=once(unrelated,'close');
