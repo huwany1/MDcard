@@ -69,9 +69,9 @@ npm.cmd test
 node --test export-process.test.mjs
 ```
 
-MDCARD_CHROMIUM 可指向现有 Chromium/Chrome；MDCARD_JAVA 可指向 Java。MDCARD_RENDERER_DIR 可显式指定 renderer 位置。默认从源码目录运行即可，不应引用维护者的磁盘目录。新 bundle 不包含 EPL ELK 布局器，指定 ELK 会明确报错；默认 flowchart/Dagre、sequence、mindmap 不依赖此布局。测试检查实际构建输入无 elkjs，并真实渲染这些默认图表。
+MDCARD_CHROMIUM 可为公式/图表 worker 指向现有 Chromium/Chrome/Edge；MDCARD_JAVA 可指向 Java。MDCARD_RENDERER_DIR 可显式指定 renderer 位置。默认从源码目录运行即可，不应引用维护者的磁盘目录。新 bundle 不包含 EPL ELK 布局器，指定 ELK 会明确报错；默认 flowchart/Dagre、sequence、mindmap 不依赖此布局。测试检查实际构建输入无 elkjs，并真实渲染这些默认图表。
 
-HTML/PDF/PNG/JPEG、DOCX/EPUB 与 Marp 各有额外管线。Word/EPUB 或显式 Pandoc 管线需要单独安装 Pandoc，可设置 MDCARD_PANDOC；Java 仅 PlantUML 需要。完整便携包的跨平台资源准备入口为 scripts/prepare-rich-runtime.py 与 scripts/prepare-export-runtime.py（会下载 Node/Java/Chromium/Pandoc，固定来源/哈希见 renderer 两份 runtime-sources JSON，量大且需要网络）。这些是打包维护入口，普通开发使用上面的主机步骤即可。新包必须重新验收，禁止用这些脚本覆盖既有 Releases。
+HTML/PDF/PNG/JPEG、DOCX/EPUB 与 Marp 各有额外管线。Word/EPUB 或显式 Pandoc 管线需要单独安装 Pandoc，可设置 MDCARD_PANDOC；Java 仅 PlantUML 需要。完整便携包的跨平台资源准备入口为 scripts/prepare-rich-runtime.py 与 scripts/prepare-export-runtime.py（会下载 Node/Java/Chromium/Pandoc，固定来源/哈希见 renderer 两份 runtime-sources JSON，量大且需要网络）。最小主机步骤可编辑文档并运行公式/图表；桌面导出当前仍要求 renderer/runtime/node（Windows 为 node.exe）及 runtime/<platform>/chromium 的完整资源，不能把 worker 的系统浏览器配置当成导出的配置。需要完整导出时，从仓库根运行 `python scripts/prepare-rich-runtime.py`（Java须在PATH）与 `python scripts/prepare-export-runtime.py --platform windows`，Linux 将参数改为 linux；不要省略后暗中依赖旧 dist。资源脚本下载会较大，原始许可和 runtime legal 目录须保留。新包必须重新验收，禁止用这些脚本覆盖既有 Releases。
 
 ## 网站
 
@@ -92,5 +92,7 @@ node scripts/serve.mjs
 主 CI 执行 Windows/Linux cargo 检查、renderer Linux 真实引擎/进程测试、网站构建；运行状态看 GitHub Actions，排队不算通过。tests 下独立 Cargo 工程含锁文件和相对 source include，按需 cargo run/test --manifest-path tests/对应目录/Cargo.toml --locked。
 
 scripts 内大量 verify-*.ps1 / verify-*.py 及 package-*.py 是保留的历史验收和候选打包工具。它们可能写死旧候选路径、/work 或本地产品包，需按参数和环境调整，也可能需要 xdotool、Xvfb、pywinauto、Pillow、字体工具或独立证据目录。这些不属于干净编译的必要步骤；其历史通过不自动变成本次通过。当前开源验证见[报告](open-source/ACCEPTANCE.md)。
+
+[已知依赖报告与本次修复](open-source/DEPENDENCY_RISKS.md)单独记录，不能把编译通过等同于无安全风险。
 
 本次验证使用干净 Git 克隆；依赖注册表缓存和编译缓存可复用，但没有复制私人资源。可复现开发入口指依赖与输入可取得，不承诺所有机器二进制逐字节一致或旧包完全重现。

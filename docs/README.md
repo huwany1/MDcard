@@ -1,9 +1,11 @@
 # MDcard 文档入口
 
-当前 Windows 正式版本为 **Icon Suite R3**，Linux 为 **R29**。运行程序、下载包与使用方法以[项目 README](../README.md)及 `dist/latest.json` 为准。历史报告中的版本、路径和测试结果仅代表其采集时状态。
+当前 Windows 正式版本为 **Icon Suite R3**，Linux 为 **R29**。运行程序、下载包与使用方法以[项目 README](../README.md)及[既有 Releases](https://github.com/huwany1/MDcard/releases/tag/v0.1.1-20261024)为准。源码仓库不含本地 dist/latest.json。历史报告中的版本、路径和测试结果仅代表其采集时状态。
 
 | 阅读目的 | 文档 |
 | --- | --- |
+| 从公开源码构建、运行和贡献 | [开发入口](DEVELOPMENT.md)、[贡献指南](../CONTRIBUTING.md) |
+| 当前开源范围、许可和验证 | [范围](open-source/SCOPE.md)、[授权](LICENSING.md)、[第三方来源](THIRD_PARTY.md)、[开源验收](open-source/ACCEPTANCE.md) |
 | 当前 Windows 图标、桌面入口与真实显示验收 | [图标接入合同](ICON_INTEGRATION.md)、[完整图标验收](ICON_INTEGRATION_ACCEPTANCE.md) |
 | 阅读位置与精度支持范围 | [阅读状态](READING_STATE.md)、[精度合同](READING_PRECISION.md)、[38 项精度验收](READING_PRECISION_ACCEPTANCE.md)、[R29 阅读精度交付](READING_PRECISION_DELIVERY.md) |
 | 搜索与跨文件替换 | [全局搜索](GLOBAL_SEARCH.md) |
