@@ -45,7 +45,12 @@ async function plantuml(source,dark,signal) {
   if(!java) {let candidate=path.join(runtime,'java','bin',process.platform==='win32'?'java.exe':'java');try{await access(candidate);java=candidate;}catch{java='java';}}
   const jar=path.join(root,'vendor/plantuml.jar');
   return await new Promise((resolve,reject)=>{
-    const child=spawn(java,['-Xmx192m','-Djava.awt.headless=true','-Dsun.java2d.fontpath='+path.join(root,'vendor/fonts'),'-DPLANTUML_SECURITY_PROFILE=SANDBOX','-jar',jar,'-tsvg','-pipe','-charset','UTF-8','-failfast2'],{signal,stdio:['pipe','pipe','pipe'],windowsHide:true,env:{PATH:process.env.PATH||'',SystemRoot:process.env.SystemRoot||'',PLANTUML_SECURITY_PROFILE:'SANDBOX'}});
+    // The JVM uses its native locale to locate JNI libraries as well as files.
+    // An empty Linux environment selects ASCII and breaks a bundled JRE located
+    // beneath a Chinese path, even though the diagram itself is UTF-8.
+    const javaEnv={PATH:process.env.PATH||'',SystemRoot:process.env.SystemRoot||'',PLANTUML_SECURITY_PROFILE:'SANDBOX'};
+    if(process.platform==='linux')Object.assign(javaEnv,{LANG:'C.UTF-8',LC_ALL:'C.UTF-8',HOME:process.env.HOME||''});
+    const child=spawn(java,['-Xmx192m','-Djava.awt.headless=true','-Dsun.java2d.fontpath='+path.join(root,'vendor/fonts'),'-DPLANTUML_SECURITY_PROFILE=SANDBOX','-jar',jar,'-tsvg','-pipe','-charset','UTF-8','-failfast2'],{signal,stdio:['pipe','pipe','pipe'],windowsHide:true,env:javaEnv});
     let output='',err='';const timer=setTimeout(()=>{child.kill();reject(Error('PlantUML timed out.'));},6000);
     child.stdout.on('data',d=>{output+=d;if(output.length>4e6)child.kill();});child.stderr.on('data',d=>{if(err.length<4000)err+=d;});
     child.on('error',e=>{clearTimeout(timer);reject(e);});child.on('exit',code=>{clearTimeout(timer);if(code!==0||!/\<svg\b/.test(output))reject(Error('PlantUML syntax error: '+err.slice(0,250)));else resolve(output);});
