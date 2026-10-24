@@ -12,6 +12,8 @@ Linux x86_64：[R29 tar.gz](https://github.com/huwany1/MDcard/releases/download/
 
 请用现有 [SHA256SUMS.txt](https://github.com/huwany1/MDcard/releases/download/v0.1.1-20261024/SHA256SUMS.txt) 校验。两个正式包分别约 576 / 626 MiB，构建编号不同，随附 Node、Chromium、Java、Pandoc、字体和各自许可证。本次源码开源不替换或重新许可这些既有包，旧包的 MIT 权利及第三方授权保持有效。
 
+本轮源码的Windows路径别名重命名修复、ELK隔离和xmldom修复尚未重新打成发行包；旧R3/R29下载不会自动获得这些修复，仍可能存在相应边界问题。需要本轮修复请从源码构建，新安装包须另行验收发布。
+
 ## 已有能力
 
 - Write / Split / Read 三视图、浅色/深色/跟随系统、六语言界面及原生文件打开保存。

@@ -4,7 +4,7 @@
 
 使用两层检查：scripts/audit-publication.py 对 staged blobs 与指定公开祖先做完整文本规则扫描和二进制清单；Gitleaks 8.30.1 对最终公开链 `--log-opts=HEAD` 扫描（工具官方发行 ZIP 已核对官方 checksum）。规则覆盖私钥、常见服务 token、JWT、带凭据 URL、secret assignment、个人主目录与邮箱。命中不输出秘密原文，仅保存路径、blob、行号和值哈希，逐项处置见[sensitive-findings.json](sensitive-findings.json)。
 
-初次候选扫描 480 个 unique blob、94 项邮箱模式命中，逐项核对全部位于第三方 copyright/contact 或 SSH git 源码地址，均为必要/公开上游声明，保留。没有以大范围 allowlist 忽略许可文件；最终扫描统计与修订范围见[验收报告](ACCEPTANCE.md)。
+初次候选扫描 480 个 unique blob、94 项邮箱模式命中，逐项核对全部位于第三方 copyright/contact 或 SSH git 源码地址，均为必要/公开上游声明，保留。没有以大范围 allowlist 忽略许可文件。加入真实渲染JSON后，Gitleaks generic-api-key 另命中30个cache SHA256；每项按公开test fixture与worker规范化请求重算并精确匹配，见[gitleaks-reviewed-findings.json](gitleaks-reviewed-findings.json)。扫描保留真实exit1及所有精确误报，不添加广泛ignore。最终扫描统计与修订范围见[验收报告](ACCEPTANCE.md)。
 
 ## 二进制与非 UTF-8 内容
 

@@ -48,10 +48,12 @@
     }
   ],
   "not_tested": [
-    "native Windows MSVC before remote CI",
     "fresh GUI complete export runtime and all nine export formats",
     "macOS/Wayland/all DPI/physical display latency",
     "fresh site deployment/performance",
     "full product security acceptance"
-  ]
+  ],
+  "final_functional_source_commit": "39ffb198f77123bf8924e2b07122ebd0a2b12b56",
+  "final_linux_validation": "desktop-linux-final-39ff.log: fmt, 222 passed/3 ignored, clippy and release success",
+  "native_windows_ci": "ci-source-39ff.json: successful native MSVC checks/tests/release"
 }

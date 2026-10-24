@@ -1,6 +1,6 @@
 # 从全新克隆构建
 
-本轮参考工具链为 Rust 1.92.0、Node.js 24、npm、Python 3.11+、Java 17+。Cargo.toml 的 rust-version 1.88 是声明下限，本轮未重验 1.88；不要把元数据下限视为整份锁文件已在该版本验证。网络安装会访问 crates.io、npm、Playwright、GitHub 等官方源；应用不会自动替你下载完整运行时。
+本轮参考工具链为 Rust 1.92.0、Node.js 24、npm、Python 3.11+、Java 17+。Cargo.toml 的 rust-version 1.88 是声明下限，本轮未重验 1.88；不要把元数据下限视为整份锁文件已在该版本验证。rust-toolchain.toml 固定1.92.0及rustfmt/clippy；使用rustup的cargo会按文件选择该工具链，首次可能下载。网络安装会访问 crates.io、npm、Playwright、GitHub 等官方源；应用不会自动替你下载完整运行时。
 
 ## 桌面程序
 
