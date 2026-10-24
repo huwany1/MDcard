@@ -1,0 +1,16 @@
+Base: egui_commonmark 0.22.0, copied from the Cargo.lock-pinned crates.io source.
+Upstream: https://github.com/lampsitter/egui_commonmark
+Licenses: LICENSE-MIT and LICENSE-APACHE, retained without modification.
+
+MDcard patch: src/parsers/pulldown.rs bounds table column widths to the
+available preview width. Each row uses top-aligned wrapping child UIs and
+the maximum measured cell height from the current frame. Row backgrounds
+are painted from those measurements before advancing to the next row.
+This avoids egui Grid's cached heights and vertical centering pushing
+wrapped text outside its row after resizing or mixing inline formatting.
+This retains the upstream Markdown events, links, math callbacks, and table
+rendering while allowing cells to reflow when a Read/Split pane is resized.
+No Markdown source or export pipeline is rewritten.
+
+Regression: src/main.rs::preview_layout_tests::table_cells_reflow_in_full_read_and_split_layouts
+Regression: src/main.rs::preview_layout_tests::wrapped_table_rows_contain_text_and_do_not_overlap

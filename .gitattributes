@@ -1,0 +1,26 @@
+# Keep evidence byte-for-byte; force portable source/script line endings.
+* -text
+*.rs text eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+*.toml text eol=lf
+Cargo.lock text eol=lf
+README.md text eol=lf
+locales/ui.json text eol=lf
+docs/GLOBAL_SEARCH.md text eol=lf
+docs/LARGE_DOCUMENT_PERFORMANCE.md text eol=lf
+Dockerfile text eol=lf
+.github/** text eol=lf
+# Preserve native test output byte-for-byte, including its Windows line endings.
+evidence/structure/** -text whitespace=cr-at-eol,-blank-at-eof
+# Preserve raw rich-rendering logs and upstream license texts byte-for-byte.
+evidence/rich/** -text whitespace=cr-at-eol,-blank-at-eof
+evidence/search/** -text whitespace=cr-at-eol,-blank-at-eof
+evidence/export/** -text whitespace=cr-at-eol,-blank-at-eof
+evidence/performance/** -text whitespace=cr-at-eol,-blank-at-eof
+# Preserve generated, unmodified upstream dependency license text.
+THIRD_PARTY_NOTICES.txt -text -whitespace
+*.mjs whitespace=cr-at-eol
+renderer/export-runtime-sources.json whitespace=cr-at-eol
+renderer/*LICENSE.txt -text -whitespace
+renderer/THIRD_PARTY_NOTICES.txt -text -whitespace

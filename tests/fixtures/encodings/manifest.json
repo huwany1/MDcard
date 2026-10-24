@@ -1,0 +1,80 @@
+[
+  {
+    "name": "utf8",
+    "codec": "utf-8",
+    "bom": false,
+    "text": "中文 🦀\r\nline\nlast\r"
+  },
+  {
+    "name": "utf8-bom",
+    "codec": "utf-8",
+    "bom": true,
+    "text": "Русский 🦀\r\nline\nlast\r"
+  },
+  {
+    "name": "utf16le",
+    "codec": "utf-16-le",
+    "bom": true,
+    "text": "中文 🦀\r\nline\nlast\r"
+  },
+  {
+    "name": "utf16be",
+    "codec": "utf-16-be",
+    "bom": true,
+    "text": "日本語 🦀\r\nline\nlast\r"
+  },
+  {
+    "name": "utf16le-no-bom",
+    "codec": "utf-16-le",
+    "bom": false,
+    "text": "中文 🦀\r\nline\nlast\r"
+  },
+  {
+    "name": "utf16be-no-bom",
+    "codec": "utf-16-be",
+    "bom": false,
+    "text": "日本語 🦀\r\nline\nlast\r"
+  },
+  {
+    "name": "gbk",
+    "codec": "gbk",
+    "bom": false,
+    "text": "简体中文测试\r\nline\nlast\r"
+  },
+  {
+    "name": "gb18030",
+    "codec": "gb18030",
+    "bom": false,
+    "text": "中文𠀀🦀\r\nline\nlast\r"
+  },
+  {
+    "name": "big5",
+    "codec": "big5",
+    "bom": false,
+    "text": "繁體中文測試\r\nline\nlast\r"
+  },
+  {
+    "name": "shift-jis",
+    "codec": "shift_jis",
+    "bom": false,
+    "text": "日本語テスト\r\nline\nlast\r"
+  },
+  {
+    "name": "euc-kr",
+    "codec": "euc_kr",
+    "bom": false,
+    "text": "한국어 테스트\r\nline\nlast\r"
+  },
+  {
+    "name": "windows1251",
+    "codec": "cp1251",
+    "bom": false,
+    "text": "Русский текст\r\nline\nlast\r"
+  },
+  {
+    "name": "windows1252",
+    "codec": "cp1252",
+    "bom": false,
+    "text": "café € résumé\r\nline\nlast\r"
+  }
+]

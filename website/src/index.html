@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>MDcard — 把一份原稿，变成可交付的作品</title>
+  <meta name="description" content="为中文技术写作者设计的 Rust 原生 Markdown 与文本桌面编辑器。从源码、分屏校对到多格式导出，让一份原稿走向作品。Windows 与 Linux 版本信息、真实使用画面与网页演示。">
+  <meta name="theme-color" content="#2D5BCA">
+  <link rel="canonical" href="https://mdcard-document-journey.wholeangel11.chatgpt.site/">
+  <meta property="og:type" content="website"><meta property="og:locale" content="zh_CN"><meta property="og:title" content="MDcard — 把一份原稿，变成可交付的作品">
+  <meta property="og:description" content="Rust 原生 Markdown 与文本桌面编辑器。写作、阅读、整理、交付，让想法走得更远。">
+  <meta property="og:url" content="https://mdcard-document-journey.wholeangel11.chatgpt.site/">
+  <meta property="og:image" content="https://mdcard-document-journey.wholeangel11.chatgpt.site/assets/share.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml"><link rel="alternate icon" href="./assets/favicon.ico">
+  <link rel="preload" href="./assets/product-split.webp" as="image" fetchpriority="high">
+  <link rel="stylesheet" href="./style.css"><script type="module" src="./app.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="masthead wrap">
+  <a class="brand" href="#" aria-label="MDcard 首页"><img src="./assets/favicon.svg" width="34" height="40" alt=""><span>MDcard</span></a>
+  <nav aria-label="主导航"><a href="#journey">文档的旅程</a><a href="#demo">网页演示</a><a href="#download" class="nav-download">获取 MDcard <span aria-hidden="true">↗</span></a></nav>
+</header>
+<main id="main">
+<section class="hero wrap" aria-labelledby="hero-title">
+  <div class="hero-copy"><p class="eyebrow"><span class="tiny-square"></span> 为中文技术写作者而作</p>
+    <h1 id="hero-title">把一份原稿，<br>变成<span class="ink-blue">可交付</span><br class="desktop-break">的作品。</h1>
+    <p class="hero-description">MDcard，一款 Rust 原生 Markdown 与文本桌面编辑器。<br class="wide-only">从第一行思路，到最后一份 PDF，<br class="wide-only">让写作、校对与交付，在同一处发生。</p>
+    <div class="hero-actions"><a class="button primary" href="#release-windows">获取 Windows 版本 <span aria-hidden="true">↓</span></a><a class="text-link" href="#release-linux">也有 Linux 版 <span aria-hidden="true">↗</span></a></div>
+    <p class="hero-footnote">本地文件 · 原生界面 · 你的原稿始终是原稿</p>
+  </div>
+  <div class="hero-visual"><div class="paper-back" aria-hidden="true"><span>从原稿到作品.md</span><b>01</b></div>
+    <figure class="product-hero"><div class="sheet-meta"><span><i></i> 一份文档的旅程</span><span>原稿 → 作品</span></div><img src="./assets/product-split.webp" width="1700" height="1075" fetchpriority="high" alt="MDcard Windows 正式版真实分屏界面：左侧中文 Markdown 原稿，右侧代码、表格、公式和流程图预览"><figcaption><span>真实产品画面 / Windows · Icon Suite R3</span><span>01 / 写下想法</span></figcaption></figure>
+    <div class="margin-note hero-note"><span aria-hidden="true">↖</span> 一边保留思路，<br>一边看见作品的样子。</div>
+  </div>
+</section>
+<div class="journey-strip"><div class="wrap journey-strip-inner"><span class="strip-label">一份文档，走得更远。</span><a href="#write"><b>01</b> 写作</a><span aria-hidden="true">⟶</span><a href="#read"><b>02</b> 阅读</a><span aria-hidden="true">⟶</span><a href="#organize"><b>03</b> 整理</a><span aria-hidden="true">⟶</span><a href="#deliver"><b>04</b> 交付</a></div></div>
+<section id="demo" class="demo-section wrap section-space" aria-labelledby="demo-title">
+  <div class="section-head"><p class="eyebrow">先看设计，再开始写作</p><div class="headline-row"><h2 id="demo-title">同一份原稿。<br>三种看法。</h2><p>专心写的时候，留下源码。<br>需要校对时，把结果放在身旁。<br>只想读一读，就让文字占据整个视野。</p></div></div>
+  <div class="demo-shell"><div class="demo-toolbar"><span class="demo-file"><span aria-hidden="true">▤</span> 从原稿到作品.md</span><span class="demo-badge">网页演示</span></div>
+    <div class="demo-controls"><p id="demo-help">切换视图，看看同一份文档的变化。此演示只用于体验视图，不是在线编辑器。</p><div class="tabs" role="tablist" aria-label="网页演示视图"><button id="tab-source" role="tab" aria-selected="false" aria-controls="demo-panel" tabindex="-1" data-mode="source">源码</button><button id="tab-split" role="tab" aria-selected="true" aria-controls="demo-panel" tabindex="0" data-mode="split">分屏</button><button id="tab-read" role="tab" aria-selected="false" aria-controls="demo-panel" tabindex="-1" data-mode="read">阅读</button></div></div>
+    <div id="demo-panel" class="demo-content" role="tabpanel" aria-labelledby="tab-split" tabindex="0" data-mode="split"><div class="demo-source"><div class="pane-label">MARKDOWN / 原稿</div><pre tabindex="0" aria-label="示例 Markdown 源码"><code id="demo-source"># 一份技术文档的诞生
+
+把复杂的思路，写成别人能读懂的说明。</code></pre></div><div class="demo-reading"><div class="pane-label">PREVIEW / 作品</div><article id="demo-rendered" class="demo-document"><h3>一份技术文档的诞生</h3><p>把复杂的思路，写成别人能读懂的说明。</p><p>完整演示正在载入；关闭 JavaScript 时仍可查看下方真实界面与下载信息。</p></article></div></div>
+    <div class="demo-bottom"><span id="demo-status" aria-live="polite">当前：分屏视图</span><span>同一份内容 / 不同的专注方式</span></div>
+  </div>
+  <div class="under-demo"><p>使用左右方向键、Home / End 切换；触屏可直接点选。窄屏分屏上下排列。</p><a href="./assets/manuscript.md" download="从原稿到作品.md">带走这份示例原稿 <span aria-hidden="true">↓</span></a></div>
+</section>
+<section id="journey" class="journey section-space" aria-labelledby="journey-title">
+  <div class="wrap section-head"><p class="eyebrow">不是功能清单，是你的工作日常</p><h2 id="journey-title">一份文档的旅程，<br>每一步都有着落。</h2><p class="section-intro">下面始终是同一份《从原稿到作品.md》。<br>真实界面、真实原稿，以及可以打开的交付文件。</p></div>
+  <article id="write" class="story-row wrap"><div class="story-copy"><p class="chapter">01 <span>写作 / WRITE</span></p><h3>先把想法写下来。<br>样子，随时看得见。</h3><p>写一份有代码、表格与公式的技术说明。在源码里保留表达，用分屏对照排版，不必反复跳出写作。</p><p class="outcome"><span>这一刻的结果</span>一份能继续编辑的 Markdown 原稿，和正在成形的阅读效果。</p><p class="margin-note">文字是主角。<br>工具在页边就好。</p></div><figure class="story-figure"><a href="./assets/product-write.webp" target="_blank" rel="noopener" aria-label="打开写作界面大图（新标签页）"><img src="./assets/product-write.webp" width="1700" height="1075" loading="lazy" alt="真实 MDcard 编辑模式：中文稿件保留标题、代码块和 Markdown 表格源码"></a><figcaption>编辑视图 · 本次实际修改“交付状态”后保存；原稿字节已核对。</figcaption></figure></article>
+  <article id="read" class="story-row reverse wrap"><div class="story-copy"><p class="chapter">02 <span>阅读 / READ</span></p><h3>离开一会儿，<br>再从这里读下去。</h3><p>切到阅读视图，检查段落之间是否连贯。跨文件返回时，分别记住每份文档的最后阅读位置、最远位置与已读状态。</p><p class="outcome"><span>这一刻的结果</span>接回上一段思路；滚到底部不会擅自把文档标成“读完”。</p><p class="boundary">位置恢复有精确、降级与失效边界；文档大幅改写后无法确认的位置会提示降级，不承诺任何修改后都精确命中。</p></div><figure class="story-figure"><a href="./assets/product-read.webp" target="_blank" rel="noopener" aria-label="打开阅读界面大图（新标签页）"><img src="./assets/product-read.webp" width="1700" height="1075" loading="lazy" alt="真实 MDcard 阅读模式：同一份技术文档显示段落、Rust 代码与表格，源码区域收起"></a><figcaption>阅读视图 · 当前 Windows 正式包；阅读状态边界见下方版本说明。</figcaption></figure></article>
+  <article id="organize" class="story-row wrap"><div class="story-copy"><p class="chapter">03 <span>整理 / REFINE</span></p><h3>让复杂的内容，<br>有清楚的结构。</h3><p>调整说明里的表格，查看公式与 Mermaid 流程图；使用结构操作编辑内容，再回到源码检查。搜索则帮你找回需要的那一行。</p><p class="outcome"><span>这一刻的结果</span>结构修改回到原稿里，思路与表现保持联系。公式、图表由随包运行时在本机处理。</p><a class="text-link" href="./assets/product-search.webp" target="_blank" rel="noopener">查看真实搜索界面 <span aria-hidden="true">↗</span></a></div><figure class="story-figure"><a href="./assets/product-structure.webp" target="_blank" rel="noopener" aria-label="打开结构操作界面大图（新标签页）"><img src="./assets/product-structure.webp" width="1700" height="1075" loading="lazy" alt="真实 MDcard 结构操作界面，在原稿上识别并编辑表格、公式与图表块"></a><figcaption>结构操作 · 普通正文预览只读，支持的结构块通过源码联动编辑。</figcaption></figure></article>
+  <article id="deliver" class="story-row reverse wrap"><div class="story-copy"><p class="chapter">04 <span>交付 / DELIVER</span></p><h3>稿子写完了。<br>让它去到读者那里。</h3><p>同一份原稿，导出给同事校对的 PDF，或能离线打开的单文件 HTML。也支持 Word、PNG/JPEG、EPUB，以及 Marp 演示文稿导出。</p><p class="outcome"><span>这一刻的结果</span>不是一张效果图，是一份真正可打开、可分享的文件。</p><div class="sample-links"><a href="./assets/manuscript.html" target="_blank" rel="noopener">在线预览 HTML <span aria-hidden="true">↗</span></a><a href="./assets/exports/manuscript-html.zip" download="从原稿到作品-HTML.zip">下载离线 HTML（ZIP） <span aria-hidden="true">↓</span></a><a href="./assets/manuscript.pdf" download="从原稿到作品.pdf">下载示例 PDF <span aria-hidden="true">↓</span></a></div></div><figure class="story-figure"><a href="./assets/product-export.webp" target="_blank" rel="noopener" aria-label="打开导出界面大图（新标签页）"><img src="./assets/product-export.webp" width="1700" height="1075" loading="lazy" alt="真实 MDcard 导出面板，可选择交付格式、主题、目录与输出路径"></a><figcaption>导出面板 · 本页 HTML / PDF 由当前正式包导出引擎生成，源稿 SHA256 一致。</figcaption></figure></article>
+</section>
+<section class="local-section wrap section-space" aria-labelledby="local-title"><div><p class="eyebrow">关于原稿，我们说清楚</p><h2 id="local-title">文件在本机。<br>边界，也摆在明处。</h2></div><div class="local-copy"><p>写作、搜索、阅读状态与公式图表处理在本机完成。原稿通过本机管道传给本地渲染进程，不上传到服务。</p><p>文档里的 HTTP(S) 图片、点击外部链接可能访问网络。导出遇到远程资源时按具体资源策略处理；“本地处理”不表示所有功能都永不联网。</p><p>正常关闭时的未保存提示、原子保存与外部修改检测，帮助保护正常操作。<strong>当前没有自动保存或崩溃恢复</strong>，请主动保存并做好备份。</p><p class="boundary">Windows 优先，提供 Linux x64 正式包。当前没有已验收的 macOS 版本；Linux 跨发行版与桌面环境的支持以实际验收范围为准。单个打开文件上限 16 MiB。</p></div></section>
+<section id="download" class="download-section section-space" aria-labelledby="download-title"><div class="wrap"><div class="download-heading"><div><p class="eyebrow">下一份作品，从这里开始</p><h2 id="download-title">给你的桌面，<br>留一张写作的卡片。</h2></div><img class="download-mark" src="./assets/brand-white.svg" width="128" height="128" alt="MDcard 卡片形 M 品牌图标"></div><p class="download-intro">选择你的平台，核对版本，再带走完整的工作台。<br>完整包随附本地渲染、导出运行时与字体；包体按实际大小展示。</p><div class="release-grid"><!-- RELEASE_PANELS --></div><p class="download-provenance">发布信息按平台独立维护 · 来自正式交付记录与压缩包实测校验 · 更新于 2026-10-24</p></div></section>
+<section class="questions wrap section-space" aria-labelledby="questions-title"><p class="eyebrow">开始之前</p><h2 id="questions-title">再多了解一点。</h2><details><summary>网页演示就是 MDcard 吗？</summary><p>网页演示是为了说明源码、分屏和阅读三种视图的轻量展示，不提供实际编辑、原生文件访问或本地渲染引擎。上方标注“真实产品画面”的截图来自 Windows 正式包，示例 HTML / PDF 来自该包导出引擎。</p></details><details><summary>我可以打开普通文本与代码文件吗？</summary><p>可以。MDcard 支持 Markdown、普通文本，以及多种常见代码和配置文件。非 Markdown 文件按原文显示，不会把 HTML 或代码当程序执行。文件类型、编码和 16 MiB 单文件上限仍适用。</p></details><details><summary>导出文件会和屏幕完全一样吗？</summary><p>导出使用对应格式的排版与资源处理。Word、EPUB、图片与幻灯片各有格式边界，不能承诺所有格式逐像素一致。请先用本页原稿与样例确认你的交付需求；Marp 的 HTML / PDF / PPTX 面向演示文稿。</p></details><details><summary>为什么 Windows 和 Linux 构建编号不同？</summary><p>两平台分别完成验收与晋升。当前 Windows 为 Icon Suite R3，Linux 为 R29；版本号相同不代表图标、二进制与验收身份相同。请以各自平台栏的文件名、构建与 SHA256 为准。</p></details></section>
+</main>
+<footer class="footer wrap"><a class="brand" href="#"><img src="./assets/favicon.svg" width="28" height="32" alt=""><span>MDcard</span></a><p>把一份原稿，变成可交付的作品。</p><a href="https://github.com/huwany1/MDcard" id="repository-link">GitHub <span aria-hidden="true">↗</span></a><span class="footer-note">写作有始，作品有终。</span></footer>
+</body></html>

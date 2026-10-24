@@ -1,0 +1,17 @@
+{
+  "nodeVersion": "24.21.0",
+  "nodeWindows": {
+    "url": "https://nodejs.org/dist/v24.21.0/win-x64/node.exe",
+    "sha256": "ba4e6d110e8c1592a1ecd390f6b05f3da124b13871a5be62b341a07a853c6c32"
+  },
+  "nodeLinux": {
+    "url": "https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-x64.tar.xz",
+    "sha256": "fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6"
+  },
+  "nodeChecksums": "https://nodejs.org/dist/v24.21.0/SHASUMS256.txt",
+  "plantuml": {
+    "version": "1.2026.9 MIT build",
+    "url": "https://github.com/plantuml/plantuml/releases/download/v1.2026.9/plantuml-mit-1.2026.9.jar",
+    "sha256": "835b2f2eb1d756da3f03bffdbd0baf252b4b858547a741ac8e972958a09c7f91"
+  }
+}
