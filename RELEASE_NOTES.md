@@ -14,4 +14,4 @@ Windows 11 x64；Linux Debian 12 x64 / glibc 2.36、X11，依赖清单见 README
 
 归档文件、哈希与保留理由由发行元数据和包内 manifest 绑定；[最终 C01—C07 验收报告](https://github.com/huwany1/MDcard/blob/main/docs/releases/0.1.0-acceptance.json)独立记录真实远程删除、上传和公开下载结果，冻结时的元数据不冒充发布后状态。历史标签和发布记录继续保留。
 
-自有代码与新应用为 AGPL-3.0-only；第三方运行时保留各自许可证和声明；历史 MIT 权利不撤销。
+项目自有源码、文档、示例、网站、品牌设计及其他自有资产统一采用 AGPL-3.0-only，不再提供 MIT 备选授权；授权范围见 [COPYRIGHT](COPYRIGHT) 和[统一授权说明](docs/LICENSING.md)。第三方源码和资产继续采用其原许可，见[第三方来源与例外清单](docs/THIRD_PARTY.md)。

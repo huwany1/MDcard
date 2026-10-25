@@ -24,6 +24,6 @@ npx --no-install playwright install chromium
 
 src/data/releases.json 记录 0.1.0 的两平台来源、归档体积和哈希，data/downloads.json 保存实际公开 URL。普通 build 不依赖上级 dist；scripts/releases.mjs 接受显式发行索引路径。发布准备阶段的 URL 为 null，页面明确暂停下载；本地准备不代表已经上传或上线。完成本地验收后，先发布暂停下载状态，再替换 GitHub 资产，最后恢复经过公开下载复验的链接。
 
-公开画面和演示素材的来源见[ASSETS.md](ASSETS.md)，功能陈述边界见[CLAIMS.md](CLAIMS.md)。样例在 samples/从原稿到作品.md，HTML/PDF/ZIP是该公开稿件的真实导出。网页三态仅解释视图，没有在线编辑或本地文件能力。自有网站源码 AGPL-3.0-only；既有产品包仍按随附许可识别。
+公开画面和演示素材的来源见[ASSETS.md](ASSETS.md)，功能陈述边界见[CLAIMS.md](CLAIMS.md)。样例在 samples/从原稿到作品.md，HTML/PDF/ZIP是该公开稿件的真实导出。网页三态仅解释视图，没有在线编辑或本地文件能力。自有网站源码、文档、样稿、设计及图片等资产统一为 AGPL-3.0-only，见根目录 [COPYRIGHT](../COPYRIGHT)；第三方素材及内嵌字体保留原许可，见[例外清单](../docs/THIRD_PARTY.md)。构建输出同时携带项目声明与字体 OFL。
 
 旧的原始浏览器报告、部署日志、安装状态与一次性上传脚本不公开；[本次开源报告](../docs/open-source/ACCEPTANCE.md)给出范围和检查。旧 ACCEPTANCE / OBSERVATIONS 只记录历史，不能作为本次重新验证或部署声明。

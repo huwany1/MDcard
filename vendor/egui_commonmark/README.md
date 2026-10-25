@@ -88,6 +88,13 @@ This crate uses the same MSRV as the latest released egui version.
 
 ## License
 
+This is the MDcard-modified checkout. MDcard-owned additions and modifications
+are licensed under AGPL-3.0-only (see [LICENSE-AGPL](LICENSE-AGPL) and
+[MDCARD_CHANGES.md](MDCARD_CHANGES.md)). The modified package's license expression
+is `(MIT OR Apache-2.0) AND AGPL-3.0-only`. The original license statement below
+applies to the upstream portions only; their copyrights and license texts are
+retained.
+
 Licensed under either of
 
  * Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)

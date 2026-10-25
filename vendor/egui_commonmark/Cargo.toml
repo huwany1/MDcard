@@ -20,6 +20,9 @@ include = [
     "src/**/*.rs",
     "LICENSE-MIT",
     "LICENSE-APACHE",
+    "LICENSE-AGPL",
+    "MDCARD_CHANGES.md",
+    "PATCHES.txt",
     "Cargo.toml",
 ]
 autolib = false
@@ -35,7 +38,8 @@ keywords = [
     "egui",
 ]
 categories = ["gui"]
-license = "MIT OR Apache-2.0"
+# Upstream portions: MIT OR Apache-2.0; MDcard-owned changes: AGPL-3.0-only.
+license = "(MIT OR Apache-2.0) AND AGPL-3.0-only"
 repository = "https://github.com/lampsitter/egui_commonmark"
 
 [package.metadata.docs.rs]

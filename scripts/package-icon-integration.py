@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import tomllib
 import zipfile
+from license_payload import copy_project_licenses
 
 ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser()
@@ -97,7 +98,8 @@ def copy_baseline(entry):
 
 pool_map(copy_baseline, baseline['files'])
 shutil.copy2(exe, stage / 'MDcard.exe')
-tracked = git('ls-files', '-z', '--', 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.txt', 'docs', 'locales', 'assets', 'renderer').split('\0')
+copy_project_licenses(ROOT, stage)
+tracked = git('ls-files', '-z', '--', 'README.md', 'LICENSE', 'COPYRIGHT', 'THIRD_PARTY_NOTICES.txt', 'docs', 'locales', 'assets', 'renderer').split('\0')
 for relative in filter(None, tracked):
     source = ROOT / relative
     if not source.is_file() or source.is_symlink():

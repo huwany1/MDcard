@@ -3,6 +3,7 @@
 """Package the native app and local renderer. System Chromium + Java >=17 required."""
 import argparse,datetime,hashlib,json,os,shutil,tarfile,zipfile
 from pathlib import Path
+from license_payload import copy_project_licenses
 ROOT=Path(__file__).resolve().parent.parent
 parser=argparse.ArgumentParser();parser.add_argument('--windows-exe',default=str(ROOT/'artifacts/rich/MDcard.exe'));parser.add_argument('--linux-exe',default=str(ROOT/'artifacts/rich/mdcard'));parser.add_argument('--module',choices=['rich','search'],default='rich');args=parser.parse_args()
 stamp=datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ');base=ROOT/'dist'/args.module/stamp
@@ -16,6 +17,7 @@ for platform,exe in [('windows',Path(args.windows_exe)),('linux',Path(args.linux
  shutil.copy2(exe,stage/('MDcard.exe' if platform=='windows' else 'mdcard'))
  for name in ['LICENSE','README.md','THIRD_PARTY_NOTICES.txt']:shutil.copy2(ROOT/name,stage/name)
  for folder in ['docs','examples','locales']:shutil.copytree(ROOT/folder,stage/folder)
+ copy_project_licenses(ROOT,stage)
  for name in ['OFL.txt','NotoSansJP-OFL.txt','NotoSansKR-OFL.txt','NotoSansTC-OFL.txt','NotoEmoji-OFL.txt','font-sources.json']:shutil.copy2(ROOT/'assets'/name,stage/name)
  for name in ['worker.mjs','package.json','package-lock.json','runtime-sources.json','THIRD_PARTY_NOTICES.txt','Node-LICENSE.txt','PlantUML-MIT-LICENSE.txt']:shutil.copy2(ROOT/'renderer'/name,renderer/name)
  shutil.copytree(ROOT/'renderer/vendor',renderer/'vendor')

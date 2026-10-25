@@ -15,6 +15,7 @@ import tarfile
 import tomllib
 import zipfile
 from pathlib import Path
+from license_payload import copy_project_licenses
 
 ROOT = Path(__file__).resolve().parent.parent
 parser = argparse.ArgumentParser()
@@ -87,6 +88,7 @@ for platform, binary in [("windows", args.windows_exe), ("linux", args.linux_exe
     for name in ["README.md", "LICENSE", "THIRD_PARTY_NOTICES.txt"]:
         shutil.copy2(ROOT / name, stage / name)
     shutil.copytree(ROOT / "docs", stage / "docs", dirs_exist_ok=True)
+    copy_project_licenses(ROOT, stage)
     shutil.copytree(ROOT / "locales", stage / "locales", dirs_exist_ok=True)
     # Include current font provenance and notices alongside embedded UI fonts.
     # Runtime resources stay compatible; new regular UI instances also ship as

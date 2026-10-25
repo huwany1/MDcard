@@ -12,7 +12,7 @@ async function font(name){if(!buffers.has(name))buffers.set(name,await readFile(
 export async function portableFontSfnt(text,korean=false){return await subsetFont(await font(korean?'MDcardDiagramSansKR':'MDcardDiagramSans'),text||' ',{targetFormat:'sfnt',preserveNameIds:[0,1,2,3,4,6,13,14]});}
 export async function portableFontCss(text){
  const names=['MDcardDiagramSans','MDcardDiagramSansKR'];const families=['MDcard Diagram Sans','MDcard Diagram Sans KR'];const css=[];
- for(let i=0;i<names.length;i++){const bytes=await subsetFont(await font(names[i]),text||' ',{targetFormat:'woff2',preserveNameIds:[1,2,3,4,6]});css.push(`@font-face{font-family:'${families[i]}';src:url(data:font/woff2;base64,${bytes.toString('base64')}) format('woff2')}`);}
+ for(let i=0;i<names.length;i++){const bytes=await subsetFont(await font(names[i]),text||' ',{targetFormat:'woff2',preserveNameIds:[0,1,2,3,4,6,13,14]});css.push(`@font-face{font-family:'${families[i]}';src:url(data:font/woff2;base64,${bytes.toString('base64')}) format('woff2')}`);}
  return css.join('\n');
 }
 export async function portableSvg(svg){

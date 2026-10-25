@@ -5,6 +5,11 @@ import path from 'node:path';
 const site=path.resolve(import.meta.dirname,'..');const src=path.join(site,'src'),out=path.join(site,'dist');
 await mkdir(out,{recursive:true});
 for(const file of ['index.html','style.css','app.js','assets','data'])await cp(path.join(src,file),path.join(out,file),{recursive:true});
+// Preserve project and embedded-font terms alongside standalone website samples.
+const repo=path.resolve(site,'..');
+for(const file of ['LICENSE','COPYRIGHT','docs/LICENSING.md','docs/THIRD_PARTY.md','assets/OFL.txt','assets/NotoSansJP-OFL.txt','assets/NotoSansKR-OFL.txt','assets/NotoSansTC-OFL.txt','assets/NotoEmoji-OFL.txt','assets/font-sources.json']){
+ const destination=path.join(out,file);await mkdir(path.dirname(destination),{recursive:true});await cp(path.join(repo,file),destination);
+}
 await cp(path.join(site,'samples/从原稿到作品.md'),path.join(out,'assets/manuscript.md'));
 await cp(path.join(src,'assets/exports/manuscript.html'),path.join(out,'assets/manuscript.html'));
 await cp(path.join(src,'assets/exports/manuscript.pdf'),path.join(out,'assets/manuscript.pdf'));

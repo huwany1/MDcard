@@ -3,6 +3,7 @@
 """Self-contained native packages: no system Node/Java/browser/Marp required."""
 import argparse,concurrent.futures,datetime,hashlib,json,os,shutil,subprocess,tarfile,tomllib,zipfile
 from pathlib import Path
+from license_payload import copy_project_licenses
 ROOT=Path(__file__).resolve().parent.parent
 p=argparse.ArgumentParser();p.add_argument('--windows-exe',default=str(ROOT/'artifacts/export/MDcard.exe'));p.add_argument('--linux-exe',default=str(ROOT/'artifacts/export/mdcard'));p.add_argument('--reuse-stage');args=p.parse_args()
 version=tomllib.loads((ROOT/'Cargo.toml').read_text('utf8'))['package']['version']
@@ -22,6 +23,7 @@ for platform,exe in [('windows',Path(args.windows_exe)),('linux',Path(args.linux
  copy(exe,stage/('MDcard.exe' if platform=='windows' else 'mdcard'))
  for name in ['LICENSE','README.md','THIRD_PARTY_NOTICES.txt']:copy(ROOT/name,stage/name)
  for name in ['docs','examples','locales']:tree(ROOT/name,stage/name)
+ copy_project_licenses(ROOT,stage)
  for name in ['OFL.txt','NotoSansJP-OFL.txt','NotoSansKR-OFL.txt','NotoSansTC-OFL.txt','NotoEmoji-OFL.txt','font-sources.json']:copy(ROOT/'assets'/name,stage/name)
  for name in ['worker.mjs','export.mjs','export-docx.mjs','export-fonts.mjs','export-process.mjs','package.json','package-lock.json','runtime-sources.json','export-runtime-sources.json','THIRD_PARTY_NOTICES.txt','Node-LICENSE.txt','PlantUML-MIT-LICENSE.txt']:copy(ROOT/'renderer'/name,renderer/name)
  tree(ROOT/'renderer/vendor',renderer/'vendor')
