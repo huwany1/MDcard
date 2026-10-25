@@ -40,34 +40,8 @@ Renderer 缓存总预算 32MiB/128 项，Rust 节点结果约 64MiB/128 项；�
 
 SVG 先 DOMPurify，再用 CSSOM 白名单与计算样式固化必要图形属性，再次清洗；SVG 不含外链、可执行元素或用户 CSS。导出默认插入可信主题背景，独立白底查看器也保持暗色可读。内嵌 SC/KR 静态 OFL 字体及 fallback 提供中文、日文、韩文标签；字体经修改已使用新名称。
 
-运行脚本：
+## 回归入口
 
-- `renderer/test.mjs`：真实引擎、亮暗主题、缓存和错误恢复。
-- `scripts/verify-rich-independent.mjs`：独立引擎/攻击/CSS/SVG 箭头/IPC 验收。
-- `tests/rich-acceptance`：独立 parser、原子补丁、随机畸形输入。
-- `scripts/verify-rich-windows.ps1 -OutputDir <dir> -BomCrLf`：真实 Windows GUI、BOM/CRLF、编辑/撤销、模式、缩放/平移/导出。
-- `scripts/verify-rich-lifecycle.ps1 -Exe <exe>`：假 worker 不读 stdin、超时重启和退出。
-- `scripts/verify-rich-linux.py`：私有 Xvfb/Openbox 真实键鼠、六语、视口懒加载与连续输入性能。`MDCARD_RICH_OUTPUT` / `MDCARD_RICH_EXE` / `MDCARD_RICH_DISPLAY` 可隔离测试。
+`python scripts/check.py --renderer` 执行真实引擎主题/缓存/错误恢复和进程/CLI 回归。`node scripts/verify-rich-independent.mjs` 检查清洗后 SVG 的真实样式、箭头、攻击与 IPC；`tests/rich-acceptance` 直接引入真实 parser/补丁代码，覆盖随机畸形输入。前提和额外 GUI/导出工具见[开发说明](DEVELOPMENT.md)与[工具入口](../scripts/README.md)。
 
-`MDCARD_RICH_REPORT` 仅验收启用，报告 parse/submission/cache/visible/offscreen/completed/error、实际 viewStates、控件区域、输入帧/滚动帧/交互帧 update CPU 数组与 sourceEditor phase。CPU 不等于 GPU 呈现帧率；输入测试必须断言保存字符完整，不能混入大量 idle 帧宣称 60fps。
-
-官方参考：[KaTeX 支持语法](https://katex.org/docs/supported.html)、[KaTeX 安全](https://katex.org/docs/security.html)、[Mermaid 配置](https://mermaid.js.org/config/schema-docs/config.html)、[Mermaid 安全公告](https://github.com/mermaid-js/mermaid/security/advisories)、[PlantUML 安全](https://plantuml.com/security)、[DOMPurify](https://github.com/cure53/DOMPurify)、[egui TextEdit](https://docs.rs/egui/0.33.3/egui/widgets/text_edit/struct.TextEdit.html)。
-
-## 最终本地验收记录
-
-最终原生程序：Windows `F61C4C6312EB760C6F98581752E24D73BDB92941C91BB1C0A8BC3E4D00AE434F`；Linux `05b7b41683225993f77cc2c07886f1a73a7c7d6d3f1e6d38629f81c28f1c8580`（SHA256）。最终功能报告：`evidence/rich/windows-final/result.json`、`evidence/rich/linux-release/result.json`。早期 `linux` / `linux-final` / `linux-performance` / `windows` / `windows-debug` 是开发记录，不能覆盖最终结果。独立验收见 `evidence/rich/master-review`。
-
-Windows 最终GUI验证公式同行、节点源码编辑、真正左右分屏、共享撤销/重做、滚轮缩放与拖拽平移、SVG/PNG 导出、亮暗主题、未改节点零新提交及五秒内退出。分屏源码列与画布位置还有几何断言。Linux 最终GUI验证同一编辑/历史/缩放路径、六语菜单、韩文原生SVG标签；40个图表初始仅提交4个，滚动后累计17个，原文无改变。Linux 导出对话框未另测，以 Windows 的真实导出为证据。
-
-性能平台为 Debian12 / Xvfb X11 / Openbox / llvmpipe，Node24 / Chromium155 / Java17。两种文档分别在 Split 和 Write 连续输入104字符（60ms键间隔），每份最终保存208字符，逐字对照通过。统计只取真实输入帧和滚动帧；交互包含输入后500ms内防抖解析，GPU呈现和系统输入传输不在计时内。
-
-| 文档 | Split 输入 P95 / 最大 | Write 输入 P95 / 最大 | Split / Write 滚动 P95 |
-| --- | --- | --- | --- |
-| 150,895B，2,000公式节点 | 4.11 / 4.76ms | 3.09 / 4.30ms | 2.05 / 1.68ms |
-| 1,141,895B（1.09MiB），5,000公式节点 | 15.58 / 20.41ms | 14.04 / 16.85ms | 7.82 / 6.01ms |
-
-该1MiB样本的 P95 输入CPU落在16.7ms预算内，但部分输入帧超预算，防抖后的交互最大30.82ms；小文档冷启动/首次渲染也有27.51ms update。**没有实测GPU连续呈现60fps，也不宣称任意长文档、任意语法或每一帧无掉帧。** 引擎超时、冷字体加载、大型布局和含全局引用定义文档可能更慢。完整原始数组和运行UUID、程序hash在对应报告中。
-
-包清单与哈希由 `scripts/package-rich.py` 写入 `evidence/rich/packages/result.json`；独立逐文件归档和安全路径校验为 `scripts/verify-rich-packages.py`，Linux 干净解压原生启动为 `scripts/verify-rich-package-linux.py`；Windows干净包可用 `verify-rich-windows.ps1 -UsePackagedRenderer -BomCrLf -Exe <解压MDcard.exe>`。这些发行包包含本地 Node 和引擎；系统浏览器与 Java 是明确前置依赖，禁止把开发目录启动证据当成干净包启动证据。
-
-SVG 保留文字与字体族；外部查看器通过对应字体或系统fallback显示文字，不自动安装字体。包内OFL字体与许可证在renderer/vendor/fonts和根目录通知文件中。
+ELK 布局不包含在当前 browser bundle，指定它会明确报错；默认 Dagre、sequence、mindmap 继续使用。平台、DPI、输入法与端到端性能需要独立实际验证。

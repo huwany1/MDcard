@@ -26,3 +26,13 @@ __pycache__/
 # Local website QA output and private hosting configuration.
 /website/evidence/
 /website/.openai/
+
+# Local archives and tool environments; public sample exports remain tracked.
+/.local/
+/.venv/
+/.env
+/.env.local
+/website/.env.local
+/scripts/.venv/
+/assets/branding/mdcard-icon/preview/
+/assets/branding/mdcard-icon/manifest.sha256

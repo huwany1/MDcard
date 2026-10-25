@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (c) 2026 MDcard contributors
-param([string]$Exe="$PSScriptRoot\..\artifacts\structure\MDcard.exe")
+param([string]$Exe="$PSScriptRoot\..\target\release\mdcard.exe")
 $ErrorActionPreference='Stop'
 . "$PSScriptRoot\verify-ui-gpu-windows.ps1" -Exe $Exe -FunctionsOnly
 $output=Join-Path $root 'evidence\structure\windows-final'
@@ -53,28 +53,28 @@ try {
  if(([regex]::Matches($text,'(?m)^\|')).Count -ne 4){throw 'Deleting last row left an extra body row'}
  MustContain $text 'surviving cell'
  # Column add/delete and alignment shortcuts operate from grid focus.
- Click 494 301;Keys '^a';Paste 'extra column';$text=ReadSaved;MustContain $text 'extra column'
- Click 602 301;Keys '^a';Paste '20';$text=ReadSaved
+ Click 494 285;Keys '^a';Paste 'extra column';$text=ReadSaved;MustContain $text 'extra column'
+ Click 612 285;Keys '^a';Paste '20';$text=ReadSaved
  if($text.Contains('extra column')){throw 'Delete final column failed'}
  Keys '^%2';$text=ReadSaved;MustContain $text '| :--- | :---: |'
- RightClick 340 360;Shot '04-column-menu';Keys '{ESC}'
+ RightClick 340 347;Shot '04-column-menu'
  # Right click also keeps the correct target. First menu action inserts before column zero.
- RightClick 340 360;Click 400 382;$text=ReadSaved
+ Click 400 368;$text=ReadSaved
  MustContain $text '|   | Name | Value |'
  Keys '^z';$text=ReadSaved
  MustContain $text '| Name | Value |'
  # Whole-table deletion is one reversible source operation.
- Click 433 263;$text=ReadSaved
+ Click 433 245;$text=ReadSaved
  if($text.Contains('| Name | Value |')){throw 'Delete table failed'}
  Keys '^z';$text=ReadSaved;MustContain $text '| Name | Value |'
  # Real pointer drag, distant insertion order, visible insertion feedback.
- Click 372 190;Shot '05-blocks'
- Drag 282 375 400 470 '06-drag-target'
+ Click 378 169;Shot '05-blocks'
+ Drag 292 362 400 475 '06-drag-target'
  $text=ReadSaved
  if(!($text.IndexOf('Beta paragraph.') -lt $text.IndexOf('Gamma paragraph.') -and $text.IndexOf('Gamma paragraph.') -lt $text.IndexOf('Alpha 🦀 paragraph.'))){throw 'Distant block drag did not insert after target'}
  Shot '07-blocks-reordered'
  # The moved block stays selected for repeated commands, rather than following an old AST index.
- Click 309 263;$text=ReadSaved
+ Click 309 245;$text=ReadSaved
  if(!($text.IndexOf('Alpha 🦀 paragraph.') -lt $text.IndexOf('Gamma paragraph.'))){throw 'Move up lost selected block identity'}
  Keys '^z';Keys '^s'
  # Small native window must retain the structural controls and a scrollable body.
@@ -116,7 +116,7 @@ try {
  $bytes=[IO.File]::ReadAllBytes($fixture)
  if($bytes[0] -ne 239 -or $bytes[1] -ne 187 -or $bytes[2] -ne 191){throw 'UTF-8 BOM was lost after visual edit'}
  @{
-  verification_id=$verificationId;date='2026-10-19';timezone='Asia/Shanghai';exe=(Resolve-Path $Exe).Path;exe_sha256=(Get-FileHash $Exe).Hash
+  verification_id=$verificationId;date=[DateTimeOffset]::UtcNow.ToString('o');timezone='UTC';exe=(Resolve-Path $Exe).Path;exe_sha256=(Get-FileHash $Exe).Hash
   real_mouse_keyboard=$true;untouched_bytes_exact=$true;bom_retained=$true;cell_edit_pipe_unicode=$true;save_retains_grid_focus=$true;tab_shift_tab=$true
   final_tab_adds_row=$true;delete_final_row_column_focus=$true;column_insert_before=$true;column_context_menu=$true;alignment_shortcut=$true;table_delete_undo=$true
   distant_pointer_drag=$true;block_identity_after_move=$true;compact_logical='620x420';test_windows_closed=$true

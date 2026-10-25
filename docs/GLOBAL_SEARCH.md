@@ -1,6 +1,6 @@
 # 全局搜索、Quick Switcher 与正则替换契约
 
-2026-10-22 后续审计消除未变化索引的重复哈希、全篇行号分配和快照重建，并分开记录排队、处理与 UI 轮询耗时。跨完整复检周期的负载对照和最终候选包验收见 [后续台账](BUG_AUDIT_FOLLOWUP_2026-10-22.md)；有限样本不构成任意环境下低于 50ms 的保证。
+2026-10-22 后续审计消除未变化索引的重复哈希、全篇行号分配和快照重建，并分开记录排队、处理与 UI 轮询耗时。有限样本不构成任意环境下低于 50ms 的保证。
 
 实施基线：`codex/global-search`，原生 Rust/egui。唯一实现子代理修改模块，主代理独立验收。保留结构编辑、编码安全保存与六语言 UI。
 
@@ -36,31 +36,6 @@ ReDoS 防护不依赖回溯引擎。每次捕获查找前，按**展开后的实
 
 事务采用“全量 preflight → 原/新快照持久化 → prepared manifest → 每文件原子写 → committed manifest”。它没有文件系统级多文件原子性；中途失败按已写列表补偿。补偿也失败时保留 `recovery_required`，重启后能继续回滚。快照 manifest 与备份读取限长、拒绝链接与逃逸/重复路径；恢复文档的解码和保存格式在任何写入前验证。
 
-## 验收证据
+## 回归入口
 
-完整验收记录见 `evidence/search/`。`tests/search-acceptance` 和 `scripts/verify-search-master-windows.ps1` 由主代理独立编写，不依赖实现自报结果。最终执行与二进制哈希以 JSON / 日志为准，下面的测量不能外推为任意硬件、任意大小或任意正则都低于 50ms。
-
-| 验收项 | 实测与入口 |
-|---|---|
-| GS01 原生引擎 | 独立 1600 篇 / 18,659,070 bytes，Windows/Linux 160 轮持续多次索引刷新与真实修改；`evidence/search/master-review/performance*.json` |
-| GS01 真 UI | Linux X11/Mesa，1600 篇 / 13,674,346 bytes，100 轮、32.14 秒，含常见词/无结果/Unicode/正则与增删改、完整字节复检。输入 changed 到实际结果绘制包含 worker、UI poll、呈现：p50 **19.58ms**，p95 **35.74ms**，p99/max **63.10ms**；worker p95 **18.72ms** / max **25.62ms**；`evidence/search/linux-ui-performance/performance.json`。真实 UI 存在一次超过 50ms 的调度尾延迟，未将它混同为引擎耗时或删除；Windows 独立 UI 记录见 `evidence/search/master-review/windows-ui-performance/performance.json` |
-| GS01 Windows 真 UI | 同为 1600 篇 / 13,674,346 bytes，100 轮五类 query，每轮断言匹配数，151 秒包含稳定键鼠间隔及增删改/完整复检。输入 changed→绘制结果 **p95 14.21ms / max 14.46ms**，worker max **12.65ms**，engine max **12.52ms**；`evidence/search/master-review/windows-ui-performance/performance.json` |
-| GS02/GS03 实际 GUI | Windows、Linux 鼠标键盘验证捕获组 diff、一次撤销重做、按 Glob 跨文件提交、磁盘/内存同步、重启回滚、标题/alias/MRU Quick、键盘/分屏/缺失新建及 Unicode 第 350 行精确选择；`evidence/search/master-review/windows/result.json`、`evidence/search/linux-final/result.json` |
-| GS04/GS05 核心 | 根项目全部单测、独立捕获/Unicode/零宽/截止对抗/路径防逃逸/dirty encoding/过期预览/外改拒绝/重启回滚；第 2 文件真实注入写失败、补偿失败与 `recovery_required` 再恢复，回滚中途失败的反向补偿；日志 `evidence/search/core-linux.txt`、`evidence/search/master-review/core-windows.txt` |
-| 六语言 | zh-CN、zh-TW、en、ko、ja、ru 的搜索、Quick、内联错误截图与目录完整性/字体测试；`evidence/search/linux-final/*-search-error.png`、`*-quick.png` |
-
-最终检查：根项目单测 **71/71**；主代理独立 harness 连同其引用的原模块单测 Windows **47/47**、Linux **49/49**，均零失败/跳过；`cargo clippy --locked --all-targets -- -D warnings`、`cargo fmt --all -- --check` 通过。包含从 Workspace 无效 Glob 切到 Single 的回归，Single 连隐藏过滤器语法解析也会跳过。
-
-复现命令：
-
-```sh
-cargo test --locked
-cargo clippy --locked --all-targets -- -D warnings
-cargo fmt --all -- --check
-cargo test --manifest-path tests/search-acceptance/Cargo.toml --release --locked -- --nocapture
-python3 scripts/verify-search-linux.py
-python3 scripts/verify-search-ui-performance.py
-python3 scripts/package-rich.py --module search --windows-exe artifacts/global-search/MDcard.exe --linux-exe artifacts/global-search/mdcard
-```
-
-Windows GUI：`pwsh -File scripts/verify-search-master-windows.ps1 -Exe artifacts/global-search/MDcard.exe`。上述模块历史验收为 Windows 本机和 Debian/X11 软件 OpenGL，未声称已经验证所有 Linux 桌面、Wayland、macOS、DPI 或输入法组合。当时交付的是独立 `dist/MDcard-0.1.0-search-*-x64`，该包现已清理；下文所述 0.1.1 完整包也是历史交付身份；当前统一 0.1.0 发行状态和下载入口见[项目 README](../README.md)与[正式索引](releases/latest.json)。2026-10-22 的后续缺陷修复和新证据见 [Bug 台账](BUG_AUDIT_2026-10-22.md)，不能用本节历史证据替代新候选包验收。
+运行 `cargo test --locked` 和 `cargo test --locked --manifest-path tests/search-acceptance/Cargo.toml`，覆盖捕获组、Unicode、预算与路径/冲突/补偿保护。历史 GUI 测量不能外推为任何设备、任意语料或正则均低于固定延迟；变更交互需另行原生复验。见[开发说明](DEVELOPMENT.md)。

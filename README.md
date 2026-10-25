@@ -4,7 +4,7 @@
 
 [下载正式包](https://github.com/huwany1/MDcard/releases/tag/v0.1.0) · [产品页](https://mdcard-document-journey.wholeangel11.chatgpt.site/) · [构建说明](docs/DEVELOPMENT.md) · [文档导航](docs/README.md) · [报告问题](https://github.com/huwany1/MDcard/issues) · [贡献指南](CONTRIBUTING.md)
 
-本地源码与开发入口统一在当前仓库根目录。本次 0.1.0 发行资产和两平台运行目录位于 `dist/0.1.0/`，实际平台路径与校验值见 `dist/latest.json`。原始品牌设计保留在 `assets/branding/`，本地验收与迁移记录保存在 `evidence/`。
+源码开发入口为当前仓库根目录。构建产物、下载运行时、原始验收与部署记录不属于源码输入；品牌可编辑源、实际网站素材和必要许可保留。
 
 ## 安装与运行
 
@@ -21,7 +21,7 @@ Linux x64：Debian 12 / glibc 2.36、X11 桌面，运行 `./mdcard`。系统需�
 sudo apt-get install libx11-6 libxcb1 libxkbcommon0 libxkbcommon-x11-0 libxcursor1 libxrandr2 libxi6 libgl1 libegl1 libvulkan1 mesa-vulkan-drivers libgl1-mesa-dri libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libatspi2.0-0 libcups2 libdrm2 libdbus-1-3 libgbm1 libasound2 libpango-1.0-0 libcairo2 libfontconfig1 libfreetype6 xdg-desktop-portal xdg-desktop-portal-gtk
 ```
 
-[SHA256SUMS.txt](https://github.com/huwany1/MDcard/releases/download/v0.1.0/SHA256SUMS.txt) · [发行元数据](https://github.com/huwany1/MDcard/releases/download/v0.1.0/MDcard-0.1.0-release.json)。两平台真实构建源为 [c453689171b0](https://github.com/huwany1/MDcard/tree/c453689171b09463c57cc217fa48974a080854f2)，自有应用版本统一 0.1.0。逐文件白名单与用途、大小和 SHA256 位于包内 `manifest.json`；完整验收边界见[本次验收报告](https://github.com/huwany1/MDcard/blob/main/docs/releases/0.1.0-acceptance.json)和[正式发行索引](docs/releases/latest.json)。
+[SHA256SUMS.txt](https://github.com/huwany1/MDcard/releases/download/v0.1.0/SHA256SUMS.txt) · [发行元数据](https://github.com/huwany1/MDcard/releases/download/v0.1.0/MDcard-0.1.0-release.json)。两平台真实构建源为 [c453689171b0](https://github.com/huwany1/MDcard/tree/c453689171b09463c57cc217fa48974a080854f2)，自有应用版本统一 0.1.0。逐文件白名单与用途、大小和 SHA256 位于包内 `manifest.json`；发行身份以该 Release 的元数据和包内 manifest 为准，网站使用 `website/src/data/releases.json`。
 
 本包包含路径别名重命名、ELK 隔离、xmldom 修复与最新已交付功能；本地公式图表和全部九种导出格式使用随包引擎。用户稿件、设置、源码快照、开发与测试工具、品牌交接资料和历史报告不随应用包分发。项目自有源码与资产统一采用 AGPL-3.0-only；第三方内容见[来源与例外清单](docs/THIRD_PARTY.md)。
 
@@ -64,7 +64,7 @@ PlantUML 需 Java 17+；Word/EPUB 等可选管线需 Pandoc。完整命令、额
 
 当前不含自动保存和稿件崩溃恢复；原子保存、外部修改检测和关闭提示不能替代备份。阅读位置状态不包含草稿正文。HTTP(S) 图片和点击外链可能联网；不能把本机渲染概括为应用永不访问网络。
 
-历史 Windows 验收使用 Windows 11 / 125% DPI，Linux 使用 Debian 12 / X11；其他 DPI、Wayland、桌面和驱动组合未全面验证。没有 macOS 正式包。历史性能数据仅适用于其记录环境，不代表所有设备或物理屏幕延迟。历史开源验证的命令和结果见[验收报告](docs/open-source/ACCEPTANCE.md)；后续方向见[成熟度路线图](docs/MATURITY_ROADMAP.md)。
+历史 Windows 验收使用 Windows 11 / 125% DPI，Linux 使用 Debian 12 / X11；其他 DPI、Wayland、桌面和驱动组合未全面验证。没有 macOS 正式包。历史性能数据仅适用于其记录环境，不代表所有设备或物理屏幕延迟。当前开发步骤见[开发说明](docs/DEVELOPMENT.md)，模块约束见[维护地图](docs/ARCHITECTURE.md)。
 
 源码导入基线与旧发行包二进制身份分别记录；本次构建不会声称与旧包二进制逐字节一致。原始本地日志、截图、部署配置与私人状态不公开，历史文档是设计和验收摘要，不能视作本次重新运行。
 

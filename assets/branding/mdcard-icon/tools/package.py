@@ -9,11 +9,11 @@ import zipfile
 ROOT=Path(__file__).resolve().parents[1]
 REPO=ROOT.parents[2]
 parser=argparse.ArgumentParser()
-parser.add_argument('--output',type=Path,default=REPO/'artifacts/icon-design/2026-10-24/MDcard-icon-kit.zip')
+parser.add_argument('--output',type=Path,default=REPO/'artifacts/icon-design/MDcard-icon-kit.zip')
 DEST=parser.parse_args().output.resolve()
 legal={name:REPO/name for name in ('LICENSE','COPYRIGHT','docs/LICENSING.md','docs/THIRD_PARTY.md')}
 def resources():
-    return sorted(p for p in ROOT.rglob('*') if p.is_file() and 'node_modules' not in p.parts and '__pycache__' not in p.parts and p.name!='manifest.sha256')
+    return sorted(p for p in ROOT.rglob('*') if p.is_file() and 'node_modules' not in p.parts and '__pycache__' not in p.parts and 'preview' not in p.relative_to(ROOT).parts and p.name not in {'.gitignore','manifest.sha256'})
 lines=[f'{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.relative_to(ROOT).as_posix()}' for p in resources()]
 (ROOT/'manifest.sha256').write_text('\n'.join(lines)+'\n',encoding='utf-8',newline='\n')
 files=resources()+[ROOT/'manifest.sha256']

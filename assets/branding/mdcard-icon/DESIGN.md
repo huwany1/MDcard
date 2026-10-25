@@ -1,6 +1,6 @@
 # MDcard 图标设计与交接
 
-交付日期：2026-10-24。交付范围为图标设计、可编辑源文件、多尺寸资源和离线预览。程序接入及应用重新打包为后续任务。
+保留可编辑源文件、多尺寸资源和可复用生成工具。程序接入见 docs/ICON_INTEGRATION.md；预览及哈希清单在本地重生成。
 
 本套自有设计、SVG/PNG/ICO、预览和生成脚本统一采用 **AGPL-3.0-only**，见根目录 [COPYRIGHT](../../../COPYRIGHT) 和 [LICENSE](../../../LICENSE)。独立图标包同时附上这些文件及 `docs/LICENSING.md`、`docs/THIRD_PARTY.md`；构建工具依赖仍采用各自许可。
 
@@ -54,18 +54,17 @@ SVG 的白色卡片遮罩和黑色 M 遮罩仅控制 Alpha，实际可见的填�
 | `preview/index.html` | 完全离线的 CSS 实际尺寸预览页 |
 | `manifest.sha256` | 本目录交付文件逐个 SHA256（不含清单自身和本地依赖缓存） |
 | `tools/` | 固定渲染依赖、生成脚本、预览脚本、校验与资源包脚本 |
-| `ACCEPTANCE.md` | IC-01～IC-08 制作自检与独立验收引用 |
 
 Windows ICO 内部存放对应尺寸 PNG 数据，不依赖系统把一个 256px 图像任意缩放。16/24/32px 条目与光学校正 PNG 完全相同。
 
 ## 查看与重建
 
-直接打开 `preview/index.html`。用于尺寸验收时，浏览器缩放设为 100%；所有 `data-actual-size` 图像都保持图片像素=CSS 像素。物理显示像素仍取决于操作系统缩放和 DPR，未把这等同于所有屏幕的物理尺寸。
+先运行下列 preview.py，再打开本地 `preview/index.html`。用于尺寸验收时，浏览器缩放设为 100%；所有 `data-actual-size` 图像都保持图片像素=CSS 像素。物理显示像素仍取决于操作系统缩放和 DPR，未把这等同于所有屏幕的物理尺寸。
 
 生成环境：Node.js，`@resvg/resvg-js 2.6.2`，Python 3，Pillow（`tools/requirements.txt` 记录版本）。渲染器是开发时依赖，SVG/PNG/ICO/HTML 使用时不需要安装它。
 
 ```powershell
-cd D:\MDcard\assets\branding\mdcard-icon\tools
+cd assets/branding/mdcard-icon/tools
 npm.cmd ci --ignore-scripts --no-audit --no-fund
 python -m pip install -r requirements.txt
 node generate.mjs
@@ -74,8 +73,8 @@ python verify.py
 python package.py
 ```
 
-`preview.py` 默认使用 Windows 系统 Segoe UI 字体生成预览标签；字体只用于预览说明，SVG 图标和 PNG 图标本体不含文字或字体依赖。`package.py` 生成 SHA256 清单并将本目录交付文件归档到 `artifacts/icon-design/2026-10-24/MDcard-icon-kit.zip`，不包含 `node_modules`、浏览器缓存、Git 数据或应用程序包。
+`preview.py` 默认使用 Pillow 内置字体，可通过 --font 显式指定标签字体；字体只用于预览说明，SVG 图标和 PNG 图标本体不含文字或字体依赖。`package.py` 生成 SHA256 清单并将本目录交付文件归档到 `artifacts/icon-design/MDcard-icon-kit.zip`，不包含 `node_modules`、浏览器缓存、Git 数据或应用程序包。
 
 ## 验证边界
 
-资源已经按约定背景与尺寸制作并校验。复杂桌面背景为生成的图形模拟；本次没有修改程序图标、文件关联、快捷方式、任务栏注册或安装包。图标识别性的结论来自实际尺寸视觉审查，不等同于用户群体研究或商标检索。
+资源自检不替代新二进制的平台显示验收。复杂桌面背景为生成的图形模拟；预览不是程序截图。图标识别性的结论来自实际尺寸视觉审查，不等同于用户群体研究或商标检索。

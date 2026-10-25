@@ -11,16 +11,16 @@ docs/GLOBAL_SEARCH.md text eol=lf
 docs/LARGE_DOCUMENT_PERFORMANCE.md text eol=lf
 Dockerfile text eol=lf
 .github/** text eol=lf
-# Preserve native test output byte-for-byte, including its Windows line endings.
-evidence/structure/** -text whitespace=cr-at-eol,-blank-at-eof
-# Preserve raw rich-rendering logs and upstream license texts byte-for-byte.
-evidence/rich/** -text whitespace=cr-at-eol,-blank-at-eof
-evidence/search/** -text whitespace=cr-at-eol,-blank-at-eof
-evidence/export/** -text whitespace=cr-at-eol,-blank-at-eof
-evidence/performance/** -text whitespace=cr-at-eol,-blank-at-eof
 # Preserve generated, unmodified upstream dependency license text.
 THIRD_PARTY_NOTICES.txt -text -whitespace
 *.mjs whitespace=cr-at-eol
 renderer/export-runtime-sources.json whitespace=cr-at-eol
 renderer/*LICENSE.txt -text -whitespace
 renderer/THIRD_PARTY_NOTICES.txt -text -whitespace
+
+# Retain original CRLF in native PowerShell and these existing text files.
+# Treat only CR as the line terminator; actual trailing spaces still fail.
+.gitignore whitespace=cr-at-eol
+docs/DEVELOPMENT.md whitespace=cr-at-eol
+docs/MATH_DIAGRAMS.md whitespace=cr-at-eol
+scripts/*.ps1 whitespace=cr-at-eol

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (c) 2026 MDcard contributors
-param([string]$Exe = "$PSScriptRoot\..\dist\windows\MDcard.exe")
+param([string]$Exe = "$PSScriptRoot\..\target\release\mdcard.exe")
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing

@@ -6,10 +6,13 @@ from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'preview'
-FONT_PATH = Path('C:/Windows/Fonts/segoeui.ttf')
-FONT_BOLD = Path('C:/Windows/Fonts/seguisb.ttf')
+OUT.mkdir(parents=True, exist_ok=True)
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument('--font', type=Path, help='optional label font, otherwise Pillow built-in font')
+FONT_PATH = parser.parse_args().font
 def font(size=16, bold=False):
-    return ImageFont.truetype(str(FONT_BOLD if bold else FONT_PATH), size)
+    return ImageFont.truetype(str(FONT_PATH), size) if FONT_PATH else ImageFont.load_default(size=size)
 def label(draw, xy, text, size=16, fill='#34415A', bold=False):
     draw.text(xy, text, font=font(size, bold), fill=fill)
 def put(canvas, variant, size, xy):
@@ -92,7 +95,7 @@ html = '''<!doctype html>
 <div class="note"><strong>实际尺寸检查规则</strong><br>下方各个图标的图片像素与 CSS 尺寸逐一相等（1 源像素 = 1 CSS 像素），不做 CSS 放大。浏览器缩放请设为 100%。物理显示像素还取决于操作系统缩放与屏幕 DPR；本页不把 CSS 像素视作所有显示器上的物理像素。窄窗口请横向滚动卡片。上方展示图可缩放，下方逐个图标才用于实际尺寸检查。</div>
 ''' + ''.join(sections) + '''
 <section class="panel light"><h2>16px 光学校正 · 放大诊断</h2><p>下图中的 16px 图标使用最近邻放大 12 倍，仅用于检查透明边缘、笔画和负空间，不能替代上方 16px 原尺寸检查。</p><img src="optical-16px-enlarged.png" width="760" height="330" style="max-width:100%;height:auto" alt="明确标注12倍放大的16px诊断图"></section>
-<div class="links"><a href="../DESIGN.md">设计与交接说明</a><a href="../ACCEPTANCE.md">IC-01～IC-08 验收表</a><a href="../manifest.sha256">SHA256 清单</a><a href="../svg/mdcard-color.svg">彩色 SVG</a><a href="../ico/mdcard-color.ico">Windows ICO</a></div>
+<div class="links"><a href="../DESIGN.md">设计与交接说明</a><a href="../svg/mdcard-color.svg">彩色 SVG</a><a href="../ico/mdcard-color.ico">Windows ICO</a></div>
 <footer>全部资源为本地文件；无网络字体、脚本或请求。本页是资源预览，复杂背景为图形模拟；没有接入或安装应用。</footer>
 </main></body></html>
 '''

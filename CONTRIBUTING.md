@@ -13,7 +13,7 @@ cargo test --locked
 cargo build --locked --release
 ```
 
-改动 renderer 时按[开发说明](docs/DEVELOPMENT.md)执行 npm 干净安装、构建、真实引擎测试和进程取消测试；改动网站时执行其独立构建及受影响浏览器检查。UI、平台和性能结论必须记录实际环境，未运行检查标记未验证。历史 GUI 自动化脚本需要额外桌面工具与证据目录，不是普通开发的隐含依赖。
+改动 renderer 时按[开发说明](docs/DEVELOPMENT.md)执行 npm 干净安装、构建、真实引擎测试和进程取消测试；改动网站时执行其独立构建及受影响浏览器检查。UI、平台和性能结论必须记录实际环境，未运行检查标记未验证。独立 Rust 回归执行 `python scripts/check.py --acceptance`。原生 GUI 和性能检查的额外前提见[工具入口](scripts/README.md)，结果写入被忽略的本地目录。
 
 全部自有贡献，包括代码、脚本、配置、文档、翻译、示例、图标和其他资产，统一使用 AGPL-3.0-only，不提供 MIT 备选授权；可加注释的源文件带 SPDX 标识，其他文件由根目录 [COPYRIGHT](COPYRIGHT) 覆盖。提交贡献表示你有权将贡献按该许可证提供。第三方代码和资产保留原版权、许可证、NOTICE 和来源，在[第三方清单](docs/THIRD_PARTY.md)中记录；自有修改与上游原内容的授权范围须明确区分。字体派生和子集继续遵守 OFL。详见[统一授权说明](docs/LICENSING.md)。
 

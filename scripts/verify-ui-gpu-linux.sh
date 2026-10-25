@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (c) 2026 MDcard contributors
 set -eu
-cd /work
-out=/work/evidence/ui-gpu/linux
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$ROOT"
+out=${ROOT}/evidence/ui-gpu/linux
 mkdir -p "$out"
 export DISPLAY=:96 XDG_RUNTIME_DIR=/tmp/mdcard-ui-runtime MDCARD_SETTINGS_PATH=/tmp/mdcard-ui-settings.json
 mkdir -p "$XDG_RUNTIME_DIR"; chmod 700 "$XDG_RUNTIME_DIR"
@@ -14,7 +15,7 @@ if ! xprop -root _NET_SUPPORTING_WM_CHECK | grep -q 'window id'; then openbox >"
 cat >"$MDCARD_SETTINGS_PATH" <<'JSON'
 {"appearance":"Dark","accent":1,"gpu_acceleration":false,"reduce_motion":false,"font_size":23.0}
 JSON
-MDCARD_RENDERER_REPORT="$out/cpu-renderer.json" ./target/release/mdcard /work/examples/图片验证.md >"$out/cpu.log" 2>&1 &
+MDCARD_RENDERER_REPORT="$out/cpu-renderer.json" ./target/release/mdcard "${ROOT}/examples/图片验证.md" >"$out/cpu.log" 2>&1 &
 app=$!
 sleep 3
 w=$(xdotool search --pid "$app" --name MDcard | head -1)
@@ -63,5 +64,5 @@ for frame in 1 2 3; do convert "/tmp/mdcard-animation-$frame.miff" "$out/sidebar
 convert -delay 15 "$out/sidebar-frame-0.png" "$out/sidebar-frame-1.png" "$out/sidebar-frame-2.png" "$out/sidebar-frame-3.png" -loop 0 "$out/sidebar-animation.gif"
 xdotool key ctrl+q
 wait "$app"
-printf '{"date":"2026-10-19","timezone":"Asia/Shanghai","cpu_only":"Vulkan llvmpipe / DeviceType::Cpu","gpu_off_startup_failure_exit":1,"failure_dialog_visible":true,"failure_preserves_gpu_off":true,"ctrl_comma_preferences":true,"font_size":23,"animation_frames":4}\n' >"$out/result.json"
+printf '{"date":"%s","timezone":"UTC","cpu_only":"Vulkan llvmpipe / DeviceType::Cpu","gpu_off_startup_failure_exit":1,"failure_dialog_visible":true,"failure_preserves_gpu_off":true,"ctrl_comma_preferences":true,"font_size":23,"animation_frames":4}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$out/result.json"
 sha256sum target/release/mdcard >"$out/executable.sha256"
