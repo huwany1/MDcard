@@ -1,53 +1,134 @@
-# MDcard 0.1.0
+<div align="center">
+  <img src="assets/branding/mdcard-icon/svg/mdcard-color.svg" width="72" height="72" alt="MDcard 图标">
+  <h1>MDcard</h1>
+  <p><strong>写作、阅读与交付，在同一个本地工作区。</strong></p>
+  <p>Rust / egui 原生 Markdown 与文本编辑器 · Windows / Linux</p>
+  <p>
+    <a href="#download">下载与安装</a> ·
+    <a href="https://mdcard-document-journey.wholeangel11.chatgpt.site/">产品页</a> ·
+    <a href="#development">开发指南</a> ·
+    <a href="docs/README.md">文档</a> ·
+    <a href="CONTRIBUTING.md">参与贡献</a>
+  </p>
+</div>
 
-面向中文技术写作者的 Rust 原生 Markdown / 文本桌面编辑器，提供编辑、分屏、阅读、结构编辑、跨文件搜索、阅读位置恢复和本地公式图表渲染。
+[![构建与测试](https://github.com/huwany1/MDcard/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/huwany1/MDcard/actions/workflows/build.yml)
+[![许可证：AGPL-3.0-only](https://img.shields.io/badge/license-AGPL--3.0--only-2D5BCA)](LICENSE)
 
-[下载正式包](https://github.com/huwany1/MDcard/releases/tag/v0.1.0) · [产品页](https://mdcard-document-journey.wholeangel11.chatgpt.site/) · [构建说明](docs/DEVELOPMENT.md) · [文档导航](docs/README.md) · [报告问题](https://github.com/huwany1/MDcard/issues) · [贡献指南](CONTRIBUTING.md)
+MDcard 面向技术文档、学习笔记与长文写作，把 Markdown 源码、实时预览和阅读视图放在同一桌面应用里。你可以整理表格与内容块、搜索工作区、接着上次的位置阅读，再把稿件导出为文档、图片或幻灯片。
 
-源码开发入口为当前仓库根目录。构建产物、下载运行时、原始验收与部署记录不属于源码输入；品牌可编辑源、实际网站素材和必要许可保留。
+![MDcard 实际桌面界面：左侧 Markdown 源码，右侧正文、表格、公式与 Mermaid 图表预览](website/src/assets/product-split.webp)
 
-## 安装与运行
+<sub>Windows 应用真实截图。更多画面见[产品页](https://mdcard-document-journey.wholeangel11.chatgpt.site/)；截图与公开样例的来源见[素材说明](website/ASSETS.md)。</sub>
 
-- Windows x64：[MDcard-0.1.0-windows-x64.zip](https://github.com/huwany1/MDcard/releases/download/v0.1.0/MDcard-0.1.0-windows-x64.zip)，400,903,844 字节（382.33 MiB）。
-- Linux x64：[MDcard-0.1.0-linux-x64.tar.gz](https://github.com/huwany1/MDcard/releases/download/v0.1.0/MDcard-0.1.0-linux-x64.tar.gz)，387,335,216 字节（369.39 MiB）。
+## 用 MDcard 完成什么
 
-两平台采用同一冻结源码构建，完整解压后即可运行，保留 `renderer`、许可证和 `manifest.json`。无需另装 Node、Java、Chromium、Pandoc 或开发工具。
+| 场景 | 已有能力 |
+| --- | --- |
+| **写作与校对** | Write / Split / Read 三视图；源码编辑、实时预览与专注阅读；浅色、深色及跟随系统主题。 |
+| **整理内容结构** | 表格行列、列表与内容块操作，和 Markdown 源码联动，共用撤销 / 重做历史。[结构编辑](docs/STRUCTURAL_EDITING.md) |
+| **查找与批量修改** | 目录树、Quick Switcher、全文 / 正则搜索、替换 Diff 预览与跨文件替换历史回滚。[搜索与替换](docs/GLOBAL_SEARCH.md) |
+| **接着上次阅读** | 按文件分别记录最后位置、最远位置与已读状态，区分源码和阅读视图；滚到底部不会自动标记已读。[阅读状态](docs/READING_STATE.md) |
+| **表达公式与图表** | KaTeX、Mermaid、PlantUML 和 flowchart.js 本机渲染，适合技术说明与流程梳理。[公式与图表](docs/MATH_DIAGRAMS.md) |
+| **导出与分享** | HTML、PDF、PNG、JPEG、DOCX、EPUB，以及 Marp HTML / PDF / PPTX，共九种输出。[导出说明](docs/LOSSLESS_EXPORT.md) |
+| **处理多语言文本** | 简体中文、繁体中文、英语、日语、韩语、俄语界面；支持常见文本 / 代码文件与多编码选择、转换保护。 |
 
-Windows 11 x64：运行 `MDcard.exe`。默认 OpenGL 不可用时自动使用 Windows 内置 CPU 图形后端，保留原 GPU 偏好；程序版本可用 `MDcard.exe --version` 查询。Windows 10 未作本轮支持声明。
+想先看看交付效果，可以查看同一份公开稿件的[Markdown 原稿](website/samples/从原稿到作品.md)、[PDF 成品](website/src/assets/exports/manuscript.pdf)和[离线 HTML 下载包](website/src/assets/exports/manuscript-html.zip)。
 
-Linux x64：Debian 12 / glibc 2.36、X11 桌面，运行 `./mdcard`。系统需桌面图形/字体/音频库和可工作的原生文件对话框 portal；这些是系统桌面前提，应用运行时已随包提供。Debian 12 依赖：
+<a id="download"></a>
+
+## 下载与安装
+
+当前正式版为 **[v0.1.0](https://github.com/huwany1/MDcard/releases/tag/v0.1.0)**，提供完整便携包。
+
+| 平台 | 下载 | 运行环境 |
+| --- | --- | --- |
+| **Windows x64** | [Windows ZIP · 382.33 MiB](https://github.com/huwany1/MDcard/releases/download/v0.1.0/MDcard-0.1.0-windows-x64.zip) | Windows 11 x64 |
+| **Linux x64** | [Linux tar.gz · 369.39 MiB](https://github.com/huwany1/MDcard/releases/download/v0.1.0/MDcard-0.1.0-linux-x64.tar.gz) | Debian 12 / glibc 2.36，X11 桌面 |
+
+1. 下载对应平台的完整包，解压到可写目录。
+2. Windows 运行 `MDcard.exe`；Linux 运行 `./mdcard`。
+3. 打开已有 Markdown，或从新文档开始；用 `Ctrl+E` 切换编辑、分屏和阅读视图。
+
+完整包已包含公式、图表和导出所需的 Node、Java、Chromium、Pandoc 与字体，**普通用户无需安装开发工具**。请保留解压目录中的 `renderer`、许可证与 `manifest.json`。Linux 仍需系统桌面库，详见下方说明。
+
+<details>
+<summary>Linux 系统依赖与运行说明</summary>
+
+在 Debian 12 桌面环境安装所需库：
 
 ```sh
+sudo apt-get update
 sudo apt-get install libx11-6 libxcb1 libxkbcommon0 libxkbcommon-x11-0 libxcursor1 libxrandr2 libxi6 libgl1 libegl1 libvulkan1 mesa-vulkan-drivers libgl1-mesa-dri libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libatspi2.0-0 libcups2 libdrm2 libdbus-1-3 libgbm1 libasound2 libpango-1.0-0 libcairo2 libfontconfig1 libfreetype6 xdg-desktop-portal xdg-desktop-portal-gtk
+tar -xzf MDcard-0.1.0-linux-x64.tar.gz
 ```
 
-[SHA256SUMS.txt](https://github.com/huwany1/MDcard/releases/download/v0.1.0/SHA256SUMS.txt) · [发行元数据](https://github.com/huwany1/MDcard/releases/download/v0.1.0/MDcard-0.1.0-release.json)。两平台真实构建源为 [c453689171b0](https://github.com/huwany1/MDcard/tree/c453689171b09463c57cc217fa48974a080854f2)，自有应用版本统一 0.1.0。逐文件白名单与用途、大小和 SHA256 位于包内 `manifest.json`；发行身份以该 Release 的元数据和包内 manifest 为准，网站使用 `website/src/data/releases.json`。
+进入解压后的应用目录，运行 `./mdcard`。系统还需可工作的原生文件对话框 portal。
 
-本包包含路径别名重命名、ELK 隔离、xmldom 修复与最新已交付功能；本地公式图表和全部九种导出格式使用随包引擎。用户稿件、设置、源码快照、开发与测试工具、品牌交接资料和历史报告不随应用包分发。项目自有源码与资产统一采用 AGPL-3.0-only；第三方内容见[来源与例外清单](docs/THIRD_PARTY.md)。
+当前正式包的 Linux 桌面验证环境为 Debian 12 / X11；其他发行版、Wayland 和驱动组合仍需单独验证。Linux 原生导出还需要支持 pidfd 的内核（5.3+）及相应权限，见[导出说明](docs/LOSSLESS_EXPORT.md)。
 
-## 已有能力
+</details>
 
-- Write / Split / Read 三视图、浅色/深色/跟随系统、六语言界面及原生文件打开保存。
-- Markdown 与常见文本/代码文件；多编码选择和转换保护；单文件上限 16 MiB。
-- 表格和块操作、源码同步、撤销/重做、目录树、Quick Switcher、工作区搜索替换、Diff 预览和替换历史回滚。
-- KaTeX、Mermaid 默认 Dagre / sequence / mindmap、PlantUML MIT 构建和 flowchart.js；本机渲染；新源码构建明确不含 ELK 布局。
-- HTML、PDF、图片、Word、EPUB 和 Marp 导出。各格式有独立边界，不能承诺逐像素一致。
-- 每份已保存文件的阅读位置、最远位置与已读状态分别记录；内容变化后的定位存在预算和歧义降级。
+<details>
+<summary>校验下载与确认发行来源</summary>
 
-普通预览不是任意富文本编辑器。支持的表格/公式/图表通过结构工具与源码联动；网页演示不具备桌面文件功能。细节见[模块文档](docs/README.md)。
+下载 [SHA256SUMS.txt](https://github.com/huwany1/MDcard/releases/download/v0.1.0/SHA256SUMS.txt)，将对应文件的校验值与其比对：
 
-## 从源码开始
+```powershell
+# Windows PowerShell
+Get-FileHash .\MDcard-0.1.0-windows-x64.zip -Algorithm SHA256
+```
 
-需要 Git、Rust 1.92.0、Node.js 24、Python 3.11+；Windows 还需 Visual Studio C++ 与 Windows SDK（在开发者 PowerShell 运行），Linux 需本地桌面开发库。没有维护者私有目录或凭据要求。
+```sh
+# Linux
+sha256sum MDcard-0.1.0-linux-x64.tar.gz
+```
+
+两平台正式包来自同一份[冻结源码 c453689](https://github.com/huwany1/MDcard/tree/c453689171b09463c57cc217fa48974a080854f2)。发行身份以[发行元数据](https://github.com/huwany1/MDcard/releases/download/v0.1.0/MDcard-0.1.0-release.json)和包内 `manifest.json` 为准；`main` 会继续演进，不代表已发布包的构建版本。
+
+</details>
+
+## 常用操作
+
+| 快捷键 | 操作 |
+| --- | --- |
+| `Ctrl+O` / `Ctrl+S` | 打开 / 保存文档 |
+| `Ctrl+E` | 切换编辑、分屏、阅读视图 |
+| `Ctrl+P` | 快速查找并切换文件 |
+| `Ctrl+F` / `Ctrl+H` | 当前文档查找 / 替换 |
+| `Ctrl+Shift+F` | 工作区全文搜索 |
+| `Ctrl+Alt+E` | 打开导出窗口 |
+
+## 使用前了解
+
+- **保存与恢复：** 当前没有自动保存和稿件崩溃恢复，请使用 `Ctrl+S` 保存。阅读位置会持久化，但不包含未保存的稿件正文。
+- **编辑与文件：** 普通预览只读，支持的表格、公式和图表通过结构工具与源码联动；单文件上限为 16 MiB。内容大幅改写或定位有歧义时，阅读恢复会安全降级。
+- **本地处理与联网：** 公式、图表和导出使用本地引擎；HTTP(S) 图片、远程导出资源及点击外链可能访问网络。
+- **格式与平台：** 导出效果受目标格式和排版引擎影响，Marp PPTX 为图片式幻灯片；当前无 macOS 正式包，Windows 10 与其他 DPI / 桌面组合未全面验证。详细边界见[功能文档](docs/README.md)。
+
+<a id="development"></a>
+
+## 开发者快速开始
+
+桌面源码使用 **Rust / egui**；公式、图表与导出由本地 renderer 子进程提供；产品网站可以独立构建。
+
+### 1. 构建桌面应用
+
+需要 Git、**Rust 1.92.0**，以及平台编译工具：Windows 使用 Visual Studio C++ Build Tools / Windows SDK，Linux 安装对应开发库。先按[开发说明](docs/DEVELOPMENT.md#桌面程序)准备系统环境，再执行：
 
 ```sh
 git clone https://github.com/huwany1/MDcard.git
 cd MDcard
 cargo build --locked
 cargo test --locked
+cargo run --locked
 ```
 
-纯桌面编译使用仓库内字体、图标和 Rust 锁文件。公式、图表、完整导出需要另外准备本地 renderer：
+仓库已包含必要字体、图标、vendor 修改与锁文件。仅构建桌面应用无需先安装 renderer；公式、图表与导出需继续准备相应运行时。
+
+### 2. 启用公式与图表
+
+另需 **Node.js 24、Python 3.11+、Java 17+**：
 
 ```sh
 cd renderer
@@ -58,18 +139,41 @@ python scripts/prepare-development.py --browser
 cargo run --locked
 ```
 
-PlantUML 需 Java 17+；Word/EPUB 等可选管线需 Pandoc。完整命令、额外下载、资源校验、Docker 和网站独立构建见[开发说明](docs/DEVELOPMENT.md)。
+上述步骤准备公式与图表引擎。**完整导出还需单独准备导出运行时**，包括随应用调用的 Node、浏览器与 Pandoc 等；Linux 浏览器系统依赖、环境变量和完整命令见[本地渲染器开发说明](docs/DEVELOPMENT.md#本地渲染器)。
 
-## 当前限制与证据边界
+### 3. 检查与独立构建
 
-当前不含自动保存和稿件崩溃恢复；原子保存、外部修改检测和关闭提示不能替代备份。阅读位置状态不包含草稿正文。HTTP(S) 图片和点击外链可能联网；不能把本机渲染概括为应用永不访问网络。
+```sh
+# 格式、Clippy、根项目测试、release 构建和 7 个独立 Rust 回归工程
+python scripts/check.py --desktop --acceptance
 
-历史 Windows 验收使用 Windows 11 / 125% DPI，Linux 使用 Debian 12 / X11；其他 DPI、Wayland、桌面和驱动组合未全面验证。没有 macOS 正式包。历史性能数据仅适用于其记录环境，不代表所有设备或物理屏幕延迟。当前开发步骤见[开发说明](docs/DEVELOPMENT.md)，模块约束见[维护地图](docs/ARCHITECTURE.md)。
+# 完成 renderer 依赖与运行时准备后：构建、真实引擎和进程测试
+python scripts/check.py --renderer
 
-源码导入基线与旧发行包二进制身份分别记录；本次构建不会声称与旧包二进制逐字节一致。原始本地日志、截图、部署配置与私人状态不公开，历史文档是设计和验收摘要，不能视作本次重新运行。
+# 网站独立构建，无需先编译桌面应用
+node website/scripts/build.mjs
+```
 
-## 许可证
+[GitHub Actions](https://github.com/huwany1/MDcard/actions/workflows/build.yml) 检查 Windows / Linux 桌面构建、Linux renderer 及网站。更多 GUI、导出和性能检查见[维护工具](scripts/README.md)。
 
-MDcard 当前版本的全部自有源码与资产，包括代码、脚本、配置、测试、文档、翻译、示例、网站、品牌设计、图标、图片和截图，统一采用 **AGPL-3.0-only**，不再提供 MIT 备选授权。全仓声明见 [COPYRIGHT](COPYRIGHT)，完整正文见 [LICENSE](LICENSE)，具体覆盖范围见[统一授权说明](docs/LICENSING.md)。第三方源码、依赖、字体及其派生、嵌入素材和运行时保留原许可，集中列于[第三方来源与例外清单](docs/THIRD_PARTY.md)。
+| 想了解什么 | 入口 |
+| --- | --- |
+| 安装工具链、运行时与 Docker 开发 | [开发与测试](docs/DEVELOPMENT.md) |
+| 模块关系、数据约束与维护边界 | [架构与维护地图](docs/ARCHITECTURE.md) |
+| 搜索、阅读恢复、结构编辑、图表与导出 | [功能文档导航](docs/README.md) |
+| 网站构建、预览与素材来源 | [网站说明](website/README.md) |
+| 回归、资源制作与其他维护入口 | [工具说明](scripts/README.md) |
 
-分发受 AGPL 覆盖的程序或衍生作品时，应按协议保留声明并向接收者提供对应源码；修改版本通过网络与用户交互时，须按第 13 条向这些用户显著提供免费取得该版本对应源码的机会。用户稿件仍由其作者决定授权。历史版本的授权与本次修订范围见[统一授权说明](docs/LICENSING.md#历史版本)，具体权利义务以协议正文为准。
+## 反馈与贡献
+
+欢迎通过 [Issues](https://github.com/huwany1/MDcard/issues) 反馈问题或讨论功能，也欢迎改进代码、文档、翻译、测试与资源。
+
+- **报告问题：** 附上系统 / 版本、最小复现步骤、预期与实际行为；文档样例请去除私人内容。
+- **提交改进：** 从当前 `main` 新建分支，说明解决的问题、变更范围和验证结果，按[贡献指南](CONTRIBUTING.md)提交 Pull Request。
+- **涉及稿件操作：** 修改保存、编码、撤销、阅读恢复或跨文件替换时，补充能证明原稿受到保护的回归检查。
+
+## 许可证与第三方来源
+
+MDcard 当前版本的项目自有代码和资产统一采用 **[AGPL-3.0-only](LICENSE)**，涵盖应用、脚本、文档、翻译、示例、网站与品牌资源。完整范围见 [COPYRIGHT](COPYRIGHT) 和[统一授权说明](docs/LICENSING.md)。
+
+第三方源码、依赖、字体、运行时及嵌入素材保留各自许可证，见[第三方来源与例外清单](docs/THIRD_PARTY.md)及 [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt)。用户自己的稿件由作者决定授权；导出中嵌入的第三方字体或素材仍遵循其原许可。
