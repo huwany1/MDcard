@@ -1,1 +1,3 @@
-# MDcard 0.1.0 发行资产更新与校验进行中，应用下载暂停。最终校验清单在完整上传后恢复。
+0c1353f87882348c0c123644734c582ab1d0548f888a529d5a6f79177c978cb1  MDcard-0.1.0-windows-x64.zip
+416f3352e04c0c2726786f9b51bfb13a8f9a930a688bd8c6401a64125c5f0f29  MDcard-0.1.0-linux-x64.tar.gz
+b2eca158d4a8d0de9184d3cbd3caf3b87a03d90bb84e4547e5660994ac3cf222  MDcard-0.1.0-release.json

@@ -1,0 +1,61 @@
+{
+  "passed": true,
+  "recordedAt": "2026-10-25T05:59:41.818641+00:00",
+  "reviewer": "Master independent data/hash/image review",
+  "scope": "New anonymous public downloads, archive payload integrity, both real GUI startup windows and normal exits; full functionality acceptance remains separately recorded",
+  "sourceCommit": "c453689171b09463c57cc217fa48974a080854f2",
+  "fourAnonymousDownloadsPassed": true,
+  "bothScreenshotsVisuallyInspected": true,
+  "windows": {
+    "passed": true,
+    "environment": "Existing Windows host; ordinary non-elevated account",
+    "defaultPreferences": true,
+    "visibleWindow": true,
+    "archiveSHA256": "0c1353f87882348c0c123644734c582ab1d0548f888a529d5a6f79177c978cb1",
+    "binarySHA256": "7364896c971a90959d499aec1cf4e3c2e42297ee3c0489d1d4208796e4d4410b",
+    "version": "0.1.0",
+    "exitCode": 0
+  },
+  "linux": {
+    "passed": true,
+    "environment": "Fresh Debian12/X11 runtime container on WSL2; UID1000; no system SDK/Node/Java/Pandoc",
+    "network": "none",
+    "image": "sha256:53b26720ecc6d9e8d3c7ab74fea52c017d8a323a05038c2e7874b65f12550fb0",
+    "archiveSHA256": "416f3352e04c0c2726786f9b51bfb13a8f9a930a688bd8c6401a64125c5f0f29",
+    "binarySHA256": "6582be92d6a982b56514e9627f50d3765cadbb9ad10979ad7b489f46ab2922f9",
+    "version": "0.1.0",
+    "exitCode": 0
+  },
+  "evidence": [
+    {
+      "path": "master\\public-candidate10-downloads\\public-download-verification.json",
+      "bytes": 3797,
+      "sha256": "c5808b2c764a57d3161dd8b533c6e5480149a14dd90be7839e73fe872e40057a"
+    },
+    {
+      "path": "master\\public-candidate10-downloads\\archive-content-audit.json",
+      "bytes": 3523,
+      "sha256": "8fbb864cb57869e701d9688e37f3d5c6b920a863d43af1e41305ed73b3f19119"
+    },
+    {
+      "path": "windows-public-download-startup-r1\\result.json",
+      "bytes": 1141,
+      "sha256": "1d7fc8f2043ae0a87f5206563b9f275aeadc852b187f373c9d69dc6bf8d64699"
+    },
+    {
+      "path": "windows-public-download-startup-r1\\public-download-startup.png",
+      "bytes": 122914,
+      "sha256": "f50aa3bf06768a9b3c7ea27f03ef26c579bea238b038b87b54a18ad2ea0c62b7"
+    },
+    {
+      "path": "master\\public-candidate10-linux-startup\\result.json",
+      "bytes": 1793,
+      "sha256": "866f98bfc821f5c1ac0c5e7bf28d7dd3c56f56ea608a15a2c40ef1aab7699a59"
+    },
+    {
+      "path": "master\\public-candidate10-linux-startup\\public-linux-started.png",
+      "bytes": 65106,
+      "sha256": "64a9d48f8d55436267b8ea85479719d75b0af87ecb127be3a05aaee391f9a9c4"
+    }
+  ]
+}

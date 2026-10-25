@@ -2,7 +2,7 @@
 
 Windows x64 与 Linux x64 均来自同一冻结源码 [c453689171b09463c57cc217fa48974a080854f2](https://github.com/huwany1/MDcard/tree/c453689171b09463c57cc217fa48974a080854f2)，应用、包名和 manifest 统一为 0.1.0。
 
-发行资产更新和校验进行中，应用下载暂停。
+正式应用包、SHA256SUMS.txt 与发行元数据见[本次 Release](https://github.com/huwany1/MDcard/releases/tag/v0.1.0)。
 
 - 保留最新编辑、源码同步、结构编辑、搜索替换与阅读状态功能，包含公开主线的路径别名重命名、ELK 隔离和 xmldom 修复。
 - Windows 在 OpenGL 初始化失败且尚未创建编辑器时自动使用 CPU 图形兼容模式，保留 GPU 偏好；PE、命令行和设置可见版本一致。

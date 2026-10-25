@@ -1461,5 +1461,5 @@
   "current": false,
   "availability": "superseded",
   "supersededBy": "0.1.0",
-  "supersedingReleaseURL": null
+  "supersedingReleaseURL": "https://github.com/huwany1/MDcard/releases/tag/v0.1.0"
 }

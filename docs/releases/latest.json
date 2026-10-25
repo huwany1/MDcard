@@ -1,7 +1,7 @@
 {
   "version": "0.1.0",
   "index": "0.1.0.json",
-  "availability": "updating",
-  "releaseURL": null,
+  "availability": "available",
+  "releaseURL": "https://github.com/huwany1/MDcard/releases/tag/v0.1.0",
   "sourceCommit": "c453689171b09463c57cc217fa48974a080854f2"
 }

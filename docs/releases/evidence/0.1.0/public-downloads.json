@@ -1,0 +1,41 @@
+{
+  "passed": true,
+  "sourceCommit": "c453689171b09463c57cc217fa48974a080854f2",
+  "scope": "Anonymous public download, integrity and archive content only",
+  "releaseId": 423172206,
+  "latestReleaseId": 423172206,
+  "downloads": [
+    {
+      "name": "MDcard-0.1.0-windows-x64.zip",
+      "url": "https://github.com/huwany1/MDcard/releases/download/v0.1.0/MDcard-0.1.0-windows-x64.zip",
+      "bytes": 400903844,
+      "sha256": "0c1353f87882348c0c123644734c582ab1d0548f888a529d5a6f79177c978cb1",
+      "anonymousFullGET": true
+    },
+    {
+      "name": "MDcard-0.1.0-linux-x64.tar.gz",
+      "url": "https://github.com/huwany1/MDcard/releases/download/v0.1.0/MDcard-0.1.0-linux-x64.tar.gz",
+      "bytes": 387335216,
+      "sha256": "416f3352e04c0c2726786f9b51bfb13a8f9a930a688bd8c6401a64125c5f0f29",
+      "anonymousFullGET": true
+    },
+    {
+      "name": "SHA256SUMS.txt",
+      "url": "https://github.com/huwany1/MDcard/releases/download/v0.1.0/SHA256SUMS.txt",
+      "bytes": 283,
+      "sha256": "891f7fee4890eb7cafedbeb23d7410f514f35f80d8f037ad7df488a5b8e820a8",
+      "anonymousFullGET": true
+    },
+    {
+      "name": "MDcard-0.1.0-release.json",
+      "url": "https://github.com/huwany1/MDcard/releases/download/v0.1.0/MDcard-0.1.0-release.json",
+      "bytes": 13084,
+      "sha256": "b2eca158d4a8d0de9184d3cbd3caf3b87a03d90bb84e4547e5660994ac3cf222",
+      "anonymousFullGET": true
+    }
+  ],
+  "windowsExtractedFiles": 1844,
+  "method": "Fresh anonymous full GET of all four assets; both archives independently decoded and every payload/permission checked. GUI startup is recorded separately.",
+  "sourceReportSHA256": "c5808b2c764a57d3161dd8b533c6e5480149a14dd90be7839e73fe872e40057a",
+  "archiveAuditSHA256": "8fbb864cb57869e701d9688e37f3d5c6b920a863d43af1e41305ed73b3f19119"
+}

@@ -1,3 +1,5 @@
+> 历史时间点说明：本报告仅代表当时的源码开源验收快照。MDcard 0.1.0 发行替换后，旧的手动上传应用资产已删除；当前资产及验收状态见[0.1.0 发行验收](../releases/0.1.0-acceptance.json)和[项目 README](../../README.md)。原始 before / after / HEAD JSON 保持原字节，不能据其历史 HTTP 200 推断当前下载状态。
+
 # MDcard 源码开源验收
 
 本报告区分源码开源、历史产品验收与本次构建。本次G01—G08对应的C01—C08已逐项通过。源码与许可证已匿名读取、完整clone和独立复核，通过[PR #1](https://github.com/huwany1/MDcard/pull/1)保留原main祖先并合并；具体最终main SHA以PR的merge_commit_sha和主代理交付中的远程核验值为准。本次不重新打包旧发行资产，不声称产品已全面验收。

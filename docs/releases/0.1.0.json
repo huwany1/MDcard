@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "sourceCommit": "c453689171b09463c57cc217fa48974a080854f2",
   "sourceURL": "https://github.com/huwany1/MDcard/tree/c453689171b09463c57cc217fa48974a080854f2",
-  "availability": "updating",
-  "releaseURL": null,
+  "availability": "available",
+  "releaseURL": "https://github.com/huwany1/MDcard/releases/tag/v0.1.0",
   "acceptanceReport": "https://github.com/huwany1/MDcard/blob/main/docs/releases/0.1.0-acceptance.json",
   "preparedFromReleaseMetadataSHA256": "b2eca158d4a8d0de9184d3cbd3caf3b87a03d90bb84e4547e5660994ac3cf222",
   "localAcceptancePassed": true,
@@ -14,25 +14,25 @@
       "name": "MDcard-0.1.0-windows-x64.zip",
       "bytes": 400903844,
       "sha256": "0c1353f87882348c0c123644734c582ab1d0548f888a529d5a6f79177c978cb1",
-      "url": null
+      "url": "https://github.com/huwany1/MDcard/releases/download/v0.1.0/MDcard-0.1.0-windows-x64.zip"
     },
     {
       "name": "MDcard-0.1.0-linux-x64.tar.gz",
       "bytes": 387335216,
       "sha256": "416f3352e04c0c2726786f9b51bfb13a8f9a930a688bd8c6401a64125c5f0f29",
-      "url": null
+      "url": "https://github.com/huwany1/MDcard/releases/download/v0.1.0/MDcard-0.1.0-linux-x64.tar.gz"
     },
     {
       "name": "SHA256SUMS.txt",
       "bytes": 283,
       "sha256": "891f7fee4890eb7cafedbeb23d7410f514f35f80d8f037ad7df488a5b8e820a8",
-      "url": null
+      "url": "https://github.com/huwany1/MDcard/releases/download/v0.1.0/SHA256SUMS.txt"
     },
     {
       "name": "MDcard-0.1.0-release.json",
       "bytes": 13084,
       "sha256": "b2eca158d4a8d0de9184d3cbd3caf3b87a03d90bb84e4547e5660994ac3cf222",
-      "url": null
+      "url": "https://github.com/huwany1/MDcard/releases/download/v0.1.0/MDcard-0.1.0-release.json"
     }
   ],
   "packages": [
@@ -104,7 +104,7 @@
         }
       },
       "extraFiles": 0,
-      "downloadURL": null,
+      "downloadURL": "https://github.com/huwany1/MDcard/releases/download/v0.1.0/MDcard-0.1.0-windows-x64.zip",
       "fileInventory": {
         "path": "manifest.json",
         "sha256": "195ca8d548daea81ab341368b7eec69d46019875f3790d4b20b33106618181c8",
@@ -172,7 +172,7 @@
         }
       },
       "extraFiles": 0,
-      "downloadURL": null,
+      "downloadURL": "https://github.com/huwany1/MDcard/releases/download/v0.1.0/MDcard-0.1.0-linux-x64.tar.gz",
       "fileInventory": {
         "path": "manifest.json",
         "sha256": "21c352cdab3eaff3a2412a4141cd840fbbee4dbea7717a8a5f7ce3e4133fd0ba",

@@ -4,15 +4,15 @@
   "version": "0.1.0",
   "sourceCommit": "c453689171b09463c57cc217fa48974a080854f2",
   "sourceURL": "https://github.com/huwany1/MDcard/tree/c453689171b09463c57cc217fa48974a080854f2",
-  "recordedAt": "2026-10-25T05:37:03.146128+00:00",
-  "status": "local-acceptance-passed-remote-replacement-pending",
-  "allCriteriaPassed": false,
+  "recordedAt": "2026-10-25T06:03:54.448480+00:00",
+  "status": "released-and-public-downloads-verified",
+  "allCriteriaPassed": true,
   "localAcceptancePassed": true,
-  "remoteReplacementPerformed": false,
+  "remoteReplacementPerformed": true,
   "criteria": {
     "C01": {
-      "status": "未验证",
-      "note": "Common frozen source, native 0.1.0 identities, package versions and manifests passed locally; Release/public entry consistency awaits remote replacement."
+      "status": "通过",
+      "note": "两平台实际构建源均为c453689171b09463c57cc217fa48974a080854f2；应用PE/CLI/设置、包名、manifest、Release及官网信息统一0.1.0，v0.1.0标签指向该冻结源码。README与正式索引最终内容随本提交同步发布。"
     },
     "C02": {
       "status": "通过",
@@ -28,15 +28,15 @@
     },
     "C05": {
       "status": "通过",
-      "note": "Both archives fully decoded; exact payload sets, byte counts, hashes and Linux executable permissions passed independent audit. This JSON and SHA256SUMS are frozen with those archives."
+      "note": "两归档完整解压、实际文件集合/字节数/SHA256及Linux执行权限均通过独立核验。MDcard-0.1.0-release.json 与 SHA256SUMS.txt 已随两归档冻结；本外部验收报告独立记录发布后的真实结果。"
     },
     "C06": {
-      "status": "未验证",
-      "note": "Remote old-asset deletion and new-asset upload have not occurred at this local snapshot."
+      "status": "通过",
+      "note": "3个旧手动资产实际DELETE并经API/原公开地址404独立复核；新4资产实际上传、公开、server digest/size与本地一致，GitHub Latest为v0.1.0。历史Release和标签保留。"
     },
     "C07": {
-      "status": "未验证",
-      "note": "Public entry synchronization, anonymous re-download and post-download startup are pending at this local snapshot."
+      "status": "通过",
+      "note": "新4资产已匿名完整重新下载，SHA256/体积/解包内容/权限均一致；两平台从公开重下包真实启动、版本正确、正常退出。官网HTTP及390/1440有JS/无JS四上下文通过；README/正式索引使用本提交内的最终规范链接发布，并由主代理在main推送后复核公开内容。"
     }
   },
   "scope": {
@@ -208,60 +208,85 @@
       "path": "docs/releases/evidence/0.1.0/linux-runtime.json",
       "bytes": 4178,
       "sha256": "38cf3705711d2d33d3c252b40af436b4c60e0f5c69e1d90918de08a78bc8e881"
+    },
+    {
+      "path": "docs/releases/evidence/0.1.0/github-replacement.json",
+      "bytes": 8585,
+      "sha256": "4c247e561131f94463566c93be724132178a89d1ca3db60dab416b8eb36a346b"
+    },
+    {
+      "path": "docs/releases/evidence/0.1.0/public-downloads.json",
+      "bytes": 1799,
+      "sha256": "3844bfd66f4d81dba7c6efa64d324dedcdda219910487ed007e0fa7c48add385"
+    },
+    {
+      "path": "docs/releases/evidence/0.1.0/public-startups.json",
+      "bytes": 2523,
+      "sha256": "fae5f9564ea48926043121698962ca62dbce480339baed666355a5368470f4ea"
+    },
+    {
+      "path": "docs/releases/evidence/0.1.0/website-publication.json",
+      "bytes": 5166,
+      "sha256": "877fe09cc1eb4815fd28d1678ef653747747c8a1617451e1343745e891e78bda"
     }
   ],
   "remote": {
-    "phase": "read-only-preflight-complete",
-    "oldApplicationArchiveCount": 2,
-    "oldBoundChecksumCount": 1,
-    "oldAssets": [
+    "phase": "published-and-verified",
+    "releaseId": 423172206,
+    "tag": "v0.1.0",
+    "sourceCommit": "c453689171b09463c57cc217fa48974a080854f2",
+    "oldDeletionPerformed": true,
+    "oldAssetIdsRemaining": [],
+    "newUploadPerformed": true,
+    "newAssets": [
       {
-        "name": "MDcard-0.1.1-icon-suite-20261024-r3-windows-x64.zip",
-        "id": 671746251,
-        "releaseId": 422616646,
-        "releaseTag": "v0.1.1-20261024",
-        "bytes": 603792422,
-        "applicationArchive": true,
-        "boundVerificationAsset": false,
-        "sha256": "a3b480372171bb1c8b9514e77e7be1c8a54d740970c06f9f6ca8741e82da1258",
-        "backupVerified": true,
-        "historicalURL": "https://github.com/huwany1/MDcard/releases/download/v0.1.1-20261024/MDcard-0.1.1-icon-suite-20261024-r3-windows-x64.zip",
-        "offeredForDownload": false,
-        "stateAtSnapshot": "present; remote replacement pending"
+        "id": 674222686,
+        "name": "MDcard-0.1.0-linux-x64.tar.gz",
+        "size": 387335216,
+        "state": "uploaded",
+        "digest": "sha256:416f3352e04c0c2726786f9b51bfb13a8f9a930a688bd8c6401a64125c5f0f29",
+        "browser_download_url": "https://github.com/huwany1/MDcard/releases/download/v0.1.0/MDcard-0.1.0-linux-x64.tar.gz",
+        "releaseId": 423172206,
+        "releaseTag": "v0.1.0"
       },
       {
-        "name": "MDcard-0.1.1-precision-b-20261024-r29-linux-x64.tar.gz",
-        "id": 671921342,
-        "releaseId": 422616646,
-        "releaseTag": "v0.1.1-20261024",
-        "bytes": 655893443,
-        "applicationArchive": true,
-        "boundVerificationAsset": false,
-        "sha256": "3771f142d7b8f1e6bec21059c1d82d559b33bcc62aea13c82fd20fddaab509ab",
-        "backupVerified": true,
-        "historicalURL": "https://github.com/huwany1/MDcard/releases/download/v0.1.1-20261024/MDcard-0.1.1-precision-b-20261024-r29-linux-x64.tar.gz",
-        "offeredForDownload": false,
-        "stateAtSnapshot": "present; remote replacement pending"
+        "id": 674231379,
+        "name": "MDcard-0.1.0-release.json",
+        "size": 13084,
+        "state": "uploaded",
+        "digest": "sha256:b2eca158d4a8d0de9184d3cbd3caf3b87a03d90bb84e4547e5660994ac3cf222",
+        "browser_download_url": "https://github.com/huwany1/MDcard/releases/download/v0.1.0/MDcard-0.1.0-release.json",
+        "releaseId": 423172206,
+        "releaseTag": "v0.1.0"
       },
       {
+        "id": 674214112,
+        "name": "MDcard-0.1.0-windows-x64.zip",
+        "size": 400903844,
+        "state": "uploaded",
+        "digest": "sha256:0c1353f87882348c0c123644734c582ab1d0548f888a529d5a6f79177c978cb1",
+        "browser_download_url": "https://github.com/huwany1/MDcard/releases/download/v0.1.0/MDcard-0.1.0-windows-x64.zip",
+        "releaseId": 423172206,
+        "releaseTag": "v0.1.0"
+      },
+      {
+        "id": 674231336,
         "name": "SHA256SUMS.txt",
-        "id": 671898772,
-        "releaseId": 422616646,
-        "releaseTag": "v0.1.1-20261024",
-        "bytes": 241,
-        "applicationArchive": false,
-        "boundVerificationAsset": true,
-        "sha256": "5908b0c7806d13b93a688accb40f89198c02bda88c35a8b816a68fbae757d87a",
-        "backupVerified": true,
-        "historicalURL": "https://github.com/huwany1/MDcard/releases/download/v0.1.1-20261024/SHA256SUMS.txt",
-        "offeredForDownload": false,
-        "stateAtSnapshot": "present; remote replacement pending"
+        "size": 283,
+        "state": "uploaded",
+        "digest": "sha256:891f7fee4890eb7cafedbeb23d7410f514f35f80d8f037ad7df488a5b8e820a8",
+        "browser_download_url": "https://github.com/huwany1/MDcard/releases/download/v0.1.0/SHA256SUMS.txt",
+        "releaseId": 423172206,
+        "releaseTag": "v0.1.0"
       }
     ],
-    "oldDeletionPerformed": false,
-    "newUploadPerformed": false,
-    "publicDownloadVerification": "未验证",
-    "postDownloadStartupVerification": "未验证"
+    "latestReleaseId": 423172206,
+    "publicDownloadVerification": "通过",
+    "postDownloadStartupVerification": "通过",
+    "historicalRecordsRetained": true,
+    "website": "https://mdcard-document-journey.wholeangel11.chatgpt.site",
+    "websiteVersion": 8
   },
-  "note": "C01 public consistency, C06 actual deletion/upload and C07 public download/startup will be updated here after they occur. The four frozen release assets will not be rewritten to claim later remote results. Historical asset URLs above are inventory evidence, not current download entries."
+  "note": "All four release assets remain byte-for-byte frozen. This external report was updated only after actual remote deletion/upload, anonymous full downloads, two-platform startup and live-site verification. Historical URLs in evidence are inventories, not current download offers.",
+  "publicationContext": "The observed remote/download/startup/site results above are complete. The final README and formal repository indexes are published atomically with this documentation commit; the master reviewer re-queries origin/main public entries after push before announcing completion."
 }
