@@ -4,11 +4,11 @@
   <p><strong>写作、阅读与交付，在同一个本地工作区。</strong></p>
   <p>Rust / egui 原生 Markdown 与文本编辑器 · Windows / Linux</p>
   <p>
-    <a href="#download">下载与安装</a> ·
+    <a href="#download">下载</a> ·
     <a href="https://mdcard-document-journey.wholeangel11.chatgpt.site/">产品页</a> ·
     <a href="#development">开发指南</a> ·
     <a href="docs/README.md">文档</a> ·
-    <a href="CONTRIBUTING.md">参与贡献</a>
+    <a href="CONTRIBUTING.md">贡献</a>
   </p>
 </div>
 
