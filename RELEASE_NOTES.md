@@ -12,6 +12,6 @@ Windows x64 与 Linux x64 均来自同一冻结源码 [c453689171b09463c57cc217f
 
 Windows 11 x64；Linux Debian 12 x64 / glibc 2.36、X11，依赖清单见 README。其他系统/桌面/驱动、macOS 未全面验证。当前没有自动保存或崩溃恢复保证。
 
-归档文件、哈希与保留理由由发行元数据和包内 manifest 绑定；[最终 C01—C07 验收报告](https://github.com/huwany1/MDcard/blob/main/docs/releases/0.1.0-acceptance.json)独立记录真实远程删除、上传和公开下载结果，冻结时的元数据不冒充发布后状态。历史标签和发布记录继续保留。
+归档文件、哈希与保留理由由 Release 发行元数据和包内 manifest 绑定。这里记录既有发行身份，不代表当前源码已经重新发布。历史标签和发布记录继续保留。
 
 项目自有源码、文档、示例、网站、品牌设计及其他自有资产统一采用 AGPL-3.0-only，不再提供 MIT 备选授权；授权范围见 [COPYRIGHT](COPYRIGHT) 和[统一授权说明](docs/LICENSING.md)。第三方源码和资产继续采用其原许可，见[第三方来源与例外清单](docs/THIRD_PARTY.md)。

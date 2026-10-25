@@ -1,5 +1,0 @@
-
-> mdcard-renderer@0.1.0 test
-> node test.mjs
-
-Passed 30 real engine/theme cases, cache reuse, 7 invalid/malicious inputs and post-error recovery.

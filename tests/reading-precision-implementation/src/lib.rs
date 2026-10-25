@@ -54,7 +54,7 @@ mod faults {
             let restored = book.plan(doc,"main/preview",1,"test-layout",&ctx,egui::Rect::from_min_size(egui::Pos2::ZERO,egui::vec2(500.,300.)),false).unwrap();
             assert_eq!(restored.position.offset,[17.,80.]);
             assert!(restored.position.text_anchor.is_none());
-            assert_eq!(book.report(doc,None)["schema"],2);
+            assert_eq!(book.report(doc,None)["schema"],3);
         });
     }
     #[test]

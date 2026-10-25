@@ -8,17 +8,22 @@ are used: binary blobs are inventoried, textual blobs are scanned in full.
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--ancestor', default='origin/main')
+parser.add_argument('--ancestor', help='optional public history ref to scan separately')
+parser.add_argument('--index-file', help='scan an isolated candidate index without modifying the real index')
 parser.add_argument('--output', required=True)
 args = parser.parse_args()
 
 def git(*a):
-    return subprocess.check_output(['git', *a])
+    env = dict(os.environ)
+    if args.index_file:
+        env['GIT_INDEX_FILE'] = str(Path(args.index_file).resolve())
+    return subprocess.check_output(['git', *a], env=env)
 
 rules = {
     'private-key': r'-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----',
@@ -35,7 +40,7 @@ for row in git('ls-files', '-s', '-z').split(b'\0'):
     if row:
         meta, name = row.split(b'\t', 1)
         objects.setdefault(meta.split()[1].decode(), set()).add(name.decode('utf8'))
-commits = git('rev-list', args.ancestor).decode().splitlines()
+commits = git('rev-list', args.ancestor).decode().splitlines() if args.ancestor else []
 for commit in commits:
     for row in git('ls-tree', '-r', '-z', commit).split(b'\0'):
         if row:

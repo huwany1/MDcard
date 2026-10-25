@@ -1,12 +1,12 @@
-# 多格式导出引擎：冻结契约与验收矩阵
+# 多格式导出
 
-2026-10-22 后续审计更新：取消与超时需等待已跟踪进程终态和输出管道关闭。Linux 原生导出在启动前检查 pidfd API（内核 5.3+ 及相应权限）；不满足时明确拒绝启动。清理未确认或发布已开始时，界面要求核查目标，不能声称旧目标必然保留。普通取消、失败保护、重试与平台边界见 [后续台账](BUG_AUDIT_FOLLOWUP_2026-10-22.md)。本节其余历史验收不能替代新候选包证据。
+取消和超时需等待进程终态与管道关闭；Linux 原生导出需要 pidfd API（内核 5.3+及相应权限）。清理未确认或发布已经开始时，界面要求核查目标，不能承诺旧目标必然保留。
 
 ## 契约（2026-10-20）
 
 编辑器在启动任务时复制当前内存文档和样式；导出不改源文件、不触发保存、不丢失焦点或选区。Rust UI 仅接收后台进度事件和取消操作。每个任务使用独立子进程和私有临时目录，输出先写入目标同目录临时文件，成功校验后原子替换；失败、超时和取消保留原有目标。错误含阶段、行号/资源地址。
 
-“内置原生管线”指原生 Rust 应用调度随包分发的 Node、Chromium 兼容 Chrome for Testing、JRE 和锁定 JS 库，不要求用户安装系统 Chrome、Node、Java、Pandoc 或 Marp。它不是纯 Rust 排版。HTML/PDF/PNG/JPEG/Marp HTML/PDF/PPTX 使用此管线。Pandoc 是独立可配置管线，支持 DOCX、EPUB；缺失时给出可配置路径和官方下载引导，绝不静默更换文件格式。DOCX/EPUB 采用 Pandoc 的原生标题/目录/元数据结构。
+“内置原生管线”指原生 Rust 应用调度随包分发的 Node、Chromium、JRE 和锁定 JS 库，不要求用户安装系统 Chrome、Node、Java、Pandoc 或 Marp。它不是纯 Rust 排版。HTML/PDF/PNG/JPEG/Marp HTML/PDF/PPTX 使用此管线。Pandoc 是独立可配置管线，支持 DOCX、EPUB；缺失时给出可配置路径和官方下载引导，绝不静默更换文件格式。DOCX/EPUB 采用 Pandoc 的原生标题/目录/元数据结构。
 
 渲染遵循 Markdown AST；公式转换为 MathJax SVG，Mermaid/PlantUML/FlowChart 转换为 SVG，图像及 CSS 资源递归预编译为内联数据。不可解析资源、脚本/危险原始 HTML、SVG 外部引用和导入样式阻止导出并定位。离线产物不再运行公式或图表编译器。打印分页支持 `<!-- pagebreak -->`、`\newpage` 和 CSS `.pagebreak`。代码/表格/图片具有 avoid 规则；单块超过打印区域时拒绝并定位，避免无提示截断。电子书保留分页提示，物理页数由阅读器决定。DOCX TOC 是可点击的已填充目录并含更新字段，最终字体和分页仍由 Word 排版引擎与 Reference Docx 决定，不能跨引擎承诺逐像素相同。
 
@@ -41,30 +41,8 @@ MathJax 严格编译 TeX，三种图表复用编辑器的真实引擎。图片�
 
 严格拒绝失效资源、活动 HTML/SVG、SVG 外部引用、CSS `@import` 和 CSS 转义，报告阶段和源行号。图片/代码/表格超过一页时 PDF 拒绝输出，要求拆分或减小尺寸；Word 和电子书由各自排版引擎决定可重排结构。完整性优先于发布半成品。长图上限 100MP/60000px、单资源 20MiB、资源合计 128MiB、默认任务截止 180 秒；每个资源请求还受 12 秒限制。
 
-## 重建、集成与自动化
+## 构建与回归
 
-```powershell
-cd renderer
-# 锁定的 Sharp 双架构依赖需显式 --force，避免 npm 丢弃另一平台二进制。
-npm ci --force --ignore-scripts --no-fund --no-audit
-node build.mjs
-node licenses.mjs
-cd ..
-python scripts/prepare-export-runtime.py --proxy http://127.0.0.1:7897
-# Linux/Windows 分别构建原生二进制后：
-node scripts/verify-export.mjs
-node scripts/verify-export-svg-fonts.mjs
-python scripts/package-export.py --windows-exe artifacts/export/MDcard.exe --linux-exe artifacts/export/mdcard
-# 对完整发行 stage 以清空 PATH 的子进程再验收九格式：
-node scripts/verify-export-packages.mjs dist/export/<timestamp>/windows
-```
+按[开发说明](DEVELOPMENT.md)显式准备主机完整导出运行时；不要依赖旧 dist。运行 `node scripts/verify-export.mjs` 检查九种真实格式；语义、独立 SVG 字体与深色主题另见 `verify-export-semantics.mjs`、`verify-export-svg-fonts.mjs`、`verify-export-theme.mjs`。进程取消/超时由 `renderer/export-process.test.mjs` 检查。准备依赖不等于这些检查已经通过。
 
-运行时版本/官方来源/精确 SHA256 位于 `renderer/export-runtime-sources.json`，npm 在 package-lock.json 锁定。JRE SHA256 来自 Adoptium 官方元数据；Chrome for Testing 和 Pandoc 的首次下载采用官方 HTTPS，保存实测 SHA256，随后重建严格校验。该差异明确写入来源清单，不把实测哈希冒充上游签名。归档提取检查路径、类型和内部链接，避免跨目录解压；Linux 桌面仍需要 glibc 2.36+ 与常规桌面系统库（libnss3/libatk/libxkbcommon/libgbm/libasound 等），没有要求安装浏览器或 Java 应用。
-
-CLI 与 GUI 使用相同引擎：`renderer/runtime/node.exe renderer/export.mjs request.json`（Linux 为 `node`）。JSON 结构：
-
-```json
-{"source":"# A\n\nText","sourcePath":"D:/notes/a.md","baseDir":"D:/notes","output":"D:/exports/a.pdf","format":"pdf","timeoutMs":180000,"options":{"dark":false,"paper":"A4","marginMm":18,"fontSize":16,"scale":2,"lineNumbers":true,"toc":true,"pandocPath":"D:/tools/pandoc.exe","referenceDocx":"D:/templates/reference.docx","title":"Book","author":"Author","language":"zh-CN","identifier":"urn:uuid:example","customCss":"h1{letter-spacing:.02em}"}}
-```
-
-`format`：`html/pdf/png/jpeg/docx/epub/marp-html/marp-pdf/marp-pptx`。stdout 是 progress/complete/error JSONL；成功包含输出字节数、SHA256、标题结构、资源数量、耗时；错误包含 stage/message/line/resource。`MDCARD_EXPORT_REPORT` 提供只观察的 UI 控件位置、任务状态/进度/错误/输出、源快照与当前内容哈希，用于真实键鼠验收，不触发导出。
+Node 请求入口为 `renderer/export.mjs <request.json>`，请求包含 `source`、`sourcePath`、`baseDir`、`output`、`format`、`timeoutMs` 与 `options`。输出为 JSON lines 进度/完成/错误事件；Rust 使用 `export_ui.rs` 调度，不通过 HTTP 服务。

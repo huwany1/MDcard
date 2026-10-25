@@ -11,9 +11,9 @@ import sys
 import time
 import uuid
 
-ROOT = Path('/work')
+ROOT = Path(__file__).resolve().parents[1]
 OUT = Path(os.environ.get('MDCARD_STRUCTURE_OUTPUT',str(ROOT / 'evidence/structure/linux-final')))
-EXE = Path(sys.argv[1] if len(sys.argv) > 1 else '/work/target/release/mdcard')
+EXE = Path(sys.argv[1] if len(sys.argv) > 1 else str(ROOT/'target/release/mdcard'))
 OUT.mkdir(parents=True, exist_ok=True)
 ENV = dict(os.environ, DISPLAY=os.environ.get('MDCARD_STRUCTURE_DISPLAY',':109'), LANG='C.UTF-8', LIBGL_ALWAYS_SOFTWARE='1', LP_NUM_THREADS='2',
            XDG_RUNTIME_DIR='/tmp/mdcard-structure-runtime', MDCARD_SETTINGS_PATH=str(OUT/'settings.json'))
@@ -106,32 +106,31 @@ try:
     text=saved(fixture)
     assert 'New final row' not in text and len([line for line in text.splitlines() if line.startswith('|')])==4
     assert '| Pears after ShiftTab | survivor |' in text
-    click(494,301);key('ctrl+a');paste('extra column')
+    click(494,285);key('ctrl+a');paste('extra column')
     assert 'extra column' in saved(fixture)
-    click(602,301);key('ctrl+a');paste('20')
+    click(612,285);key('ctrl+a');paste('20')
     assert 'extra column' not in saved(fixture)
     key('ctrl+alt+2')
     assert '| :--- | :---: |' in saved(fixture)
-    click(340,360,3);shot('03-column-menu');key('Escape')
-    click(340,360,3);click(400,382)
+    click(340,347,3);shot('03-column-menu');click(400,368)
     assert '|   | Name | Value |' in saved(fixture)
     key('ctrl+z')
     assert '| Name | Value |' in saved(fixture)
-    click(433,263)
+    click(433,245)
     assert '| Name | Value |' not in saved(fixture)
     key('ctrl+z')
     assert '| Name | Value |' in saved(fixture)
-    click(372,190)
+    click(378,169)
     shot('04-blocks')
-    run('xdotool','mousemove','--window',window,'286','375','mousedown','1')
+    run('xdotool','mousemove','--window',window,'292','362','mousedown','1')
     for step in range(1,17):
-        run('xdotool','mousemove','--window',window,str(round(286+(400-286)*step/16)),str(round(375+(470-375)*step/16)))
+        run('xdotool','mousemove','--window',window,str(round(292+(400-292)*step/16)),str(round(362+(475-362)*step/16)))
         time.sleep(.025)
     shot('05-drag-target')
     run('xdotool','mouseup','1');time.sleep(.3)
     text=saved(fixture)
     assert text.index('Beta paragraph.')<text.index('Gamma paragraph.')<text.index('Alpha 🦀 paragraph.')
-    click(309,263)
+    click(309,245)
     assert saved(fixture).index('Alpha 🦀 paragraph.')<saved(fixture).index('Gamma paragraph.')
     key('ctrl+z');shot('06-undo-selected-block')
     run('xdotool','windowsize',window,'620','420');shot('07-compact-blocks')
@@ -182,7 +181,7 @@ try:
     big=OUT/'large.md'
     big.write_text('| a | b |\n| --- | --- |\n| x | y |\n\n'+('Unicode 🦀 paragraph with **markdown** and [link](https://example.com).\n\n'*14000),encoding='utf-8')
     launch(big,'large')
-    click(1062,82)  # Write mode, keeping the source editor live behind the structure window.
+    click(1062,82)  # Keep input in the application before opening the structural window.
     key('ctrl+shift+t');click(390,431)
     for n in range(100):
         key('ctrl+alt+1' if n%2==0 else 'ctrl+alt+3')
@@ -207,7 +206,7 @@ try:
         return dict(count=len(ordered),p50=ordered[len(ordered)//2],p95=ordered[min(len(ordered)-1,int(len(ordered)*.95))],maximum=max(ordered))
     sequential_cpu=[value for value,span in zip(timing['command_and_following_update_cpu_ms'],timing['update_command_ranges']) if span[1]<=100]
     burst_cpu=[value for value,span in zip(timing['command_and_following_update_cpu_ms'],timing['update_command_ranges']) if span[1]>100]
-    result=dict(verification_id=verification,date='2026-10-19',timezone='Asia/Shanghai',status='passed',exe=str(EXE),exe_sha256=hashlib.sha256(EXE.read_bytes()).hexdigest(),environment=f'Debian 12 / X11 Xvfb {ENV["DISPLAY"]} / Openbox / llvmpipe OpenGL',real_pointer_keyboard=True,untouched_bom_crlf_exact=True,cell_pipe_unicode=True,tab_shift_tab=True,final_tab_adds_exactly_one_row=True,delete_final_row_column_retains_focus=True,save_keeps_grid_focus=True,shared_undo_redo=True,column_insert_before_context_menu=True,table_delete_undo=True,distant_block_drag=True,block_identity_after_undo=True,list_alt_indent_outdent_move=True,first_list_item_refused=True,empty_edge_header_body_keeps_shape_and_undo=True,locales=['zh-CN','zh-TW','en','ko','ja','ru'],compact='620x420',large_source_bytes=big.stat().st_size,large_blocks=timing['blocks'],large_sequential_commands=stats(timing['command_ms'][:100]),large_burst_commands=stats(timing['command_ms'][100:]),burst_scheduled_interval_ms=20,burst_send_ms=burst_send_ms,burst_exact_added_rows=100,large_sequential_updates_cpu=stats(sequential_cpu),large_burst_updates_cpu=stats(burst_cpu),timing_scope=timing['measurement'])
+    result=dict(verification_id=verification,date=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),timezone='UTC',status='passed',exe=str(EXE),exe_sha256=hashlib.sha256(EXE.read_bytes()).hexdigest(),environment=f'Debian 12 / X11 Xvfb {ENV["DISPLAY"]} / Openbox / llvmpipe OpenGL',real_pointer_keyboard=True,untouched_bom_crlf_exact=True,cell_pipe_unicode=True,tab_shift_tab=True,final_tab_adds_exactly_one_row=True,delete_final_row_column_retains_focus=True,save_keeps_grid_focus=True,shared_undo_redo=True,column_insert_before_context_menu=True,table_delete_undo=True,distant_block_drag=True,block_identity_after_undo=True,list_alt_indent_outdent_move=True,first_list_item_refused=True,empty_edge_header_body_keeps_shape_and_undo=True,locales=['zh-CN','zh-TW','en','ko','ja','ru'],compact='620x420',large_source_bytes=big.stat().st_size,large_blocks=timing['blocks'],large_sequential_commands=stats(timing['command_ms'][:100]),large_burst_commands=stats(timing['command_ms'][100:]),burst_scheduled_interval_ms=20,burst_send_ms=burst_send_ms,burst_exact_added_rows=100,large_sequential_updates_cpu=stats(sequential_cpu),large_burst_updates_cpu=stats(burst_cpu),timing_scope=timing['measurement'])
     (OUT/'result.json').write_text(json.dumps(result,indent=2)+'\n')
     print(json.dumps(result,indent=2))
 finally:

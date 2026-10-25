@@ -42,7 +42,7 @@ cd ..
 python scripts/prepare-development.py --browser
 ```
 
-npm 默认只安装当前主机 Sharp 的可选二进制，不再强制安装另一平台包。build.mjs 生成 renderer/vendor 的 JS/CSS、字体和 bundle 输入清单。prepare-development.py 从 runtime-sources.json 的官方地址取得 MIT PlantUML jar，验证固定 SHA256 后原子放到 vendor；--browser 下载锁定 Playwright Chromium 到 renderer/runtime/browsers。需要 Java 17+ 在 PATH，或显式设置 MDCARD_JAVA。系统 Node 在 PATH 即可，应用优先使用随包 Node，源码开发不必下载两平台 Node。
+上述 npm ci 安装当前主机的 Sharp 可选二进制。完整跨平台运行时工具保留其原本的 npm ci --force 行为；不要把主机 node_modules 直接当作另一平台的安装。build.mjs 生成 renderer/vendor 的 JS/CSS、字体和 bundle 输入清单。prepare-development.py 从 runtime-sources.json 的官方地址取得 MIT PlantUML jar，验证固定 SHA256 后原子放到 vendor；--browser 下载锁定 Playwright Chromium 到 renderer/runtime/browsers。需要 Java 17+ 在 PATH，或显式设置 MDCARD_JAVA。系统 Node 在 PATH 即可，应用优先使用随包 Node，源码开发不必下载两平台 Node。
 
 Linux 如缺浏览器系统库：
 
@@ -87,12 +87,18 @@ node scripts/serve.mjs
 
 浏览器检查需 npm ci --ignore-scripts 和 Playwright Chromium，并另开预览服务器；可用 CHROMIUM_PATH 指定浏览器，BASE_URL 指定预览地址。详细步骤见[网站说明](../website/README.md)。已有截图和导出样本是公开演示稿，不是私人稿件。
 
-## 检查与历史工具
+## 检查入口
 
-主 CI 执行 Windows/Linux cargo 检查、renderer Linux 真实引擎/进程测试、网站构建；运行状态看 GitHub Actions，排队不算通过。tests 下独立 Cargo 工程含锁文件和相对 source include，按需 cargo run/test --manifest-path tests/对应目录/Cargo.toml --locked。
+常规检查可运行 `python scripts/check.py --desktop --acceptance`，等价于上面的四个 Rust 命令加上 tests 下全部独立 Cargo 工程的 `cargo test --locked`。每份独立锁文件和真实源码相对引用都属于开发输入。
 
-scripts 内大量 verify-*.ps1 / verify-*.py 及 package-*.py 是保留的历史验收和候选打包工具。它们可能写死旧候选路径、/work 或本地产品包，需按参数和环境调整，也可能需要 xdotool、Xvfb、pywinauto、Pillow、字体工具或独立证据目录。这些不属于干净编译的必要步骤；其历史通过不自动变成本次通过。当前开源验证见[报告](open-source/ACCEPTANCE.md)。
+renderer 在完成干净安装及运行时准备后执行 `python scripts/check.py --renderer`，包含构建、真实引擎主题/缓存/恶意输入、进程回收与 CLI alias 回归。网站执行 `python scripts/check.py --website`；其浏览器及样例下载检查见网站说明。其他原生 GUI、导出、语料与性能工具见[当前维护工具](../scripts/README.md)。
 
-[已知依赖报告与本次修复](open-source/DEPENDENCY_RISKS.md)单独记录，不能把编译通过等同于无安全风险。
+主 CI 检查 Windows/Linux Rust、Linux renderer 真实引擎/进程测试和网站独立构建。以实际 Actions 运行结果判断远端状态，排队或存在工作流文件不等于通过。本地结果须记录平台和检查命令；未运行平台、GUI、全部导出格式或物理显示延迟不能沿用旧结论。
 
-本次验证使用干净 Git 克隆；依赖注册表缓存和编译缓存可复用，但没有复制私人资源。可复现开发入口指依赖与输入可取得，不承诺所有机器二进制逐字节一致或旧包完全重现。
+注册表缓存可复用，不能复制旧 dist、生成 bundle、未跟踪字体或私人资源掩盖缺失输入。下载依赖及安装的标准工具属于显式开发前提，不承诺二进制逐字节一致。
+
+依赖升级须检查 Cargo/npm 审计与上游公告并执行受影响回归；构建通过不等于没有安全风险。保留 xmldom 0.9.12 override 和 ELK 隔离，不在源码范围整理中擅自升级引擎。
+
+## 已知依赖维护事项
+
+2026-10-25 在干净 renderer 安装后执行 `npm audit --omit=dev --json`，报告 12 个依赖传播条目（10 high / 2 low / 0 critical），涉及 Marp/Puppeteer 工具链、间接 KaTeX、zod 等；条目数不等于独立可利用漏洞数。本次源码范围精简不升级这些引擎，也不宣称消除安全风险。后续依赖维护需重新审计并执行受影响的引擎与导出回归；不要直接用强制主版本升级替代兼容性验证。

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (c) 2026 MDcard contributors
-param([string]$Exe = "$PSScriptRoot\..\dist\windows\MDcard.exe",[switch]$CaptureOnly,[switch]$FunctionsOnly)
+param([string]$Exe = "$PSScriptRoot\..\target\release\mdcard.exe",[switch]$CaptureOnly,[switch]$FunctionsOnly)
 $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
@@ -113,5 +113,5 @@ $invalid=Join-Path $output 'invalid-utf8.md';[IO.File]::WriteAllBytes($invalid,[
 Launch 'error-renderer' '' $invalid
 Shot 'error-dialog-dark';Keys '{ESC}'
 CloseApp
-@{verification_id=[Guid]::NewGuid().ToString();date='2026-10-19';timezone='Asia/Shanghai';matrix=$matrix;gpu_off_real_click=$true;cpu_only_after_restart=$true;gpu_on_real_click=$true;hardware_restored_after_restart=$true;reduce_motion_persisted=$true;compact_logical='620x420';preferences_shortcut='Ctrl+Shift+P';exe_sha256=(Get-FileHash -LiteralPath $Exe).Hash} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $output 'result.json') -Encoding UTF8
+@{verification_id=[Guid]::NewGuid().ToString();date=[DateTimeOffset]::UtcNow.ToString('o');timezone='UTC';matrix=$matrix;gpu_off_real_click=$true;cpu_only_after_restart=$true;gpu_on_real_click=$true;hardware_restored_after_restart=$true;reduce_motion_persisted=$true;compact_logical='620x420';preferences_shortcut='Ctrl+Shift+P';exe_sha256=(Get-FileHash -LiteralPath $Exe).Hash} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $output 'result.json') -Encoding UTF8
 Write-Output $output

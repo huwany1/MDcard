@@ -7,7 +7,7 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 const site=path.resolve(import.meta.dirname,'..');
 const out=path.resolve(site,process.env.EVIDENCE_DIR||'evidence/browser');await mkdir(out,{recursive:true});
-const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||path.join(site,'../dist/windows/renderer/runtime/chromium/chrome.exe'),headless:true});
+const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined,headless:true});
 try{
  const page=await browser.newPage();await page.goto(process.env.BASE_URL||'http://127.0.0.1:4173/');const records=[];
  for(const label of ['带走这份示例原稿','下载离线 HTML','下载示例 PDF']){

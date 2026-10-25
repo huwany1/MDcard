@@ -1,6 +1,18 @@
+# Exclude only local/build inputs from the optional tool image context.
+.git
 target
 dist
-.git
-evidence
 artifacts
-
+evidence
+.local
+.venv
+.env
+.env.local
+**/node_modules
+**/__pycache__
+renderer/vendor
+renderer/runtime
+website/dist
+website/evidence
+website/.openai
+assets/branding/mdcard-icon/preview

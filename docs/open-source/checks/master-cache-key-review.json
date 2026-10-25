@@ -1,8 +1,0 @@
-{
-  "commit": "72fec8ee52dbdad0ad61c162dac3f01528925dbe",
-  "gitleaks_findings": 30,
-  "render_keys_recomputed": 30,
-  "request_hash_mismatches": [],
-  "unexpected_findings": 0,
-  "disposition": "Every finding is the verified SHA256 of a public synthetic renderer request; no allowlist added; raw scanner exit=1 retained."
-}
