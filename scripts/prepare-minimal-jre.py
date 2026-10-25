@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (c) 2026 MDcard contributors
 """Maintenance-only: obtain matching official JDKs, verify published SHA256,
 and build small application-specific Java images. JDKs never enter payloads."""
 from pathlib import Path

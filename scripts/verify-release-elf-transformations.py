@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (c) 2026 MDcard contributors
 """External evidence for removing only non-runtime ELF symbols in fresh staging."""
 from pathlib import Path
 import argparse,hashlib,json,struct,subprocess

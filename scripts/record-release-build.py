@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (c) 2026 MDcard contributors
 """Bind actual compiler dependency files and binary bytes to frozen Git inputs."""
 from pathlib import Path
 import argparse,hashlib,json,shlex,subprocess

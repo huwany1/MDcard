@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (c) 2026 MDcard contributors
 """Run Linux strip on a copied file inside an explicitly mapped Docker root."""
 from pathlib import Path
 import argparse,subprocess

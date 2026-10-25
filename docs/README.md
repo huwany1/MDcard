@@ -2,6 +2,8 @@
 
 当前 Windows / Linux 正式版本统一为 **0.1.0**。运行和下载入口以[项目 README](../README.md)与[正式发行索引](releases/latest.json)为准。历史报告中的版本、路径和测试结果仅代表采集时状态，旧应用包不再作为当前下载入口。
 
+本地开发使用当前仓库根目录；本次正式资产与运行目录集中在 `dist/0.1.0/`，以根目录的 `dist/latest.json` 为本地入口。原工作区路径只保留在历史构建记录中，当前位置映射见 `evidence/worktree-consolidation-20261025/migration-map.json`。
+
 | 阅读目的 | 文档 |
 | --- | --- |
 | 从公开源码构建、运行和贡献 | [开发入口](DEVELOPMENT.md)、[贡献指南](../CONTRIBUTING.md) |

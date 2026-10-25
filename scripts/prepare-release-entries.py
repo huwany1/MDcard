@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (c) 2026 MDcard contributors
 """Prepare reviewable unavailable/final public entries without changing a repo.
 
 Regenerate after the final release.json/SHA256SUMS freeze. The plan binds exact
@@ -42,7 +44,7 @@ sudo apt-get install {libraries}
 
 {integrity.rstrip("。")}。两平台真实构建源为 [{source[:12]}]({source_url})，自有应用版本统一 0.1.0。逐文件白名单与用途、大小和 SHA256 位于包内 `manifest.json`；完整验收边界见[本次验收报告]({report})和[正式发行索引](docs/releases/latest.json)。
 
-本包包含路径别名重命名、ELK 隔离、xmldom 修复与最新已交付功能；本地公式图表和全部九种导出格式使用随包引擎。用户稿件、设置、源码快照、开发与测试工具、品牌交接资料和历史报告不随应用包分发。历史 MIT 授权继续保留；新应用包自有部分为 AGPL-3.0-only。
+本包包含路径别名重命名、ELK 隔离、xmldom 修复与最新已交付功能；本地公式图表和全部九种导出格式使用随包引擎。用户稿件、设置、源码快照、开发与测试工具、品牌交接资料和历史报告不随应用包分发。项目自有源码与资产统一采用 AGPL-3.0-only；第三方内容见[来源与例外清单](docs/THIRD_PARTY.md)。
 
 '''
  readme=original.replace('# MDcard\n','# MDcard 0.1.0\n',1).replace('[下载正式包](https://github.com/huwany1/MDcard/releases/tag/v0.1.1-20261024)',title,1).replace('[0.1.0 发行准备页](https://github.com/huwany1/MDcard/releases/tag/v0.1.0)',title,1).replace(old_install,install)
@@ -70,7 +72,7 @@ Windows 11 x64；Linux Debian 12 x64 / glibc 2.36、X11，依赖清单见 README
 
 归档文件、哈希与保留理由由发行元数据和包内 manifest 绑定；[最终 C01—C07 验收报告]({report})独立记录真实远程删除、上传和公开下载结果，冻结时的元数据不冒充发布后状态。历史标签和发布记录继续保留。
 
-自有代码与新应用为 AGPL-3.0-only；第三方运行时保留各自许可证和声明；历史 MIT 权利不撤销。
+项目自有源码、文档、示例、网站、品牌设计及其他自有资产统一采用 AGPL-3.0-only，不再提供 MIT 备选授权；授权范围见 [COPYRIGHT](COPYRIGHT) 和[统一授权说明](docs/LICENSING.md)。第三方源码和资产继续采用其原许可，见[第三方来源与例外清单](docs/THIRD_PARTY.md)。
 '''
  write(stage,'RELEASE_NOTES.md',notes)
  write(stage,'SHA256SUMS.txt',(base/'SHA256SUMS.txt').read_text('utf8') if available else '# MDcard 0.1.0 发行资产更新与校验进行中，应用下载暂停。最终校验清单在完整上传后恢复。\n')

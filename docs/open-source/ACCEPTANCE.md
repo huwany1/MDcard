@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | C01 / G01 范围 | 通过 | 本地[范围](SCOPE.md)、[638 路径逐项来源/排除](import-inventory.json)、实际远程 commit tree 已由匿名完整clone核对（初次502文件），不靠ignore推断；[最终公开文件清单](public-files.tsv)记录文件、mode、blob和SHA256（清单自身除外） |
 | C02 / G02 AGPL | 通过 | [完整 LICENSE](../../LICENSE)、[许可边界](../LICENSING.md)；所有自有 Cargo/npm 根元数据和 lock 根一致 AGPL-3.0-only，vendor/第三方例外明确 |
-| C03 / G03 授权 | 通过 | [第三方表](../THIRD_PARTY.md)、原 OFL/MIT/Apache/NOTICE、[旧 MIT](LEGACY_MIT_LICENSE.txt)、[原发行资产身份](remote-assets-before.json)；旧 MIT 不撤销，原包不改写 |
+| C03 / G03 授权 | 通过 | [第三方表](../THIRD_PARTY.md)、原 OFL/MIT/Apache/NOTICE、[旧 MIT 历史快照](https://github.com/huwany1/MDcard/blob/da9d8b43bce2d89a6932d5b5e1b7e31c4b2f5bcb/docs/open-source/LEGACY_MIT_LICENSE.txt)、[原发行资产身份](remote-assets-before.json)；此行为历史验收事实，当前统一授权见[说明](../LICENSING.md) |
 | C04 / G04 公开风险 | 通过 | [敏感信息与二进制核查](SECURITY_REVIEW.md)、[94 项邮箱误报](sensitive-findings.json)、[30 项缓存 digest 逐一重算](gitleaks-reviewed-findings.json)；Gitleaks全实际公开可达链已扫描、原始exit1、30项精确已核实误报，无已知未处理项；不是 0 命中或绝对无泄露保证 |
 | C05 / G05 历史资产 | 通过 | 原远程祖先、tag 与 Release 记录已保存，RELEASE_NOTES.md / SHA256SUMS.txt blob 原样保留；[公开后资产对照](remote-assets-after.json)的Release正文/ID、3个资产ID/size/digest/URL与before完全一致；[匿名下载HEAD](checks/release-download-heads.json)均HTTP200且长度一致 |
 | C06 / G06 干净开发 | 通过 | [命令/环境/exit](checks/local-validation.json)、[桌面日志](checks/desktop-linux-and-windows-gnu.log)、[Windows renderer](checks/renderer-windows.json)、[Linux npm/进程测试](checks/renderer-linux-install-and-process.log)、[网站](checks/website-browser-summary.json)；[39ff的远程CI](checks/ci-source-39ff.json)三jobs全部success，含原生Windows MSVC、Linux与renderer/site；完整导出资源/全格式GUI不在本轮复验范围 |

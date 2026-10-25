@@ -5,6 +5,13 @@ $root = Split-Path $PSScriptRoot
 foreach ($platform in @('windows','linux')) {
     $folder = Join-Path $root "dist\$platform"
     if (!(Test-Path -LiteralPath $folder)) { throw "Missing build output: $folder" }
+    $legacyLicense = Join-Path $folder 'docs/open-source/LEGACY_MIT_LICENSE.txt'
+    if (Test-Path -LiteralPath $legacyLicense -PathType Leaf) { Remove-Item -LiteralPath $legacyLicense -Force }
+    foreach ($licenseRelative in @('COPYRIGHT', 'docs/LICENSING.md', 'docs/THIRD_PARTY.md', 'vendor/egui_commonmark/LICENSE-MIT', 'vendor/egui_commonmark/LICENSE-APACHE', 'vendor/egui_commonmark/LICENSE-AGPL', 'vendor/egui_commonmark/MDCARD_CHANGES.md', 'vendor/egui_commonmark/PATCHES.txt')) {
+        $licenseDestination = Join-Path $folder $licenseRelative
+        New-Item -ItemType Directory -Path (Split-Path $licenseDestination) -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $root $licenseRelative) -Destination $licenseDestination -Force
+    }
     Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination $folder -Force
     Copy-Item -LiteralPath (Join-Path $root 'THIRD_PARTY_NOTICES.txt') -Destination $folder -Force
     Copy-Item -LiteralPath (Join-Path $root 'assets\OFL.txt') -Destination (Join-Path $folder 'NotoSansSC-OFL.txt') -Force

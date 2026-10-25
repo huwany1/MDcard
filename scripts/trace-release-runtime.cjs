@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (c) 2026 MDcard contributors
 // Maintenance-only dependency tracer; never included in the application archive.
 const fs = require('node:fs/promises');
 const path = require('node:path');

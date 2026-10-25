@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (c) 2026 MDcard contributors
 """Reviewable, restartable GitHub asset replacement after local acceptance.
 
 Each phase is explicit. This script never moves a tag, deletes a Release, or

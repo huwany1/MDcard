@@ -4,6 +4,8 @@
 
 [下载正式包](https://github.com/huwany1/MDcard/releases/tag/v0.1.0) · [产品页](https://mdcard-document-journey.wholeangel11.chatgpt.site/) · [构建说明](docs/DEVELOPMENT.md) · [文档导航](docs/README.md) · [报告问题](https://github.com/huwany1/MDcard/issues) · [贡献指南](CONTRIBUTING.md)
 
+本地源码与开发入口统一在当前仓库根目录。本次 0.1.0 发行资产和两平台运行目录位于 `dist/0.1.0/`，实际平台路径与校验值见 `dist/latest.json`。原始品牌设计保留在 `assets/branding/`，本地验收与迁移记录保存在 `evidence/`。
+
 ## 安装与运行
 
 - Windows x64：[MDcard-0.1.0-windows-x64.zip](https://github.com/huwany1/MDcard/releases/download/v0.1.0/MDcard-0.1.0-windows-x64.zip)，400,903,844 字节（382.33 MiB）。
@@ -21,7 +23,7 @@ sudo apt-get install libx11-6 libxcb1 libxkbcommon0 libxkbcommon-x11-0 libxcurso
 
 [SHA256SUMS.txt](https://github.com/huwany1/MDcard/releases/download/v0.1.0/SHA256SUMS.txt) · [发行元数据](https://github.com/huwany1/MDcard/releases/download/v0.1.0/MDcard-0.1.0-release.json)。两平台真实构建源为 [c453689171b0](https://github.com/huwany1/MDcard/tree/c453689171b09463c57cc217fa48974a080854f2)，自有应用版本统一 0.1.0。逐文件白名单与用途、大小和 SHA256 位于包内 `manifest.json`；完整验收边界见[本次验收报告](https://github.com/huwany1/MDcard/blob/main/docs/releases/0.1.0-acceptance.json)和[正式发行索引](docs/releases/latest.json)。
 
-本包包含路径别名重命名、ELK 隔离、xmldom 修复与最新已交付功能；本地公式图表和全部九种导出格式使用随包引擎。用户稿件、设置、源码快照、开发与测试工具、品牌交接资料和历史报告不随应用包分发。历史 MIT 授权继续保留；新应用包自有部分为 AGPL-3.0-only。
+本包包含路径别名重命名、ELK 隔离、xmldom 修复与最新已交付功能；本地公式图表和全部九种导出格式使用随包引擎。用户稿件、设置、源码快照、开发与测试工具、品牌交接资料和历史报告不随应用包分发。项目自有源码与资产统一采用 AGPL-3.0-only；第三方内容见[来源与例外清单](docs/THIRD_PARTY.md)。
 
 ## 已有能力
 
@@ -68,6 +70,6 @@ PlantUML 需 Java 17+；Word/EPUB 等可选管线需 Pandoc。完整命令、额
 
 ## 许可证
 
-本次公开源码导入起，MDcard 自有代码、脚本、网站和自有图标采用 **AGPL-3.0-only**，完整正文见 [LICENSE](LICENSE)。第三方 Rust/JS 依赖、字体及运行时继续采用各自协议，见[授权边界与历史 MIT 说明](docs/LICENSING.md)、[第三方来源](docs/THIRD_PARTY.md)及各版权/NOTICE 文件。
+MDcard 当前版本的全部自有源码与资产，包括代码、脚本、配置、测试、文档、翻译、示例、网站、品牌设计、图标、图片和截图，统一采用 **AGPL-3.0-only**，不再提供 MIT 备选授权。全仓声明见 [COPYRIGHT](COPYRIGHT)，完整正文见 [LICENSE](LICENSE)，具体覆盖范围见[统一授权说明](docs/LICENSING.md)。第三方源码、依赖、字体及其派生、嵌入素材和运行时保留原许可，集中列于[第三方来源与例外清单](docs/THIRD_PARTY.md)。
 
-分发受 AGPL 覆盖的程序或衍生作品时，应按协议保留声明并向接收者提供对应源码；修改版本通过网络与用户交互时，须按第 13 条向这些用户显著提供免费取得该版本对应源码的机会。单纯运行、未触发分发或该网络义务的私人修改、独立作品和用户稿件不因此自动变成 AGPL。不能推导为“采用者的所有代码都必须公开”。此前已获得的 MIT 授权不被撤销，已有发行包以随附许可证识别。具体以协议正文为准。
+分发受 AGPL 覆盖的程序或衍生作品时，应按协议保留声明并向接收者提供对应源码；修改版本通过网络与用户交互时，须按第 13 条向这些用户显著提供免费取得该版本对应源码的机会。用户稿件仍由其作者决定授权。历史版本的授权与本次修订范围见[统一授权说明](docs/LICENSING.md#历史版本)，具体权利义务以协议正文为准。

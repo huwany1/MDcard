@@ -1,0 +1,24 @@
+MDcard
+Copyright (c) 2026 MDcard contributors
+SPDX-License-Identifier: AGPL-3.0-only
+
+All copyrightable material owned by the MDcard project in this version is
+licensed under the GNU Affero General Public License, version 3 only.
+This includes source code, project-owned modifications, build and release tools,
+tests and fixtures, configuration, documentation, translations, examples,
+website content, original designs, SVG/PNG/ICO icons, images and screenshots.
+The grant applies whether or not an individual file carries a license header,
+and also covers project-owned portions of generated and binary assets.
+This version does not offer MIT as an alternative license for MDcard-owned work.
+
+The complete license is in LICENSE. You may redistribute and modify covered
+material under its terms. It is provided WITHOUT ANY WARRANTY, including the
+implied warranties of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+Third-party code, fonts (including renamed or subset derivatives), libraries,
+runtimes, embedded material and their license/attribution texts retain their
+original copyrights and terms. This grant covers only MDcard-owned portions of
+mixed works and does not replace or remove upstream notices or obligations.
+The central third-party inventory and exceptions are in docs/THIRD_PARTY.md;
+the scope, distribution instructions and historical-version note are in
+docs/LICENSING.md. User-authored documents remain under their authors' terms.

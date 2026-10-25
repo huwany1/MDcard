@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Copyright (c) 2026 MDcard contributors
 """Build a fresh runtime-only 0.1.0 candidate from an explicit file whitelist.
 
 This never deletes existing packages or publishes assets. The input runtime stages
@@ -7,6 +9,7 @@ from __future__ import annotations
 import argparse, collections, concurrent.futures, datetime, hashlib, json, re
 import shutil, struct, subprocess, tarfile, zipfile
 from pathlib import Path
+from license_payload import PROJECT_LICENSE_FILES
 
 ROOT = Path(__file__).resolve().parents[1]
 P = argparse.ArgumentParser()
@@ -30,7 +33,8 @@ if not OUT.is_relative_to(ROOT) or OUT.exists():
     raise ValueError('Use a new output directory inside the workspace')
 OUT.mkdir(parents=True)
 COMMIT = subprocess.check_output(['git', 'rev-parse', A.source_commit+'^{commit}'], cwd=ROOT, text=True).strip()
-if subprocess.check_output(['git','diff','--name-only',COMMIT,'--','Cargo.toml','Cargo.lock','build.rs','src','assets','locales','vendor','renderer'],cwd=ROOT,text=True).strip():
+subprocess.run(['git','ls-files','--error-unmatch','--',*PROJECT_LICENSE_FILES],cwd=ROOT,check=True,capture_output=True)
+if subprocess.check_output(['git','diff','--name-only',COMMIT,'--','Cargo.toml','Cargo.lock','build.rs','src','assets','locales','vendor','renderer',*PROJECT_LICENSE_FILES],cwd=ROOT,text=True).strip():
     raise RuntimeError('Product inputs differ from the frozen source commit')
 TRACE = json.loads(A.trace.read_text('utf8'))
 NOW = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -137,7 +141,7 @@ for platform in ['windows','linux']:
     legal={}
     def notice(path,label):
         if path.is_file(): legal.setdefault(sha(path),{'bytes':path.read_bytes(),'labels':[]})['labels'].append(label)
-    for name in ['LICENSE','THIRD_PARTY_NOTICES.txt']:notice(ROOT/name,name)
+    for name in (*PROJECT_LICENSE_FILES,'THIRD_PARTY_NOTICES.txt'):notice(ROOT/name,name)
     for f in (ROOT/'assets').glob('*'):
         if legal_name(f.name):notice(f,'assets/'+f.name)
     for name in ['Node-LICENSE.txt','PlantUML-MIT-LICENSE.txt','THIRD_PARTY_NOTICES.txt']:notice(ROOT/'renderer'/name,'renderer/'+name)
@@ -176,7 +180,7 @@ for platform in ['windows','linux']:
             if elf_allocated(path)!=allocated:raise RuntimeError('ELF allocated runtime sections changed during symbol removal: '+name)
             after={'bytes':path.stat().st_size,'sha256':sha(path)}
             if before!=after:transforms.append({'platform':platform,'path':name,'operation':'GNU strip --strip-unneeded: remove non-runtime debug/static-symbol sections','before':before,'after':after,'allocatedSectionsIdentical':True})
-    generated(stage,'LICENSES.txt','MDcard 0.1.0 is AGPL-3.0-only licensed. Corresponding source: https://github.com/huwany1/MDcard/tree/'+COMMIT+'\nThird-party runtimes retain their own terms. Historical MIT releases retain their original rights.\n\n'+''.join(d+'  '+ '; '.join(v['labels'])+'\n' for d,v in sorted(legal.items())), 'License index maps each retained text to its original component(s), with exact corresponding-source link',rules)
+    generated(stage,'LICENSES.txt','MDcard-owned source code and assets are licensed under AGPL-3.0-only. Corresponding source: https://github.com/huwany1/MDcard/tree/'+COMMIT+'\nThis version does not offer MIT as an alternative for MDcard-owned work. Third-party components retain their original terms.\nProject scope, exceptions, upstream licenses and modification notices are included below by their original paths; each SHA256 maps to licenses/<SHA256>.txt.\n\n'+''.join(d+'  '+ '; '.join(v['labels'])+'\n' for d,v in sorted(legal.items())), 'License index maps each retained text to its original component(s), with exact corresponding-source link',rules)
     linux='Debian 12 x86_64 / glibc >= 2.36; X11 desktop. Required system desktop libraries: libx11-6 libxcb1 libxkbcommon0 libxkbcommon-x11-0 libxcursor1 libxrandr2 libxi6 libgl1 libegl1 libvulkan1 libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libatspi2.0-0 libcups2 libdrm2 libdbus-1-3 libgbm1 libasound2 libpango-1.0-0 libcairo2 libfontconfig1 libfreetype6; a working desktop portal (xdg-desktop-portal plus desktop backend) for native file dialogs. These OS desktop libraries are system prerequisites, not developer runtimes.\n'
     readme='MDcard 0.1.0 — '+platform+' x86_64\n\nExtract the entire archive into a writable folder and run '+exe+'. Keep renderer alongside the program. No Node, Java, Chromium, Pandoc, Rust, compiler, npm, or developer tools need to be installed.\n\n'+(linux if platform=='linux' else 'Windows 11 x64. Run MDcard.exe. Tested Windows configurations and results are recorded in the release report.\n')+'\nSupports editing/saving Chinese text, local formulas, Mermaid/PlantUML/flowchart, and HTML/PDF/PNG/JPEG/DOCX/EPUB/Marp HTML/PDF/PPTX exports. Local-resource functions work offline; remote images and external links need networking.\n\nCtrl+O open, Ctrl+S save, Ctrl+Shift+S Save As; use the Export menu for output formats. User data/settings are created outside the archive. No autosave or crash recovery guarantee.\n\nIntegrity: manifest.json lists every payload file, byte count and SHA256. Verify this archive against the separately distributed SHA256SUMS.txt. Licenses are mapped in LICENSES.txt.\n'
     generated(stage,'README.txt',readme,'Concise end-user installation/use/system requirements and integrity instructions',rules)
