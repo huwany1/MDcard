@@ -23,7 +23,8 @@ clear=json.loads(a.clearance.read_text('utf-8-sig'));index=json.loads((a.assets/
 names=['MDcard-0.1.0-windows-x64.zip','MDcard-0.1.0-linux-x64.tar.gz','SHA256SUMS.txt','MDcard-0.1.0-release.json']
 assert clear['localAcceptancePassed'] is True
 assert all(clear['criteria'][key]['status']=='通过' for key in ['C02','C03','C04','C05'])
-assert clear['cleanWindows']['passed'] is True and clear['cleanLinux']['passed'] is True
+assert clear['windowsHost']['passed'] is True and clear['cleanLinux']['passed'] is True
+assert clear['windowsHost']['environmentType'] == 'existing-windows-host'
 assert index['version']=='0.1.0' and index['sourceCommit']==clear['sourceCommit']
 frozen={name:{'bytes':(a.assets/name).stat().st_size,'sha256':sha(a.assets/name)} for name in names}
 assert frozen==clear['frozenAssets'],'Assets changed after local clearance'
