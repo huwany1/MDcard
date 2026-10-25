@@ -4,6 +4,8 @@
 
 [下载正式包](https://github.com/huwany1/MDcard/releases/tag/v0.1.0) · [产品页](https://mdcard-document-journey.wholeangel11.chatgpt.site/) · [构建说明](docs/DEVELOPMENT.md) · [文档导航](docs/README.md) · [报告问题](https://github.com/huwany1/MDcard/issues) · [贡献指南](CONTRIBUTING.md)
 
+本地源码与开发入口统一在当前仓库根目录。本次 0.1.0 发行资产和两平台运行目录位于 `dist/0.1.0/`，实际平台路径与校验值见 `dist/latest.json`。原始品牌设计保留在 `assets/branding/`，本地验收与迁移记录保存在 `evidence/`。
+
 ## 安装与运行
 
 - Windows x64：[MDcard-0.1.0-windows-x64.zip](https://github.com/huwany1/MDcard/releases/download/v0.1.0/MDcard-0.1.0-windows-x64.zip)，400,903,844 字节（382.33 MiB）。
