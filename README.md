@@ -2,13 +2,13 @@
 
 面向中文技术写作者的 Rust 原生 Markdown / 文本桌面编辑器，提供编辑、分屏、阅读、结构编辑、跨文件搜索、阅读位置恢复和本地公式图表渲染。
 
-[0.1.0 发行准备页](https://github.com/huwany1/MDcard/releases/tag/v0.1.0) · [产品页](https://mdcard-document-journey.wholeangel11.chatgpt.site/) · [构建说明](docs/DEVELOPMENT.md) · [文档导航](docs/README.md) · [报告问题](https://github.com/huwany1/MDcard/issues) · [贡献指南](CONTRIBUTING.md)
+发行更新与校验进行中，应用下载暂停 · [产品页](https://mdcard-document-journey.wholeangel11.chatgpt.site/) · [构建说明](docs/DEVELOPMENT.md) · [文档导航](docs/README.md) · [报告问题](https://github.com/huwany1/MDcard/issues) · [贡献指南](CONTRIBUTING.md)
 
 ## 安装与运行
 
 Windows / Linux 0.1.0 正在完成发行准备和公开下载闭环，完成前不提供应用压缩包下载。
 
-0.1.0 发行目标是两平台采用同一冻结源码构建；完整解压后运行，保留 `renderer`、许可证和 `manifest.json`。无需另装 Node、Java、Chromium、Pandoc 或开发工具。
+两平台采用同一冻结源码构建，完整解压后即可运行，保留 `renderer`、许可证和 `manifest.json`。无需另装 Node、Java、Chromium、Pandoc 或开发工具。
 
 Windows 11 x64：运行 `MDcard.exe`。默认 OpenGL 不可用时自动使用 Windows 内置 CPU 图形后端，保留原 GPU 偏好；程序版本可用 `MDcard.exe --version` 查询。Windows 10 未作本轮支持声明。
 
@@ -18,9 +18,9 @@ Linux x64：Debian 12 / glibc 2.36、X11 桌面，运行 `./mdcard`。系统需�
 sudo apt-get install libx11-6 libxcb1 libxkbcommon0 libxkbcommon-x11-0 libxcursor1 libxrandr2 libxi6 libgl1 libegl1 libvulkan1 mesa-vulkan-drivers libgl1-mesa-dri libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libatspi2.0-0 libcups2 libdrm2 libdbus-1-3 libgbm1 libasound2 libpango-1.0-0 libcairo2 libfontconfig1 libfreetype6 xdg-desktop-portal xdg-desktop-portal-gtk
 ```
 
-校验资产与下载入口将在完整上传和下载复验后恢复；请勿使用历史应用包的校验值验证新包。本源码的自有应用版本统一 0.1.0；最终两平台构建提交、归档哈希及验收状态以包内 manifest.json 和独立发行元数据为准，对应源码保留在本仓库。逐文件白名单与用途、大小和 SHA256 位于包内 `manifest.json`；完整验收边界见[本次验收报告](https://github.com/huwany1/MDcard/blob/main/docs/releases/0.1.0-acceptance.json)和[正式发行索引](docs/releases/latest.json)。
+校验资产与下载入口将在完整上传和下载复验后恢复；请勿使用历史应用包的校验值验证新包。两平台真实构建源为 [c453689171b0](https://github.com/huwany1/MDcard/tree/c453689171b09463c57cc217fa48974a080854f2)，自有应用版本统一 0.1.0。逐文件白名单与用途、大小和 SHA256 位于包内 `manifest.json`；完整验收边界见[本次验收报告](https://github.com/huwany1/MDcard/blob/main/docs/releases/0.1.0-acceptance.json)和[正式发行索引](docs/releases/latest.json)。
 
-本源码包含路径别名重命名、ELK 隔离、xmldom 修复与最新已交付功能；本地公式图表和全部九种导出格式使用随包引擎。用户稿件、设置、源码快照、开发与测试工具、品牌交接资料和历史报告不随应用包分发。历史 MIT 授权继续保留；新应用包自有部分为 AGPL-3.0-only。
+本包包含路径别名重命名、ELK 隔离、xmldom 修复与最新已交付功能；本地公式图表和全部九种导出格式使用随包引擎。用户稿件、设置、源码快照、开发与测试工具、品牌交接资料和历史报告不随应用包分发。历史 MIT 授权继续保留；新应用包自有部分为 AGPL-3.0-only。
 
 ## 已有能力
 

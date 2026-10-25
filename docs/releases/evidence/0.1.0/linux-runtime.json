@@ -1,0 +1,148 @@
+{
+  "passed": true,
+  "sourceCommit": "c453689171b09463c57cc217fa48974a080854f2",
+  "archiveSHA256": "416f3352e04c0c2726786f9b51bfb13a8f9a930a688bd8c6401a64125c5f0f29",
+  "binarySHA256": "6582be92d6a982b56514e9627f50d3765cadbb9ad10979ad7b489f46ab2922f9",
+  "environmentType": "Debian12-X11-runtime-only-container",
+  "uid": 1000,
+  "network": "none",
+  "appPATHEmpty": true,
+  "pathContainsChineseAndSpaces": true,
+  "payloadFiles": 1837,
+  "extraFiles": 0,
+  "richCounters": {
+    "cache_hits": 160,
+    "completed": 5,
+    "errors": 0,
+    "history_changes": 0,
+    "offscreen_nodes": 394,
+    "parses": 2,
+    "redo_calls": 0,
+    "submissions": 5,
+    "undo_calls": 0,
+    "visible_nodes": 1070
+  },
+  "engineCases": 30,
+  "nativeDocumentFormats": [
+    {
+      "format": "html",
+      "path": "native-0.html",
+      "bytes": 153727,
+      "sha256": "7205100c886921a98118bbee5de8e046bc44534c7a85dd6481b8b8a7d5a4f26d",
+      "allResourceSourcesEmbedded": true,
+      "passed": true
+    },
+    {
+      "format": "pdf",
+      "path": "native-1.pdf",
+      "bytes": 92019,
+      "sha256": "1f2921fce6c2000433497d76d67e566434679b20b5259a704b46857e2c9172ad",
+      "pages": 2,
+      "chineseTextAndOutline": true,
+      "passed": true
+    },
+    {
+      "format": "docx",
+      "path": "native-2.docx",
+      "bytes": 74595,
+      "sha256": "d1ef9a7d9285c9b15f788fcfd85a3684a81b6e1c52df3a0f216d7260bd9696fa",
+      "media": 12,
+      "passed": true
+    },
+    {
+      "format": "png",
+      "path": "native-3.png",
+      "bytes": 143651,
+      "sha256": "40431b1b3ce1d4faa089b7f0718eabb805b5ce71ec19ad4cba9663c84c9454a9",
+      "size": [
+        1316,
+        2344
+      ],
+      "passed": true
+    },
+    {
+      "format": "jpeg",
+      "path": "native-4.jpg",
+      "bytes": 182581,
+      "sha256": "ac87d6584cc8453f7156c43bab2cb0098e584fbe71a8bc6ef4fd66b31473ac13",
+      "size": [
+        1316,
+        2344
+      ],
+      "passed": true
+    },
+    {
+      "format": "epub",
+      "path": "native-5.epub",
+      "bytes": 61159,
+      "sha256": "70c3f837fb5c861f6c89e56066c62153ca676ed0e41d72d0c46b61643503981d",
+      "media": 6,
+      "passed": true
+    },
+    {
+      "format": "marp-html",
+      "path": "native-6.html",
+      "bytes": 125273,
+      "sha256": "729d6b03da4ba5fe308e937c043c2feb9f5cd32b0b145939e71dad9c4ac79177",
+      "allResourceSourcesEmbedded": true,
+      "passed": true
+    },
+    {
+      "format": "marp-pdf",
+      "path": "native-7.pdf",
+      "bytes": 42326,
+      "sha256": "5283c744caad89d2411149eb72ea3a7ca99681aac3e8b3d9933ccb1de03886f5",
+      "pages": 3,
+      "passed": true
+    },
+    {
+      "format": "marp-pptx",
+      "path": "native-8.pptx",
+      "bytes": 132571,
+      "sha256": "13a3b030a184a585701b4d239640e5f86eea3b0460eb944893390e8cbb022764",
+      "slides": 3,
+      "passed": true
+    }
+  ],
+  "nativeNodeExports": [
+    {
+      "nodeIndex": 2,
+      "kind": "mermaid",
+      "format": "svg",
+      "path": "native-node-2.svg",
+      "bytes": 37735,
+      "sha256": "89287825cbc71ee7d61c426ee3493ffb31b056f07417422f0d70d2d2738d5de4",
+      "nativeButton": "node-2-SVG",
+      "nativeSaveDialog": true,
+      "sourceUnchanged": true,
+      "passed": true,
+      "independentDetails": {
+        "chineseLabels": true,
+        "xml": true
+      }
+    },
+    {
+      "nodeIndex": 2,
+      "kind": "mermaid",
+      "format": "png",
+      "path": "native-node-2.png",
+      "bytes": 2107,
+      "sha256": "7ac984b91f0c0e87dafe2c6a0627ba776be6b66a6f5804e00f8b0aeb170ace17",
+      "nativeButton": "node-2-PNG",
+      "nativeSaveDialog": true,
+      "sourceUnchanged": true,
+      "passed": true,
+      "independentDetails": {
+        "size": [
+          386,
+          75
+        ],
+        "fullyDecoded": true
+      }
+    }
+  ],
+  "independentDocumentStructureChecksPassed": true,
+  "independentNodeStructureChecksPassed": true,
+  "systemRequirements": "X11 desktop, the system desktop libraries and portal/backend listed in the packaged Linux README; no external Node, Java, Chromium, Pandoc or developer toolchain needed",
+  "originalIndependentEvidenceSHA256": "a7fb0b9b8176a282993cfcd06ded47f6a69c4b90056346b188d48ec495001687"
+}

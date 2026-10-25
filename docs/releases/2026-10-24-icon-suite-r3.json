@@ -61,5 +61,9 @@
   "runtime_backup": "D:\\MDcard\\dist\\.before-icon-suite-20261024-r3\\windows",
   "final_payload_files": 22257,
   "final_manifest_sha256": "dfafe6a28e9380839da72370a91e36d6bf8ef56248ab8c0c1937946c895b7324",
-  "independent_report": "D:\\MDcard\\artifacts\\icon-integration-20261024\\master\\release-clearance.json"
+  "independent_report": "D:\\MDcard\\artifacts\\icon-integration-20261024\\master\\release-clearance.json",
+  "current": false,
+  "availability": "superseded",
+  "supersededBy": "0.1.0",
+  "supersedingReleaseURL": null
 }

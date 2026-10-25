@@ -1,6 +1,6 @@
 # MDcard 文档入口
 
-当前 Windows 正式版本为 **Icon Suite R3**，Linux 为 **R29**。运行程序、下载包与使用方法以[项目 README](../README.md)及[既有 Releases](https://github.com/huwany1/MDcard/releases/tag/v0.1.1-20261024)为准。源码仓库不含本地 dist/latest.json。历史报告中的版本、路径和测试结果仅代表其采集时状态。
+Windows / Linux 统一 0.1.0 发行准备和下载校验进行中，应用下载暂停。运行和下载入口以[项目 README](../README.md)与[正式发行索引](releases/latest.json)为准。历史报告中的版本、路径和测试结果仅代表采集时状态，旧应用包不再作为当前下载入口。
 
 | 阅读目的 | 文档 |
 | --- | --- |

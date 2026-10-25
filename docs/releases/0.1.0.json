@@ -1,0 +1,184 @@
+{
+  "schema": 1,
+  "product": "MDcard",
+  "version": "0.1.0",
+  "sourceCommit": "c453689171b09463c57cc217fa48974a080854f2",
+  "sourceURL": "https://github.com/huwany1/MDcard/tree/c453689171b09463c57cc217fa48974a080854f2",
+  "availability": "updating",
+  "releaseURL": null,
+  "acceptanceReport": "https://github.com/huwany1/MDcard/blob/main/docs/releases/0.1.0-acceptance.json",
+  "preparedFromReleaseMetadataSHA256": "b2eca158d4a8d0de9184d3cbd3caf3b87a03d90bb84e4547e5660994ac3cf222",
+  "localAcceptancePassed": true,
+  "assets": [
+    {
+      "name": "MDcard-0.1.0-windows-x64.zip",
+      "bytes": 400903844,
+      "sha256": "0c1353f87882348c0c123644734c582ab1d0548f888a529d5a6f79177c978cb1",
+      "url": null
+    },
+    {
+      "name": "MDcard-0.1.0-linux-x64.tar.gz",
+      "bytes": 387335216,
+      "sha256": "416f3352e04c0c2726786f9b51bfb13a8f9a930a688bd8c6401a64125c5f0f29",
+      "url": null
+    },
+    {
+      "name": "SHA256SUMS.txt",
+      "bytes": 283,
+      "sha256": "891f7fee4890eb7cafedbeb23d7410f514f35f80d8f037ad7df488a5b8e820a8",
+      "url": null
+    },
+    {
+      "name": "MDcard-0.1.0-release.json",
+      "bytes": 13084,
+      "sha256": "b2eca158d4a8d0de9184d3cbd3caf3b87a03d90bb84e4547e5660994ac3cf222",
+      "url": null
+    }
+  ],
+  "packages": [
+    {
+      "platform": "windows",
+      "version": "0.1.0",
+      "stage": "windows",
+      "archive": "MDcard-0.1.0-windows-x64.zip",
+      "bytes": 400903844,
+      "sha256": "0c1353f87882348c0c123644734c582ab1d0548f888a529d5a6f79177c978cb1",
+      "binary": {
+        "path": "MDcard.exe",
+        "bytes": 90977280,
+        "sha256": "7364896c971a90959d499aec1cf4e3c2e42297ee3c0489d1d4208796e4d4410b"
+      },
+      "manifestSHA256": "195ca8d548daea81ab341368b7eec69d46019875f3790d4b20b33106618181c8",
+      "payloadFiles": 1844,
+      "sourceCommit": "c453689171b09463c57cc217fa48974a080854f2",
+      "before": {
+        "payloadFiles": 22258,
+        "payloadBytes": 1585753561
+      },
+      "after": {
+        "payloadFiles": 1844,
+        "payloadBytes": 974400969
+      },
+      "pathChangeStats": {
+        "addedPaths": 163,
+        "addedBytes": 18946418,
+        "deletedPaths": 20577,
+        "deletedBytes": 543322600,
+        "changedPaths": 24,
+        "changedBytesDelta": -86976410,
+        "netSavedBytes": 611352592,
+        "manifestIncludedInTotals": true
+      },
+      "removedCategories": {
+        "brand-handoff-and-embedded-icons": {
+          "files": 59,
+          "bytes": 325764
+        },
+        "embedded-resources-and-metadata": {
+          "files": 22,
+          "bytes": 81618212
+        },
+        "development-and-nonessential-content": {
+          "files": 26,
+          "bytes": 5141362
+        },
+        "reports-docs-examples": {
+          "files": 35,
+          "bytes": 534435
+        },
+        "unreachable-node-dependencies-types-tests-docs": {
+          "files": 19740,
+          "bytes": 304608498
+        },
+        "runtime-unused-tools-caches-locales": {
+          "files": 562,
+          "bytes": 107281339
+        },
+        "pandoc-duplicate-binaries-and-manuals": {
+          "files": 3,
+          "bytes": 462463
+        },
+        "source-and-tests": {
+          "files": 130,
+          "bytes": 43350527
+        }
+      },
+      "extraFiles": 0,
+      "downloadURL": null,
+      "fileInventory": {
+        "path": "manifest.json",
+        "sha256": "195ca8d548daea81ab341368b7eec69d46019875f3790d4b20b33106618181c8",
+        "filesIncludingManifest": 1844,
+        "rule": "Exact file set and per-file size/SHA256; the manifest itself is covered by the archive hash and this external manifest hash"
+      }
+    },
+    {
+      "platform": "linux",
+      "version": "0.1.0",
+      "stage": "linux",
+      "archive": "MDcard-0.1.0-linux-x64.tar.gz",
+      "bytes": 387335216,
+      "sha256": "416f3352e04c0c2726786f9b51bfb13a8f9a930a688bd8c6401a64125c5f0f29",
+      "binary": {
+        "path": "mdcard",
+        "bytes": 88030784,
+        "sha256": "6582be92d6a982b56514e9627f50d3765cadbb9ad10979ad7b489f46ab2922f9"
+      },
+      "manifestSHA256": "21c352cdab3eaff3a2412a4141cd840fbbee4dbea7717a8a5f7ce3e4133fd0ba",
+      "payloadFiles": 1837,
+      "sourceCommit": "c453689171b09463c57cc217fa48974a080854f2",
+      "before": {
+        "payloadFiles": 22004,
+        "payloadBytes": 1975202660
+      },
+      "after": {
+        "payloadFiles": 1837,
+        "payloadBytes": 933893917
+      },
+      "pathChangeStats": {
+        "addedPaths": 159,
+        "addedBytes": 10895071,
+        "deletedPaths": 20326,
+        "deletedBytes": 993282244,
+        "changedPaths": 47,
+        "changedBytesDelta": -58921570,
+        "netSavedBytes": 1041308743,
+        "manifestIncludedInTotals": true
+      },
+      "removedCategories": {
+        "embedded-resources-and-metadata": {
+          "files": 22,
+          "bytes": 81618212
+        },
+        "reports-docs-examples": {
+          "files": 31,
+          "bytes": 504616
+        },
+        "development-and-nonessential-content": {
+          "files": 21,
+          "bytes": 5036261
+        },
+        "unreachable-node-dependencies-types-tests-docs": {
+          "files": 19742,
+          "bytes": 304614345
+        },
+        "runtime-unused-tools-caches-locales": {
+          "files": 504,
+          "bytes": 105050274
+        },
+        "pandoc-duplicate-binaries-and-manuals": {
+          "files": 6,
+          "bytes": 496458536
+        }
+      },
+      "extraFiles": 0,
+      "downloadURL": null,
+      "fileInventory": {
+        "path": "manifest.json",
+        "sha256": "21c352cdab3eaff3a2412a4141cd840fbbee4dbea7717a8a5f7ce3e4133fd0ba",
+        "filesIncludingManifest": 1837,
+        "rule": "Exact file set and per-file size/SHA256; the manifest itself is covered by the archive hash and this external manifest hash"
+      }
+    }
+  ]
+}

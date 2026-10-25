@@ -14,7 +14,7 @@ names=['MDcard-0.1.0-windows-x64.zip','MDcard-0.1.0-linux-x64.tar.gz','SHA256SUM
 packages={item['platform']:item for item in index['packages']};original=(root/'README.md').read_text('utf-8-sig');old_install=original[original.index('## 安装与运行'):original.index('## 已有能力')]
 libraries='libx11-6 libxcb1 libxkbcommon0 libxkbcommon-x11-0 libxcursor1 libxrandr2 libxi6 libgl1 libegl1 libvulkan1 mesa-vulkan-drivers libgl1-mesa-dri libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libatspi2.0-0 libcups2 libdrm2 libdbus-1-3 libgbm1 libasound2 libpango-1.0-0 libcairo2 libfontconfig1 libfreetype6 xdg-desktop-portal xdg-desktop-portal-gtk'
 def write(stage,name,text):
- path=stage/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_text(text,encoding='utf8')
+ path=stage/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_text(text,encoding='utf8',newline='\n')
 def scrub(value):
  if isinstance(value,dict):return {key:scrub(item) for key,item in value.items()}
  if isinstance(value,list):return [scrub(item) for item in value]
@@ -74,7 +74,7 @@ Windows 11 x64；Linux Debian 12 x64 / glibc 2.36、X11，依赖清单见 README
 '''
  write(stage,'RELEASE_NOTES.md',notes)
  write(stage,'SHA256SUMS.txt',(base/'SHA256SUMS.txt').read_text('utf8') if available else '# MDcard 0.1.0 发行资产更新与校验进行中，应用下载暂停。最终校验清单在完整上传后恢复。\n')
- formal={'schema':1,'product':'MDcard','version':'0.1.0','sourceCommit':source,'sourceURL':source_url,'availability':'available' if available else 'updating','releaseURL':release if available else None,'acceptanceReport':report,'preparedFromReleaseMetadataSHA256':sha(index_path),'localAcceptancePassed':index.get('localAcceptancePassed',False),'assets':[{**item,'url':downloads+item['name'] if available else None} for item in assets],'packages':index['packages']}
+ formal={'schema':1,'product':'MDcard','version':'0.1.0','sourceCommit':source,'sourceURL':source_url,'availability':'available' if available else 'updating','releaseURL':release if available else None,'acceptanceReport':report,'preparedFromReleaseMetadataSHA256':sha(index_path),'localAcceptancePassed':index.get('localAcceptancePassed',False),'assets':[{**item,'url':downloads+item['name'] if available else None} for item in assets],'packages':[{**item,'downloadURL':item.get('downloadURL') if available else None} for item in index['packages']]}
  write(stage,'docs/releases/0.1.0.json',json.dumps(formal,ensure_ascii=False,indent=2)+'\n');write(stage,'docs/releases/latest.json',json.dumps({'version':'0.1.0','index':'0.1.0.json','availability':formal['availability'],'releaseURL':formal['releaseURL'],'sourceCommit':source},ensure_ascii=False,indent=2)+'\n')
  for old in (root/'docs/releases').glob('*.json'):
   if old.name in ['0.1.0.json','latest.json']:continue

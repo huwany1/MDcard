@@ -1,0 +1,214 @@
+{
+  "passed": true,
+  "sourceCommit": "c453689171b09463c57cc217fa48974a080854f2",
+  "archiveSHA256": "0c1353f87882348c0c123644734c582ab1d0548f888a529d5a6f79177c978cb1",
+  "binarySHA256": "7364896c971a90959d499aec1cf4e3c2e42297ee3c0489d1d4208796e4d4410b",
+  "environmentType": "existing-windows-host",
+  "hostHasDevelopmentSoftware": true,
+  "os": {
+    "Caption": "Microsoft Windows 11 家庭版 中文版",
+    "Version": "10.0.26100",
+    "BuildNumber": "26100",
+    "OSArchitecture": "64 位"
+  },
+  "ordinaryNonElevated": true,
+  "appPATHEmpty": true,
+  "externalRuntimeOverridesAbsent": [
+    {
+      "name": "NODE_OPTIONS",
+      "absent": true
+    },
+    {
+      "name": "MDCARD_RENDERER_DIR",
+      "absent": true
+    },
+    {
+      "name": "MDCARD_CHROMIUM",
+      "absent": true
+    },
+    {
+      "name": "MDCARD_JAVA",
+      "absent": true
+    },
+    {
+      "name": "MDCARD_PANDOC",
+      "absent": true
+    }
+  ],
+  "runtimeHashes": {
+    "MDcard.exe": "7364896c971a90959d499aec1cf4e3c2e42297ee3c0489d1d4208796e4d4410b",
+    "renderer/worker.mjs": "b576c18a8406e4d9f3b41bf17e2f144d6e5c63e0a6064c633e221216a2a154f9",
+    "renderer/export.mjs": "e43f15764e6f7166144b731dbbaf8413970d00ab39c229317cceacd42458d149",
+    "renderer/runtime/node.exe": "ba4e6d110e8c1592a1ecd390f6b05f3da124b13871a5be62b341a07a853c6c32",
+    "renderer/runtime/chromium/chrome.exe": "669fd0cddc2ec6de4c8361d47d8e57fc203d25f53bc36c17790fea4444e2975f",
+    "renderer/runtime/java/bin/java.exe": "82051fdab26319d77d20cc0065045d05ec00b3e3d05f44935d7c06b96b621d55",
+    "renderer/runtime/pandoc/pandoc.exe": "eb392d2661d35abc597a6288a548cc82f6291b179da28b24bc5a5d06c742d35d"
+  },
+  "renderer": {
+    "automatic_compatibility": false,
+    "gpu_requested": true,
+    "gpu_running": true,
+    "language": "en",
+    "language_preference": "en",
+    "renderer": "OpenGL · NVIDIA GeForce RTX 4060 Laptop GPU/PCIe/SSE2 · 3.3.0 NVIDIA 596.08",
+    "version": "0.1.0"
+  },
+  "chineseEditSave": true,
+  "savedSourceSHA256": "66f4558cb856c911ba3a66a720cc32037fbd4fefda03315a4e786e5170469f1b",
+  "richCounters": {
+    "cache_hits": 49,
+    "completed": 5,
+    "errors": 0,
+    "history_changes": 0,
+    "offscreen_nodes": 665,
+    "parses": 2,
+    "redo_calls": 0,
+    "submissions": 5,
+    "undo_calls": 0,
+    "visible_nodes": 799
+  },
+  "formats": [
+    {
+      "format": "html",
+      "path": "native-0.html",
+      "sha256": "dc2b2fcd60266fc57ab0469ff94874996b8b112c3c81b27563ac6f277c9eb04e",
+      "bytes": 157003,
+      "embeddedSources": true,
+      "passed": true
+    },
+    {
+      "format": "pdf",
+      "path": "native-1.pdf",
+      "sha256": "40e82674212696e01a36ded799d5b6536371b56b27d529b9fe82780c6cecb135",
+      "bytes": 46458,
+      "pages": 1,
+      "chineseHeading": true,
+      "passed": true
+    },
+    {
+      "format": "docx",
+      "path": "native-2.docx",
+      "sha256": "0d5dae5046cdada239c167a5b93198b80a12f30a419b9886dc3a5f52195d639d",
+      "bytes": 66467,
+      "media": 11,
+      "passed": true
+    },
+    {
+      "format": "png",
+      "path": "native-3.png",
+      "sha256": "5ecb7a68e4faeaa43afc6b2318b2e9ea97908e5520cb7fe6d9b98fc73d256821",
+      "bytes": 90000,
+      "size": [
+        1316,
+        1800
+      ],
+      "passed": true
+    },
+    {
+      "format": "jpeg",
+      "path": "native-4.jpeg",
+      "sha256": "694ebc3e7975f1b46bec9723abb372cca1b1f6e72992340f0b8d786ce1be400d",
+      "bytes": 117704,
+      "size": [
+        1316,
+        1800
+      ],
+      "passed": true
+    },
+    {
+      "format": "epub",
+      "path": "native-5.epub",
+      "sha256": "be39a8e7386b4bf34e9733f6fa9370165c5f0e510a5510c4f6ced3fc6f6d209a",
+      "bytes": 52224,
+      "media": 5,
+      "passed": true
+    },
+    {
+      "format": "marp-html",
+      "path": "native-6.html",
+      "sha256": "90b2452c09f31a91f310cbd3228a9c9184bacaa375741b73d6a29571a8a95326",
+      "bytes": 194664,
+      "embeddedSources": true,
+      "passed": true
+    },
+    {
+      "format": "marp-pdf",
+      "path": "native-7.pdf",
+      "sha256": "ef2c78c321bead88e9b545b103267390c80eb80d49df048fbf98c7a3f6008e5d",
+      "bytes": 50988,
+      "pages": 1,
+      "chineseHeading": true,
+      "passed": true
+    },
+    {
+      "format": "marp-pptx",
+      "path": "native-8.pptx",
+      "sha256": "f01b5c8fc8e5ddf1025e93433cc53cbb34e97ac32eadf6abe9347261e2b56794",
+      "bytes": 115886,
+      "slides": 1,
+      "passed": true
+    }
+  ],
+  "nodeExports": [
+    {
+      "format": "svg",
+      "path": "native-node-2.svg",
+      "bytes": 37735,
+      "sha256": "07750ec9510c312dd816b4f0af141fd54507ee706749600b1a48da6751d095dd",
+      "chineseLabels": true,
+      "passed": true
+    },
+    {
+      "format": "png",
+      "path": "native-node-2.png",
+      "bytes": 2156,
+      "sha256": "2b939ddabafc597209450db6b201c62747d1dd5a9dd0166fd3c84663c81161cc",
+      "size": [
+        386,
+        73
+      ],
+      "passed": true
+    }
+  ],
+  "viewStates": [
+    {
+      "index": 2,
+      "mode": 0,
+      "pan": [
+        0.0,
+        0.0
+      ],
+      "zoom": 1.0
+    },
+    {
+      "index": 3,
+      "mode": 0,
+      "pan": [
+        0.0,
+        0.0
+      ],
+      "zoom": 1.0
+    },
+    {
+      "index": 4,
+      "mode": 0,
+      "pan": [
+        0.0,
+        0.0
+      ],
+      "zoom": 1.0
+    },
+    {
+      "index": 1,
+      "mode": 0,
+      "pan": [
+        0.0,
+        0.0
+      ],
+      "zoom": 1.0
+    }
+  ],
+  "structureChecksPassed": true,
+  "rawGUIReportSHA256": "b56e14450270b7881199b49f82260619c11bb289c6e5ac0a29b449ba770f1855",
+  "originalIndependentEvidenceSHA256": "86dbeeb07c2df4d9f13d9ca72f041fb5cd974a9f1378cdd4f9fe2da96ab0c491"
+}

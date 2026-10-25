@@ -1,0 +1,267 @@
+{
+  "schema": 1,
+  "product": "MDcard",
+  "version": "0.1.0",
+  "sourceCommit": "c453689171b09463c57cc217fa48974a080854f2",
+  "sourceURL": "https://github.com/huwany1/MDcard/tree/c453689171b09463c57cc217fa48974a080854f2",
+  "recordedAt": "2026-10-25T05:37:03.146128+00:00",
+  "status": "local-acceptance-passed-remote-replacement-pending",
+  "allCriteriaPassed": false,
+  "localAcceptancePassed": true,
+  "remoteReplacementPerformed": false,
+  "criteria": {
+    "C01": {
+      "status": "未验证",
+      "note": "Common frozen source, native 0.1.0 identities, package versions and manifests passed locally; Release/public entry consistency awaits remote replacement."
+    },
+    "C02": {
+      "status": "通过",
+      "note": "1844/1837 exact whitelist files, zero extras; every retained file has its runtime/use/integrity/legal reason and required notices."
+    },
+    "C03": {
+      "status": "通过",
+      "note": "Fresh staging excludes source snapshots, Git, SDKs, tools, tests, caches, historical evidence and user data. Package before/after and path/category accounting are recorded per platform; current functions passed."
+    },
+    "C04": {
+      "status": "通过",
+      "note": "Windows existing-host ordinary execution plus process-level outbound-denial local-resource tests; Linux Debian12/X11 UID1000 with network none. Exact scope and untested configurations are below."
+    },
+    "C05": {
+      "status": "通过",
+      "note": "Both archives fully decoded; exact payload sets, byte counts, hashes and Linux executable permissions passed independent audit. This JSON and SHA256SUMS are frozen with those archives."
+    },
+    "C06": {
+      "status": "未验证",
+      "note": "Remote old-asset deletion and new-asset upload have not occurred at this local snapshot."
+    },
+    "C07": {
+      "status": "未验证",
+      "note": "Public entry synchronization, anonymous re-download and post-download startup are pending at this local snapshot."
+    }
+  },
+  "scope": {
+    "windows": {
+      "environment": "existing-windows-host",
+      "os": {
+        "Caption": "Microsoft Windows 11 家庭版 中文版",
+        "Version": "10.0.26100",
+        "BuildNumber": "26100",
+        "OSArchitecture": "64 位"
+      },
+      "architecture": "x86_64",
+      "ordinaryNonElevatedAccount": true,
+      "hostHasDevelopmentSoftware": true,
+      "appPATHEmptyDuringGUI": true,
+      "pathContainsChineseAndSpaces": true,
+      "guiRichNodes": {
+        "cache_hits": 49,
+        "completed": 5,
+        "errors": 0,
+        "history_changes": 0,
+        "offscreen_nodes": 665,
+        "parses": 2,
+        "redo_calls": 0,
+        "submissions": 5,
+        "undo_calls": 0,
+        "visible_nodes": 799
+      },
+      "documentFormats": [
+        "html",
+        "pdf",
+        "docx",
+        "png",
+        "jpeg",
+        "epub",
+        "marp-html",
+        "marp-pdf",
+        "marp-pptx"
+      ],
+      "nodeFormats": [
+        "svg",
+        "png"
+      ],
+      "chineseEditSave": true,
+      "sourcePreserved": true,
+      "networkTest": {
+        "type": "application-process-outbound-denial",
+        "hostNetworkDisconnected": false,
+        "node": "Non-loopback net/tls/dns and non-local named pipes rejected; proxy environment variables removed in each test Node process",
+        "chromium": "Verified bundled executable receives a loopback-only HTTP/CONNECT 403 proxy with no upstream connections; local-resource bypass retained",
+        "java": "Existing SANDBOX; local fixtures without external references",
+        "negativeControlChecks": 8,
+        "engineCases": 30,
+        "documentFormats": [
+          "html",
+          "pdf",
+          "docx",
+          "png",
+          "jpeg",
+          "epub",
+          "marp-html",
+          "marp-pdf",
+          "marp-pptx"
+        ],
+        "note": "This constrains the tested application engine processes; it is not OS network isolation."
+      }
+    },
+    "linux": {
+      "environment": "debian12-x11-runtime-only",
+      "os": "Debian GNU/Linux 12",
+      "architecture": "x86_64",
+      "glibcMinimum": "2.36",
+      "uid": 1000,
+      "network": "Docker network none",
+      "appPATHEmpty": true,
+      "pathContainsChineseAndSpaces": true,
+      "chineseEditSave": true,
+      "guiRichNodes": {
+        "cache_hits": 160,
+        "completed": 5,
+        "errors": 0,
+        "history_changes": 0,
+        "offscreen_nodes": 394,
+        "parses": 2,
+        "redo_calls": 0,
+        "submissions": 5,
+        "undo_calls": 0,
+        "visible_nodes": 1070
+      },
+      "engineCases": 30,
+      "documentFormats": [
+        "html",
+        "pdf",
+        "docx",
+        "png",
+        "jpeg",
+        "epub",
+        "marp-html",
+        "marp-pdf",
+        "marp-pptx"
+      ],
+      "nodeFormats": [
+        "svg",
+        "png"
+      ],
+      "systemRequirements": "X11 desktop, the system desktop libraries and portal/backend listed in the packaged Linux README; no external Node, Java, Chromium, Pandoc or developer toolchain needed"
+    },
+    "untestedEnvironments": [
+      "Other Windows versions and hardware configurations beyond the recorded host",
+      "Other Linux distributions/display stacks beyond the recorded Debian12/X11 configuration",
+      "ARM64 and 32-bit architectures"
+    ]
+  },
+  "frozenAssets": [
+    {
+      "name": "MDcard-0.1.0-windows-x64.zip",
+      "bytes": 400903844,
+      "sha256": "0c1353f87882348c0c123644734c582ab1d0548f888a529d5a6f79177c978cb1"
+    },
+    {
+      "name": "MDcard-0.1.0-linux-x64.tar.gz",
+      "bytes": 387335216,
+      "sha256": "416f3352e04c0c2726786f9b51bfb13a8f9a930a688bd8c6401a64125c5f0f29"
+    },
+    {
+      "name": "MDcard-0.1.0-release.json",
+      "bytes": 13084,
+      "sha256": "b2eca158d4a8d0de9184d3cbd3caf3b87a03d90bb84e4547e5660994ac3cf222"
+    },
+    {
+      "name": "SHA256SUMS.txt",
+      "bytes": 283,
+      "sha256": "891f7fee4890eb7cafedbeb23d7410f514f35f80d8f037ad7df488a5b8e820a8"
+    }
+  ],
+  "freezeRecordedAt": "2026-10-25T05:18:59.015395+00:00",
+  "localEvidence": [
+    {
+      "path": "docs/releases/evidence/0.1.0/frozen-assets.json",
+      "bytes": 851,
+      "sha256": "a3afea5a0c9c6118a824b83e10f7ba17dabec3734b4e0dfce36692fcb14cba87"
+    },
+    {
+      "path": "docs/releases/evidence/0.1.0/build-source.json",
+      "bytes": 1776,
+      "sha256": "dd75861880e49c23f467588d69d0ca65f255c414c203b1699cd9eaf544d2d360"
+    },
+    {
+      "path": "docs/releases/evidence/0.1.0/archive-whitelist.json",
+      "bytes": 10862,
+      "sha256": "040d411b7f521dd8ac2284918b72a71f94b8eddee418ff4fbc9447184a7a11b7"
+    },
+    {
+      "path": "docs/releases/evidence/0.1.0/size-accounting.json",
+      "bytes": 2974,
+      "sha256": "c0196755f5f9e7fba236948b1de905ab4fbea1863ef68e047832ce968e274864"
+    },
+    {
+      "path": "docs/releases/evidence/0.1.0/windows-host.json",
+      "bytes": 5626,
+      "sha256": "a94948940005ed81351ed530c4b5924706650bef3309b4cc13874c8fb72ca3b0"
+    },
+    {
+      "path": "docs/releases/evidence/0.1.0/windows-process-network-denial.json",
+      "bytes": 4908,
+      "sha256": "3dc830f559abe8cab4a165e2a097aca5bd0a87430b0dfc0981788bd43e75f3ea"
+    },
+    {
+      "path": "docs/releases/evidence/0.1.0/linux-runtime.json",
+      "bytes": 4178,
+      "sha256": "38cf3705711d2d33d3c252b40af436b4c60e0f5c69e1d90918de08a78bc8e881"
+    }
+  ],
+  "remote": {
+    "phase": "read-only-preflight-complete",
+    "oldApplicationArchiveCount": 2,
+    "oldBoundChecksumCount": 1,
+    "oldAssets": [
+      {
+        "name": "MDcard-0.1.1-icon-suite-20261024-r3-windows-x64.zip",
+        "id": 671746251,
+        "releaseId": 422616646,
+        "releaseTag": "v0.1.1-20261024",
+        "bytes": 603792422,
+        "applicationArchive": true,
+        "boundVerificationAsset": false,
+        "sha256": "a3b480372171bb1c8b9514e77e7be1c8a54d740970c06f9f6ca8741e82da1258",
+        "backupVerified": true,
+        "historicalURL": "https://github.com/huwany1/MDcard/releases/download/v0.1.1-20261024/MDcard-0.1.1-icon-suite-20261024-r3-windows-x64.zip",
+        "offeredForDownload": false,
+        "stateAtSnapshot": "present; remote replacement pending"
+      },
+      {
+        "name": "MDcard-0.1.1-precision-b-20261024-r29-linux-x64.tar.gz",
+        "id": 671921342,
+        "releaseId": 422616646,
+        "releaseTag": "v0.1.1-20261024",
+        "bytes": 655893443,
+        "applicationArchive": true,
+        "boundVerificationAsset": false,
+        "sha256": "3771f142d7b8f1e6bec21059c1d82d559b33bcc62aea13c82fd20fddaab509ab",
+        "backupVerified": true,
+        "historicalURL": "https://github.com/huwany1/MDcard/releases/download/v0.1.1-20261024/MDcard-0.1.1-precision-b-20261024-r29-linux-x64.tar.gz",
+        "offeredForDownload": false,
+        "stateAtSnapshot": "present; remote replacement pending"
+      },
+      {
+        "name": "SHA256SUMS.txt",
+        "id": 671898772,
+        "releaseId": 422616646,
+        "releaseTag": "v0.1.1-20261024",
+        "bytes": 241,
+        "applicationArchive": false,
+        "boundVerificationAsset": true,
+        "sha256": "5908b0c7806d13b93a688accb40f89198c02bda88c35a8b816a68fbae757d87a",
+        "backupVerified": true,
+        "historicalURL": "https://github.com/huwany1/MDcard/releases/download/v0.1.1-20261024/SHA256SUMS.txt",
+        "offeredForDownload": false,
+        "stateAtSnapshot": "present; remote replacement pending"
+      }
+    ],
+    "oldDeletionPerformed": false,
+    "newUploadPerformed": false,
+    "publicDownloadVerification": "未验证",
+    "postDownloadStartupVerification": "未验证"
+  },
+  "note": "C01 public consistency, C06 actual deletion/upload and C07 public download/startup will be updated here after they occur. The four frozen release assets will not be rewritten to claim later remote results. Historical asset URLs above are inventory evidence, not current download entries."
+}

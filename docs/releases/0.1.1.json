@@ -231,5 +231,9 @@
     "archive_and_installed_bytes_match": true,
     "git_connectivity": "passed",
     "original_repair_history_preserved": true
-  }
+  },
+  "current": false,
+  "availability": "superseded",
+  "supersededBy": "0.1.0",
+  "supersedingReleaseURL": null
 }

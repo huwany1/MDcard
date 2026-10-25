@@ -56,5 +56,9 @@
       "sha256": "1918f4375af03aedcbaa5adb9359d3640e3525a754c4324690e34e3d362ac7bf"
     }
   ],
-  "boundary": "Local official release promotion authorized by user. Accepted executable/archive/manifest bytes unchanged; embedded acceptanceCandidate is the immutable build-time snapshot. Official stable channel and completed external acceptance are recorded in latest/promotion. No new version-wide performance or full38 rerun claim; prior accepted scope preserved."
+  "boundary": "Local official release promotion authorized by user. Accepted executable/archive/manifest bytes unchanged; embedded acceptanceCandidate is the immutable build-time snapshot. Official stable channel and completed external acceptance are recorded in latest/promotion. No new version-wide performance or full38 rerun claim; prior accepted scope preserved.",
+  "current": false,
+  "availability": "superseded",
+  "supersededBy": "0.1.0",
+  "supersedingReleaseURL": null
 }

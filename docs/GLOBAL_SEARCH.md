@@ -63,4 +63,4 @@ python3 scripts/verify-search-ui-performance.py
 python3 scripts/package-rich.py --module search --windows-exe artifacts/global-search/MDcard.exe --linux-exe artifacts/global-search/mdcard
 ```
 
-Windows GUI：`pwsh -File scripts/verify-search-master-windows.ps1 -Exe artifacts/global-search/MDcard.exe`。上述模块历史验收为 Windows 本机和 Debian/X11 软件 OpenGL，未声称已经验证所有 Linux 桌面、Wayland、macOS、DPI 或输入法组合。当时交付的是独立 `dist/MDcard-0.1.0-search-*-x64`，该包现已清理；当前保留的发行包是 `dist/MDcard-0.1.1-windows-x64.zip` 与 `dist/MDcard-0.1.1-linux-x64.tar.gz` 完整包。2026-10-22 的后续缺陷修复和新证据见 [Bug 台账](BUG_AUDIT_2026-10-22.md)，不能用本节历史证据替代新候选包验收。
+Windows GUI：`pwsh -File scripts/verify-search-master-windows.ps1 -Exe artifacts/global-search/MDcard.exe`。上述模块历史验收为 Windows 本机和 Debian/X11 软件 OpenGL，未声称已经验证所有 Linux 桌面、Wayland、macOS、DPI 或输入法组合。当时交付的是独立 `dist/MDcard-0.1.0-search-*-x64`，该包现已清理；下文所述 0.1.1 完整包也是历史交付身份；当前统一 0.1.0 发行状态和下载入口见[项目 README](../README.md)与[正式索引](releases/latest.json)。2026-10-22 的后续缺陷修复和新证据见 [Bug 台账](BUG_AUDIT_2026-10-22.md)，不能用本节历史证据替代新候选包验收。

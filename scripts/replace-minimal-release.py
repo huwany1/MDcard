@@ -51,8 +51,11 @@ def paged(path):
  raise RuntimeError('Unexpected pagination limit')
 assert request('GET','https://api.github.com/user').json()['login'].lower()=='huwany1'
 assert get('/commits/'+clear['sourceCommit'])['sha']==clear['sourceCommit'],'Frozen public source is not accessible'
-public_source=requests.get(API+'/commits/'+clear['sourceCommit'],headers={'Accept':'application/vnd.github+json','User-Agent':'MDcard-public-source-verification'},timeout=60)
-assert public_source.status_code==200 and public_source.json().get('sha')==clear['sourceCommit'],'Frozen source is not anonymously accessible'
+public_url='https://raw.githubusercontent.com/'+REPO+'/'+clear['sourceCommit']+'/Cargo.toml'
+public_session=requests.Session();public_session.auth=lambda prepared:prepared
+public_source=public_session.get(public_url,headers={'User-Agent':'MDcard-public-source-verification'},timeout=60,allow_redirects=False)
+expected_source=subprocess.check_output(['git','show',clear['sourceCommit']+':Cargo.toml'],cwd=Path(__file__).resolve().parents[1])
+assert public_source.status_code==200 and public_source.content==expected_source,'Frozen source is not anonymously accessible'
 save('public-source-access.json',{'sourceCommit':clear['sourceCommit'],'url':'https://github.com/'+REPO+'/tree/'+clear['sourceCommit'],'anonymousHTTPStatus':public_source.status_code})
 historical_tags=get('/git/matching-refs/tags/');historical_tags={item['ref']:item['object']['sha'] for item in historical_tags}
 tag_response=s.get(API+'/git/ref/tags/'+TAG,timeout=30)

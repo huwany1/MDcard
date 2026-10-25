@@ -1457,5 +1457,9 @@
       "bytes": 736,
       "sha256": "f5ff404cc49df5e3b1fcb3e7bbd2a58564efc7b8ba0acda80b7e4398816d7f4e"
     }
-  ]
+  ],
+  "current": false,
+  "availability": "superseded",
+  "supersededBy": "0.1.0",
+  "supersedingReleaseURL": null
 }
