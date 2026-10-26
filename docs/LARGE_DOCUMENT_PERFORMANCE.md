@@ -13,8 +13,8 @@ flowchart LR
     Selection --> Mirror[Document.text 保存事务镜像]
     Rope --> Source[可见行窗口 + egui TextEdit]
     Rope --> Mailbox[共享 Rope 快照 / 完整 InputEdit 链]
-    Mailbox --> Parse[Tree-sitter 后台线程]
-    Parse --> Local[有界局部树 / 传播时后台整树增量]
+    Mailbox --> Parse[修订化后台解析线程]
+    Parse --> Local[有界局部 Tree-sitter / 全篇边界索引]
     Local --> Revision[generation + revision 校验 / 最新结果槽]
     Revision --> AST[语法块 / 平衡 AST 页 / 原文 source map]
     AST --> Heights[Fenwick 高度索引 / 顶部锚点补偿]
@@ -26,6 +26,8 @@ flowchart LR
 
 主要模块：`src/large_document.rs` 管理 Rope、事务、全局选区、解析线程和基准遥测；`src/rich_ui.rs` 管理预览高度及媒体结果；`src/syntax_cache.rs` 管理长代码异步高亮；`src/rendering.rs` 提供仅测试开启的绘制完成探针。现有小文档仍走原编辑器路径。
 
+2026-10-26 的内存优化将全篇 Tree-sitter 树限制在 1 MiB 以内；更大的文档以预览已有的 CommonMark parser 流式提取顶层块和全局引用定义范围，不保留全篇 C 语法树。大文档中旧、新上下文都不超过 8192 字节的安全局部编辑仍使用 Tree-sitter 增量校验；语法上下文传播、合并编辑或巨型粘贴转回后台全篇边界扫描。全文、源码范围、rich 节点、虚拟页和阅读映射继续保留，1 MiB 是解析后端选择，稿件支持上限仍为 16 MiB。平衡 AST 页使用借用事件，避免将整篇事件文本转成独立拥有的字符串。诊断、同场景前后测量和恢复回归见[本次内存验收](MEMORY_ACCEPTANCE_2026-10-26.md)。
+
 ## 文本内核与窗口编辑
 
 Ropey 提供分块共享文本树、O(log n) 字节/字符/行映射和便宜的快照；普通输入提交 UTF-8 变更区间，而不是每帧遍历全文检测差异。`Document.text` 是现有保存、结构编辑和搜索事务的兼容镜像：输入时同步 `replace_range` 并递增文档 revision。该 String 镜像的中间插入仍有后缀搬移成本，文档级撤销仍需要快照；因此本实现没有承诺所有操作都达到纯 Rope 的理论复杂度。外部替换、结构变更和 undo/redo 通过显式 revision 触发一次完整事务差异同步，不会每帧比较全文。
@@ -36,11 +38,11 @@ Ropey 提供分块共享文本树、O(log n) 字节/字符/行映射和便宜的
 
 ## 增量解析与并发一致性
 
-Tree-sitter 使用 Rope chunk 回调读取源文，避免为解析 flatten 全文。工作线程独占解析器和语法树，逐个应用 `InputEdit` 的 byte 与 Point 坐标，再以旧树解析。普通正文、标题及引用定义附近的有界窗口（8192 字节以内）在边界状态吻合时进行局部增量更新；标点、中文及换行也可以进入该路径，不依赖“输入是字母所以安全”的判定。围栏、HTML、列表等可能传播到远处的结构变化，或局部边界验证失败，走后台旧整树增量解析。
+1 MiB 以内的全篇 Tree-sitter 路径使用 Rope chunk 回调读取源文，避免为解析 flatten 全文。工作线程独占解析器和语法树，逐个应用 `InputEdit` 的 byte 与 Point 坐标，再以旧树解析。普通正文、标题及引用定义附近的旧、新有界窗口（均在 8192 字节以内）在边界状态吻合时进行局部增量更新；标点、中文及换行也可以进入该路径，不依赖“输入是字母所以安全”的判定。围栏、HTML、列表等可能传播到远处的结构变化，或局部边界验证失败，依全文大小转入整树增量或 CommonMark 全篇边界扫描。后者在后台生成一次连续文本供 parser 消费，避免保留大型 C 树；它没有承诺所有尺寸都采用整树增量。reset/generation 变化清空旧边界与 Rope，不能把新缓冲区的合并输入套进上一稿件的局部范围。
 
 后台全局重解析可能超过 5ms，单独记录其 `local=false` 耗时，不冒充局部解析。大粘贴和结构传播不阻塞 UI；没有承诺在 Tree-sitter 单次调用内部强行中断线程。取消/切换文档通过 generation 和 revision 隔离过期输出，完整 edit 链仍按顺序保留。待处理快照合并为一个最新任务；结果也只有一个最新槽，另保留最多 2048 条解析计时，防止快速输入积累未消费的 AST 或隐藏被覆盖的慢解析记录。
 
-预览转换按语法块 hash 复用。全局 reference 定义由语法树提取，只向需要它们的预览块补充相应定义。目录复用 CommonMark 标题规则，处理 Setext、强调、代码和转义字符。长段落、引用、列表和表格用事件 AST 平衡分页，跨页重新打开语法上下文；原文富媒体节点先提取，再通过 source map 保留原始 source/body byte spans、容器前缀和换行元数据。禁止把补上的 Markdown wrapper 当成真实源码偏移。
+预览转换按语法块 hash 复用。全局 reference 定义由当前边界后端提取：小文档使用语法树，大文档使用 CommonMark parser 给出的定义 source span；只向需要它们的预览块补充相应定义。目录复用 CommonMark 标题规则，处理 Setext、强调、代码和转义字符。长段落、引用、列表和表格用事件 AST 平衡分页，跨页重新打开语法上下文；原文富媒体节点先提取，再通过 source map 保留原始 source/body byte spans、容器前缀和换行元数据。禁止把补上的 Markdown wrapper 当成真实源码偏移。
 
 长 fenced code 单独分页，单页最多 64 行和 8192 字节（巨行也受限），保留真实语言、正文与源码范围。代码正文不进入公式解析，因此代码里的 `$x$` 不会变成公式。嵌套容器代码通过 AST 正文和原文映射处理。Syntect 在线程按需高亮，恢复前置 ParseState/HighlightState 检查点，保证跳到中间页仍保留多行注释等状态。独立测试将中间页颜色与全文高亮逐段比较。
 

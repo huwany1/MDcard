@@ -33,6 +33,11 @@ function Launch([string]$Report,[string]$Gpu='',[string]$Document='') {
  $launch.Environment['MDCARD_SETTINGS_PATH']=$settings;$launch.Environment['MDCARD_RENDERER_REPORT']=(Join-Path $output "$Report.json")
  if($Gpu) {$launch.ArgumentList.Add('--gpu');$launch.ArgumentList.Add($Gpu)}
  if($Document) {$launch.ArgumentList.Add($Document)}
+ # A present empty path still enables Rust var_os diagnostics. Remove empty
+ # report keys from the actual child block while preserving explicit reports.
+ foreach($name in @($launch.Environment.Keys)) {
+  if($name.StartsWith('MDCARD_')-and$name.EndsWith('_REPORT')-and[string]::IsNullOrWhiteSpace($launch.Environment[$name])) {[void]$launch.Environment.Remove($name)}
+ }
  $script:app=[Diagnostics.Process]::Start($launch);Start-Sleep -Seconds 3;$script:app.Refresh()
  if($script:app.HasExited -or $script:app.MainWindowHandle -eq 0) {throw 'No app window'}
  [void][MdcardUi]::MoveWindow($script:app.MainWindowHandle,50,50,1550,1025,$true)

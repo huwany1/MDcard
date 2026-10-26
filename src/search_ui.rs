@@ -388,8 +388,8 @@ pub struct SearchUi {
     processing_ms: f64,
     poll_ms: f64,
     shown: usize,
-    secondary_close: bool,
-    secondary_save_close: bool,
+    pub(crate) secondary_close: bool,
+    pub(crate) secondary_save_close: bool,
     pub(crate) secondary_generation: u64,
     preview_generation: u64,
     preview_secondary_generation: u64,
@@ -582,7 +582,9 @@ impl Editor {
         }
         self.global.open_secondary = secondary;
         if secondary {
-            if self.global.secondary.as_ref().is_some_and(|d| d.dirty()) {
+            if !self.saves.quiesce(true)
+                || self.global.secondary.as_ref().is_some_and(|d| d.dirty())
+            {
                 self.global.error =
                     Some("Save or close the second document before opening another.".into());
                 return;
@@ -746,17 +748,6 @@ impl Editor {
                         self.sync_file_root();
                     }
                     self.global.quick_open = false;
-                }
-                Output::Saved(doc) => {
-                    self.global.secondary = if self.global.secondary_save_close {
-                        None
-                    } else {
-                        Some(doc)
-                    };
-                    self.global.secondary_save_close = false;
-                    self.global.secondary_close = false;
-                    self.global.busy = false;
-                    self.global.changed = Some(Instant::now());
                 }
                 Output::History(items) => {
                     self.global.histories = items;
@@ -1121,6 +1112,15 @@ impl Editor {
             self.global.preview = Some(preview);
             return;
         }
+        if !self.saves.quiesce(false) || !self.saves.quiesce(true) {
+            self.global.error = Some(
+                self.language
+                    .text("A save is finishing. Please wait.")
+                    .into(),
+            );
+            self.global.preview = Some(preview);
+            return;
+        }
         let overlays = self.search_overlays();
         for file in &preview.files {
             if let Some(current) = overlays.iter().find(|d| d.path == file.doc.path)
@@ -1209,7 +1209,10 @@ impl Editor {
             open = false;
         }
         self.global.history_open = open;
-        if let Some(id) = rollback {
+        if let Some(id) = rollback
+            && self.saves.quiesce(false)
+            && self.saves.quiesce(true)
+        {
             self.global.busy = true;
             self.global.changed = None;
             self.search_send(Command::Rollback {
@@ -1232,8 +1235,7 @@ impl Editor {
             .show(ctx, |ui| {
                 let pressed=ctx.input(|i|i.pointer.any_pressed().then(||i.pointer.interact_pos()).flatten());
                 if pressed.is_some_and(|pos|ui.max_rect().contains(pos)&&ctx.layer_id_at(pos)==Some(ui.layer_id())) { self.last_secondary=true;ctx.memory_mut(|m|m.surrender_focus(egui::Id::new(("source-editor",self.document_generation)))); }
-                let doc = self.global.secondary.as_mut().unwrap();
-                let large = &mut self.global.secondary_large;
+                let doc = self.global.secondary.as_ref().unwrap();
                 let id = egui::Id::new(("second-editor", self.global.secondary_generation));
                 let path=doc.path.as_ref().map(|p|p.display().to_string()).unwrap_or_default();
                 let state=format!("{}{}",language.text(if self.last_secondary {"Active"} else {"Second document"}),if doc.presentation_dirty() {format!(" · {}",language.text("Unsaved changes"))} else {String::new()});
@@ -1246,7 +1248,11 @@ impl Editor {
                         ui.add(egui::Label::new(RichText::new(language.text(if crate::text_files::markdown(doc.path.as_deref()) {"MARKDOWN"} else {"PLAIN TEXT"})).size(11.0).color(self.palette.muted)).truncate());
                     });
                 });
+                self.autosave_status(ui, true);
+                self.recovery_status(ui, true);
                 ui.add_space(8.0);
+                let doc = self.global.secondary.as_mut().unwrap();
+                let large = &mut self.global.secondary_large;
                 large.ensure(&doc.text, self.global.secondary_generation, doc.revision(), ctx);
                 if large.active {
                     let mut state = egui::text_edit::TextEditState::load(ctx, id)
@@ -1348,11 +1354,7 @@ impl Editor {
             self.save_secondary();
         }
         if close {
-            if self.global.secondary.as_ref().is_some_and(|d| d.dirty()) {
-                self.global.secondary_close = true;
-            } else {
-                self.global.secondary = None;
-            }
+            self.request_secondary_close();
         }
         if self.global.secondary_close {
             egui::Window::new(crate::theme::window_title(
@@ -1361,31 +1363,77 @@ impl Editor {
             .collapsible(false)
             .show(ctx, |ui| {
                 ui.label(language.text("Save your edits before closing?"));
+                if self.saves.active(true) {
+                    ui.label(
+                        language.text(
+                            "A save is finishing. Changes already written cannot be discarded.",
+                        ),
+                    );
+                } else if self.global.secondary.as_ref().is_some_and(|d| !d.dirty()) {
+                    ui.label(language.text("The latest changes have already been saved to disk."));
+                }
                 if ui.button(language.text("Save")).clicked() {
                     self.global.secondary_save_close = true;
                     self.save_secondary();
                 }
-                if ui.button(language.text("Discard")).clicked() {
+                if ui
+                    .add_enabled(
+                        !self.saves.active(true),
+                        egui::Button::new(language.text("Discard")),
+                    )
+                    .clicked()
+                {
+                    if !self.recovery.invalidate(true) {
+                        self.error = Some(language.text("Could not discard recovery copy. Resolve the storage error and retry.").into());
+                        return;
+                    }
                     self.global.secondary = None;
                     self.global.secondary_close = false;
                 }
                 if ui.button(language.text("Cancel")).clicked() {
-                    self.global.secondary_close = false;
+                    self.cancel_secondary_close();
                 }
             });
         }
     }
+    pub(crate) fn request_secondary_close(&mut self) {
+        self.global.secondary_save_close = false;
+        if !self.saves.quiesce(true) || self.global.secondary.as_ref().is_some_and(|d| d.dirty()) {
+            self.global.secondary_close = true;
+        } else {
+            if !self.recovery.invalidate(true) {
+                self.error = Some(
+                    self.language
+                        .text(
+                            "Could not discard recovery copy. Resolve the storage error and retry.",
+                        )
+                        .into(),
+                );
+                return;
+            }
+            self.global.secondary = None;
+        }
+    }
+    pub(crate) fn cancel_secondary_close(&mut self) {
+        self.global.secondary_close = false;
+        self.global.secondary_save_close = false;
+    }
     pub fn save_secondary(&mut self) -> bool {
-        let Some(doc) = self.global.secondary.clone() else {
+        let ctx = self.saves.context.clone().unwrap_or_default();
+        let Some(path) = self
+            .global
+            .secondary
+            .as_ref()
+            .and_then(|doc| doc.path.clone())
+        else {
             return true;
         };
-        self.global.busy = true;
-        self.search_send(Command::Save(doc));
+        self.start_save(true, path, false, &ctx);
         false
     }
     fn search_report(&mut self) {
         if let Some(path) = std::env::var_os("MDCARD_SEARCH_REPORT") {
-            let mut report = serde_json::json!({"controls":self.global.controls,"open":self.global.open,"quick_open":self.global.quick_open,"busy":self.global.busy,"index":{"ready":self.global.status.ready,"files":self.global.status.files},"results":self.global.results.count,"groups":self.global.results.groups.iter().take(200).map(|g|serde_json::json!({"path":g.path,"hits":g.hits.iter().take(200).map(|h|serde_json::json!({"line":h.line,"start":h.start,"end":h.end})).collect::<Vec<_>>()})).collect::<Vec<_>>(),"quick":self.global.quick.iter().map(|q|serde_json::json!({"path":q.path,"label":q.label,"score":q.score})).collect::<Vec<_>>(),"error":self.global.error,"preview_files":self.global.preview.as_ref().map_or(0,|p|p.files.len()),"path":self.doc.path,"text":self.doc.text,"secondary":self.global.secondary.as_ref().map(|d|serde_json::json!({"path":d.path,"text":d.text,"dirty":d.presentation_dirty()})),"generation":self.document_generation});
+            let mut report = serde_json::json!({"controls":self.global.controls,"open":self.global.open,"quick_open":self.global.quick_open,"busy":self.global.busy,"index":{"ready":self.global.status.ready,"files":self.global.status.files},"results":self.global.results.count,"groups":self.global.results.groups.iter().take(200).map(|g|serde_json::json!({"path":g.path,"hits":g.hits.iter().take(200).map(|h|serde_json::json!({"line":h.line,"start":h.start,"end":h.end})).collect::<Vec<_>>()})).collect::<Vec<_>>(),"quick":self.global.quick.iter().map(|q|serde_json::json!({"path":q.path,"label":q.label,"score":q.score})).collect::<Vec<_>>(),"error":self.global.error,"preview_files":self.global.preview.as_ref().map_or(0,|p|p.files.len()),"path":self.doc.path,"text":diagnostic_document_text(&self.doc),"secondary":self.global.secondary.as_ref().map(|d|serde_json::json!({"path":d.path,"text":diagnostic_document_text(d),"dirty":d.presentation_dirty()})),"generation":self.document_generation});
             report["secondary_virtual"] = serde_json::json!({"active":self.global.secondary_large.active,"source_window":[self.global.secondary_large.visible_source.start,self.global.secondary_large.visible_source.end],"laid_out_lines":self.global.secondary_large.laid_out_lines,"selection":self.global.secondary_large.selection});
             report["results_limited"] = serde_json::json!(self.global.results.limited);
             report["index"]["full_verifications"] =
@@ -1424,9 +1472,28 @@ impl Editor {
     }
 }
 
+fn diagnostic_document_text(doc: &Document) -> Option<&str> {
+    (!doc.is_recovery_copy()).then_some(doc.text.as_str())
+}
+
 #[cfg(test)]
 mod reading_replace_tests {
     use super::*;
+    #[test]
+    fn recovery_source_is_not_exported_to_search_diagnostics_even_after_save() {
+        let mut doc = Document::recovered(
+            "RECOVERY PRIVATE TEXT".into(),
+            crate::encoding::Encoding::Utf8,
+            false,
+        );
+        assert!(doc.is_recovery_copy());
+        let dir = tempfile::tempdir().unwrap();
+        doc.save_to(&dir.path().join("explicit.md")).unwrap();
+        assert!(doc.is_recovery_copy());
+        let value = serde_json::json!({"text":diagnostic_document_text(&doc),"bytes":doc.text.len(),"digest":doc.diagnostic_digest()});
+        assert!(value["text"].is_null());
+        assert!(!value.to_string().contains("RECOVERY PRIVATE TEXT"));
+    }
     #[test]
     fn ordinary_secondary_maps_real_graphemes_and_keeps_them_through_font_and_wrap_changes() {
         let ctx = egui::Context::default();

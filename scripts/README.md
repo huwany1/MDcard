@@ -10,6 +10,12 @@
 | 完整导出回归 | `verify-export.mjs`、`verify-export-semantics.mjs`、`verify-export-svg-fonts.mjs`、`verify-export-theme.mjs`；先准备完整主机导出运行时，Word/EPUB 需 Pandoc |
 | 运行时准备 | `prepare-development.py`（主机开发最小输入）；`prepare-rich-runtime.py`、`prepare-export-runtime.py --platform windows\|linux`（完整导出输入）；固定来源和 SHA 在 renderer JSON |
 | 原生基本流程 | Windows `pwsh -STA -File scripts/verify-windows.ps1 -Exe <release-exe>`；Linux `sh scripts/verify-linux.sh`，需要 Xvfb、xdotool、ImageMagick 和图形库 |
+| 稿件恢复原生验收 | `verify-recovery-windows.ps1 -Suite Core\|Drafts\|Performance\|Large`；Large 为实际 16 MiB 两次强杀恢复；Drafts 另传 `-FaultExe`，故障候选仅用 `acceptance-faults`；新建隔离目录、真实强杀/重启与UI核对 |
+| 大稿件内存对照 | `verify-memory-windows.ps1 -Exe <普通候选> -Recovery Both -OutputDirectory <全新目录>`；1/8/16 MiB、阶段工作集/PrivateBytes/原生峰值、输入帧与检查点；`summarize-memory.py <before> <after> --output <json>`。独占桌面且不并发编译；诊断 heap 特性不用于普通性能比较 |
+| 固定恢复候选与身份 | `sh build-recovery-candidates.sh <全新目录>`，独占 Cargo 输出，严格失败即停且拒绝覆盖；`recovery-source-identity.py` 复核源码与候选 SHA256；本次原生默认 `final-r4` |
+| 恢复存储OS失败 | `verify-recovery-storage-windows.ps1 -Container <Linux开发容器>`；显式运行有界tmpfs OS28与非特权uid OS13，保留上一有效版本 |
+| 诊断并发读取与性能统计 | `verify-recovery-json-reader.ps1` 复现截断读竞争并核对稳定读取；`summarize-recovery-performance.py <原生性能目录>` 汇总保留数组，不剔除慢样本 |
+| 自动保存 GUI 回归 | `pwsh -STA -File scripts/verify-autosave-windows.ps1 -Exe <candidate-exe>`；Windows 已解锁的 125% DPI 桌面，隔离设置/稿件；验证默认关闭、明确开启、手动关闭及旧 false 恢复，检查实际文件内容并记录独立候选 SHA256 |
 | 结构 GUI 回归 | `verify-structure-windows.ps1 -Exe <release-exe>`、`python3 scripts/verify-structure-linux.py <release-exe>`；Windows 需要已解锁的 125% DPI 桌面，Linux 使用独占 Xvfb |
 | GPU/CPU 回退 | `verify-ui-gpu-windows.ps1 -Exe <release-exe>`、`sh scripts/verify-ui-gpu-linux.sh`；Linux 需要 Mesa Vulkan CPU 驱动与 zenity；脚本独占各自测试显示 |
 | 原生性能测量 | `benchmark-large-document.py`、`benchmark-large-code.py`、`benchmark-large-media.py`、`verify-large-document-master.py`；Linux Xvfb/Openbox/xdotool，先构建 target/release/mdcard；media 还需 renderer |

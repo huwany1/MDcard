@@ -610,25 +610,28 @@ impl IndexWorker {
     fn new() -> Self {
         let (tx, jobs) = mpsc::sync_channel::<IndexJob>(1);
         let (results, rx) = mpsc::channel();
-        let join = std::thread::spawn(move || {
-            while let Ok(job) = jobs.recv() {
-                let started = Instant::now();
-                job.control.start();
-                job.control
-                    .phase
-                    .store(1, std::sync::atomic::Ordering::Release);
-                let index = SourceIndex::from_text_cancelable(job.revision, job.text, &|| {
-                    job.control.cancelled()
-                });
-                let _ = results.send(IndexResult {
-                    key: job.key,
-                    epoch: job.epoch,
-                    index,
-                    ms: started.elapsed().as_secs_f64() * 1000.,
-                });
-                job.control.finish();
-            }
-        });
+        let join = std::thread::Builder::new()
+            .name("reading-index".into())
+            .spawn(move || {
+                while let Ok(job) = jobs.recv() {
+                    let started = Instant::now();
+                    job.control.start();
+                    job.control
+                        .phase
+                        .store(1, std::sync::atomic::Ordering::Release);
+                    let index = SourceIndex::from_text_cancelable(job.revision, job.text, &|| {
+                        job.control.cancelled()
+                    });
+                    let _ = results.send(IndexResult {
+                        key: job.key,
+                        epoch: job.epoch,
+                        index,
+                        ms: started.elapsed().as_secs_f64() * 1000.,
+                    });
+                    job.control.finish();
+                }
+            })
+            .expect("reading index thread");
         Self {
             tx: Some(tx),
             rx,
@@ -694,80 +697,83 @@ impl PrecisionWorker {
     fn new() -> Self {
         let (tx, jobs) = mpsc::sync_channel::<PrecisionJob>(4);
         let (results, rx) = mpsc::channel();
-        let join = std::thread::spawn(move || {
-            while let Ok(job) = jobs.recv() {
-                job.control.start();
-                let mut match_ms = 0.;
-                let mut enrich_ms = 0.;
-                let output = match job.work {
-                    PrecisionWork::Enrich(anchor) => {
-                        job.control
-                            .phase
-                            .store(2, std::sync::atomic::Ordering::Release);
-                        let started = Instant::now();
-                        let result = reading_precision::enrich_cancelable(
-                            &job.text,
-                            anchor.source_byte,
-                            job.fingerprint,
-                            job.control.cancelled_ns.clone(),
-                            job.control.progress.clone(),
-                        );
-                        enrich_ms = started.elapsed().as_secs_f64() * 1000.;
-                        result.map_or(PrecisionOutput::Cancelled, PrecisionOutput::Enriched)
-                    }
-                    PrecisionWork::Relocate(old) => {
-                        job.control
-                            .phase
-                            .store(3, std::sync::atomic::Ordering::Release);
-                        let started = Instant::now();
-                        let decision = reading_precision::resolve_cancelable(
-                            &job.text,
-                            &old,
-                            job.control.cancelled_ns.clone(),
-                            job.control.progress.clone(),
-                        );
-                        match_ms = started.elapsed().as_secs_f64() * 1000.;
-                        if let Some(decision) = decision {
+        let join = std::thread::Builder::new()
+            .name("reading-precision".into())
+            .spawn(move || {
+                while let Ok(job) = jobs.recv() {
+                    job.control.start();
+                    let mut match_ms = 0.;
+                    let mut enrich_ms = 0.;
+                    let output = match job.work {
+                        PrecisionWork::Enrich(anchor) => {
                             job.control
                                 .phase
-                                .store(4, std::sync::atomic::Ordering::Release);
+                                .store(2, std::sync::atomic::Ordering::Release);
                             let started = Instant::now();
-                            let anchor = if decision.exact {
-                                reading_precision::enrich_cancelable(
-                                    &job.text,
-                                    decision.source_byte,
-                                    job.fingerprint,
-                                    job.control.cancelled_ns.clone(),
-                                    job.control.progress.clone(),
-                                )
-                            } else {
-                                Some(reading_precision::capture_with_fingerprint(
-                                    &job.text,
-                                    decision.source_byte,
-                                    job.fingerprint,
-                                ))
-                            };
+                            let result = reading_precision::enrich_cancelable(
+                                &job.text,
+                                anchor.source_byte,
+                                job.fingerprint,
+                                job.control.cancelled_ns.clone(),
+                                job.control.progress.clone(),
+                            );
                             enrich_ms = started.elapsed().as_secs_f64() * 1000.;
-                            anchor.map_or(PrecisionOutput::Cancelled, |anchor| {
-                                PrecisionOutput::Relocated { decision, anchor }
-                            })
-                        } else {
-                            PrecisionOutput::Cancelled
+                            result.map_or(PrecisionOutput::Cancelled, PrecisionOutput::Enriched)
                         }
-                    }
-                };
-                drop(job.text);
-                let control = job.control;
-                let _ = results.send(PrecisionResult {
-                    identity: job.identity,
-                    control: control.clone(),
-                    output,
-                    match_ms,
-                    enrich_ms,
-                });
-                control.finish();
-            }
-        });
+                        PrecisionWork::Relocate(old) => {
+                            job.control
+                                .phase
+                                .store(3, std::sync::atomic::Ordering::Release);
+                            let started = Instant::now();
+                            let decision = reading_precision::resolve_cancelable(
+                                &job.text,
+                                &old,
+                                job.control.cancelled_ns.clone(),
+                                job.control.progress.clone(),
+                            );
+                            match_ms = started.elapsed().as_secs_f64() * 1000.;
+                            if let Some(decision) = decision {
+                                job.control
+                                    .phase
+                                    .store(4, std::sync::atomic::Ordering::Release);
+                                let started = Instant::now();
+                                let anchor = if decision.exact {
+                                    reading_precision::enrich_cancelable(
+                                        &job.text,
+                                        decision.source_byte,
+                                        job.fingerprint,
+                                        job.control.cancelled_ns.clone(),
+                                        job.control.progress.clone(),
+                                    )
+                                } else {
+                                    Some(reading_precision::capture_with_fingerprint(
+                                        &job.text,
+                                        decision.source_byte,
+                                        job.fingerprint,
+                                    ))
+                                };
+                                enrich_ms = started.elapsed().as_secs_f64() * 1000.;
+                                anchor.map_or(PrecisionOutput::Cancelled, |anchor| {
+                                    PrecisionOutput::Relocated { decision, anchor }
+                                })
+                            } else {
+                                PrecisionOutput::Cancelled
+                            }
+                        }
+                    };
+                    drop(job.text);
+                    let control = job.control;
+                    let _ = results.send(PrecisionResult {
+                        identity: job.identity,
+                        control: control.clone(),
+                        output,
+                        match_ms,
+                        enrich_ms,
+                    });
+                    control.finish();
+                }
+            })
+            .expect("reading precision thread");
         Self {
             tx: Some(tx),
             rx,

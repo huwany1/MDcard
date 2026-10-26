@@ -195,6 +195,7 @@ pub(crate) fn commit_change(
 
 #[derive(Default)]
 pub struct StructureUi {
+    recovery_revision: u64,
     pub open: bool,
     pub dirty: bool,
     generation: Option<u64>,
@@ -220,6 +221,28 @@ pub struct StructureUi {
 }
 
 impl StructureUi {
+    pub(crate) fn recovery_stamp(&self) -> u64 {
+        crate::rich_nodes::hash((
+            self.recovery_revision,
+            self.draft.as_ref().map(|(id, value)| (id, value.len())),
+        ))
+    }
+    pub(crate) fn recovery_drafts(&self) -> Vec<crate::recovery::Draft> {
+        self.draft
+            .as_ref()
+            .map(|(_, text)| crate::recovery::Draft {
+                kind: "table / structure".into(),
+                text: text.clone(),
+                original: String::new(),
+                range: [0, 0],
+                expected: self.generation.unwrap_or_default(),
+            })
+            .into_iter()
+            .collect()
+    }
+    pub fn pending_edits(&self) -> bool {
+        self.draft.is_some()
+    }
     pub fn command_count(&self) -> usize {
         self.command_samples_ms.len()
     }
@@ -438,6 +461,28 @@ impl Editor {
             before_bookmark.cell_cursor = Some(cursor);
         }
         let active = self.structure.cell.unwrap_or((0, 0));
+        let applied_draft = match &command {
+            Command::Cell {
+                table,
+                row,
+                column,
+                value,
+            } => {
+                let id = egui::Id::new((
+                    "structure-cell",
+                    self.document_generation,
+                    *table,
+                    *row,
+                    *column,
+                ));
+                self.structure
+                    .draft
+                    .as_ref()
+                    .is_some_and(|(draft_id, text)| *draft_id == id && text == value)
+                    .then_some(id)
+            }
+            _ => None,
+        };
         let cell_target = if focus_source {
             None
         } else {
@@ -450,12 +495,25 @@ impl Editor {
                 _ => None,
             }
         };
-        match self.structure.index.apply(
-            &self.doc.text,
-            [cursor.primary.index, cursor.secondary.index],
-            command,
-        ) {
+        #[cfg(feature = "acceptance-faults")]
+        let inject_failure = matches!(&command, Command::Cell { .. })
+            && std::env::var_os("MDCARD_ACCEPTANCE_TABLE_PATCH_FAILURE").is_some();
+        #[cfg(not(feature = "acceptance-faults"))]
+        let inject_failure = false;
+        let applied = if inject_failure {
+            Err("The source changed. Reopen this node.")
+        } else {
+            self.structure.index.apply(
+                &self.doc.text,
+                [cursor.primary.index, cursor.secondary.index],
+                command,
+            )
+        };
+        match applied {
             Ok(change) if change.text != self.doc.text => {
+                if applied_draft.is_some() {
+                    self.structure.draft = None;
+                }
                 self.structure.record_bookmark(before_bookmark);
                 let block_anchor = change.block_anchor;
                 // Explicit checkpoints bound the entire operation, even during continuous typing.
@@ -500,9 +558,10 @@ impl Editor {
                 }
                 ctx.request_repaint();
             }
-            Ok(_) => {}
-            Err(message) => {
+            Ok(_) => {
                 self.structure.draft = None;
+            }
+            Err(message) => {
                 self.structure.message = Some(message);
                 self.status = message;
             }
@@ -823,6 +882,7 @@ impl Editor {
             if output.response.changed() {
                 self.structure.pending_cell_before = before;
                 self.structure.draft = Some((original_id, value.clone()));
+                self.structure.recovery_revision = self.structure.recovery_revision.wrapping_add(1);
                 ctx.memory_mut(|m| m.request_focus(original_id));
                 self.execute_structure(
                     ctx,
@@ -1185,6 +1245,11 @@ impl Editor {
                                     })
                                     .clip_text(true),
                             );
+                            crate::theme::record_control(
+                                ui,
+                                &response,
+                                &format!("structure-cell-{t}-{r}-{c}"),
+                            );
                             if self.structure.focus_cell == Some((r, c)) {
                                 response.request_focus();
                                 response.scroll_to_me(Some(egui::Align::Center));
@@ -1200,6 +1265,8 @@ impl Editor {
                             if response.changed() {
                                 self.structure.pending_cell_before = cell_before;
                                 self.structure.draft = Some((id, value.clone()));
+                                self.structure.recovery_revision =
+                                    self.structure.recovery_revision.wrapping_add(1);
                                 *command = Some(Command::Cell {
                                     table: t,
                                     row: r,
@@ -1433,6 +1500,10 @@ mod tests {
         let palette = crate::theme::Palette::new(false, 0);
         let now = std::time::Instant::now();
         Editor {
+            recovery: crate::recovery::Recovery::default(),
+            saves: crate::autosave::SaveCoordinator::default(),
+            save_then_action: false,
+            ime_composing: false,
             diagnostic_reports: crate::diagnostic_sink::DiagnosticSinks::default(),
             reading: crate::reading_state::ReadingState::default(),
             rename_open: false,
@@ -1450,6 +1521,7 @@ mod tests {
             native_icons: Default::default(),
             language: crate::localization::Language::English,
             preferences: preferences.clone(),
+            failed_preferences: None,
             saved_preferences: preferences,
             running_gpu: true,
             requested_gpu_at_start: true,
@@ -1497,6 +1569,69 @@ mod tests {
             search_focus: false,
             search_selected: 0,
         }
+    }
+    #[test]
+    fn successful_cell_patch_clears_only_its_applied_draft_and_allows_save() {
+        let ctx = egui::Context::default();
+        let mut app = editor("| Name | Value |\n| --- | --- |\n| First | 10 |\n");
+        app.structure.ensure(&app.doc.text, app.document_generation);
+        let id = app.cell_id(2, 0);
+        app.structure.cell = Some((2, 0));
+        app.structure.draft = Some((id, "edited cell".into()));
+        app.execute_structure(
+            &ctx,
+            Command::Cell {
+                table: 0,
+                row: 2,
+                column: 0,
+                value: "edited cell".into(),
+            },
+            false,
+        );
+        assert!(app.doc.text.contains("edited cell"));
+        assert!(app.structure.draft.is_none());
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("saved.md");
+        app.start_save(false, path, false, &ctx);
+        crate::autosave::wait_for_saves(&mut app, &ctx);
+        assert!(!app.doc.dirty());
+        assert!(!app.structure.pending_edits());
+    }
+    #[test]
+    fn explicit_cell_after_copying_cross_block_source_selection_edits_and_saves() {
+        let ctx = egui::Context::default();
+        let mut app = editor(
+            "# Heading\n\n| Name | Value |\n| --- | --- |\n| First | 10 |\n\nOther paragraph.\n",
+        );
+        app.structure.ensure(&app.doc.text, app.document_generation);
+        let mut state = app.source_state(&ctx);
+        state
+            .cursor
+            .set_char_range(Some(egui::text::CCursorRange::two(
+                egui::text::CCursor::new(0),
+                egui::text::CCursor::new(app.doc.text.chars().count()),
+            )));
+        state.store(&ctx, app.source_id());
+        let id = app.cell_id(2, 0);
+        app.structure.draft = Some((id, "after source copy".into()));
+        app.execute_structure(
+            &ctx,
+            Command::Cell {
+                table: 0,
+                row: 2,
+                column: 0,
+                value: "after source copy".into(),
+            },
+            false,
+        );
+        assert!(app.doc.text.contains("after source copy"));
+        assert!(app.doc.text.starts_with("# Heading"));
+        assert!(app.doc.text.ends_with("Other paragraph.\n"));
+        assert!(!app.structure.pending_edits());
+        let dir = tempfile::tempdir().unwrap();
+        app.start_save(false, dir.path().join("saved.md"), false, &ctx);
+        crate::autosave::wait_for_saves(&mut app, &ctx);
+        assert!(!app.doc.dirty());
     }
     #[test]
     fn rich_unicode_patch_shares_editor_history_and_rejects_abandoned_redo() {
