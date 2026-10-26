@@ -10,6 +10,11 @@ use std::{
         atomic::{AtomicU64, Ordering},
     },
 };
+pub fn content_digest(bytes: &[u8]) -> u64 {
+    bytes.iter().fold(0xcbf29ce484222325, |h, b| {
+        (h ^ u64::from(*b)).wrapping_mul(0x100000001b3)
+    })
+}
 
 #[derive(Clone, Copy, Debug)]
 struct DirtyPresentation {
@@ -31,6 +36,13 @@ struct TextStatistics {
 #[derive(Debug, Default)]
 struct PresentationCache(Mutex<(Option<DirtyPresentation>, Option<TextStatistics>)>);
 impl Clone for PresentationCache {
+    fn clone(&self) -> Self {
+        Self::default()
+    }
+}
+#[derive(Debug, Default)]
+struct RecoveryDigest(Mutex<Option<(u64, usize, u64)>>);
+impl Clone for RecoveryDigest {
     fn clone(&self) -> Self {
         Self::default()
     }
@@ -67,6 +79,10 @@ pub struct Document {
     revision: u64,
     buffer_id: BufferId,
     presentation: PresentationCache,
+    /// A recovered empty manuscript still requires an explicit save or discard.
+    recovered_unsaved: bool,
+    recovery_origin: bool,
+    recovery_digest: RecoveryDigest,
 }
 
 impl Document {
@@ -77,6 +93,11 @@ impl Document {
         self.revision
     }
     pub fn mark_text_changed(&mut self) {
+        // Returning an edited untitled manuscript to empty is a valid unsaved
+        // edit, distinct from a new untouched empty buffer.
+        if self.path.is_none() && self.text.is_empty() && self.revision > 0 {
+            self.recovered_unsaved = true;
+        }
         self.revision = self.revision.wrapping_add(1);
         *self
             .presentation
@@ -106,6 +127,9 @@ impl Document {
     ) -> io::Result<Self> {
         let decoded = encoding::decode(&bytes, Some(saved_format))?;
         Ok(Self {
+            recovered_unsaved: false,
+            recovery_origin: false,
+            recovery_digest: Default::default(),
             id: crate::reading_state::DocumentId::default(),
             text,
             path: Some(path),
@@ -132,6 +156,7 @@ impl Document {
         self.disk_bytes = Some(bytes);
         self.saved_encoding = self.encoding;
         self.saved_bom = self.bom;
+        self.recovered_unsaved = false;
     }
     pub fn from_text(text: &str) -> Self {
         Self {
@@ -139,6 +164,30 @@ impl Document {
             saved: text.into(),
             ..Self::default()
         }
+    }
+    /// Accept a committed baseline without replacing newer edits or save format.
+    pub fn accept_saved_snapshot(&mut self, saved: &Self) {
+        self.recovered_unsaved = false;
+        self.path.clone_from(&saved.path);
+        self.saved.clone_from(&saved.saved);
+        self.disk_bytes.clone_from(&saved.disk_bytes);
+        self.saved_encoding = saved.saved_encoding;
+        self.saved_bom = saved.saved_bom;
+        self.presentation
+            .0
+            .get_mut()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .0 = None;
+    }
+    /// An explicit discard applies immediately, even if the following open
+    /// dialog is cancelled or the requested replacement cannot be loaded.
+    pub fn discard_changes(&mut self) {
+        self.recovered_unsaved = false;
+        self.text.clone_from(&self.saved);
+        self.encoding = self.saved_encoding;
+        self.bom = self.saved_bom;
+        self.mark_text_changed();
+        self.recovered_unsaved = false;
     }
     pub fn open(path: &Path) -> io::Result<Self> {
         Self::open_with_encoding(path, None)
@@ -174,6 +223,9 @@ impl Document {
         let decoded = encoding::decode(&bytes, selected)?;
         let text = decoded.text;
         Ok(Self {
+            recovered_unsaved: false,
+            recovery_origin: false,
+            recovery_digest: Default::default(),
             id: crate::reading_state::DocumentId::default(),
             saved: text.clone(),
             text,
@@ -190,9 +242,39 @@ impl Document {
         })
     }
     pub fn dirty(&self) -> bool {
-        self.text != self.saved
+        self.recovered_unsaved
+            || self.text != self.saved
             || self.encoding != self.saved_encoding
             || self.bom != self.saved_bom
+    }
+    pub fn recovered(text: String, encoding: Encoding, bom: bool) -> Self {
+        Self {
+            text,
+            encoding,
+            bom,
+            recovered_unsaved: true,
+            recovery_origin: true,
+            ..Self::default()
+        }
+    }
+    pub fn is_recovery_copy(&self) -> bool {
+        self.recovery_origin
+    }
+    pub fn diagnostic_digest(&self) -> u64 {
+        let mut cache = self
+            .recovery_digest
+            .0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some((revision, bytes, value)) = *cache
+            && revision == self.revision
+            && bytes == self.text.len()
+        {
+            return value;
+        }
+        let value = content_digest(self.text.as_bytes());
+        *cache = Some((self.revision, self.text.len(), value));
+        value
     }
     /// Cached chrome only. Save, close and switch guards must use `dirty`.
     /// Production edits explicitly invalidate this cache through the revision.
@@ -289,7 +371,13 @@ impl Document {
             .map(|p| p.to_string_lossy().into_owned())
             .unwrap_or_else(|| language.text("Untitled.md").into())
     }
+    #[cfg(test)]
     pub fn save_to(&mut self, path: &Path) -> io::Result<()> {
+        self.save_guarded(path, || true)
+    }
+    /// Shared core for manual and cancellable background saves.
+    pub fn save_guarded(&mut self, path: &Path, commit: impl FnOnce() -> bool) -> io::Result<()> {
+        let _transaction = disk_transaction()?;
         validate_type(path)?;
         let canonical_target = fs::canonicalize(path).unwrap_or_else(|_| path.to_owned());
         if self.path.as_ref() == Some(&canonical_target)
@@ -311,12 +399,18 @@ impl Document {
         } else {
             encoding::encode(&self.text, self.encoding, self.bom)?
         };
-        atomic_write(path, &bytes)?;
+        let expected = if self.path.as_ref() == Some(&canonical_target) {
+            self.disk_bytes.as_deref()
+        } else {
+            None
+        };
+        atomic_write_guarded(path, &bytes, expected, commit)?;
         self.path = Some(fs::canonicalize(path)?);
         self.saved.clone_from(&self.text);
         self.disk_bytes = Some(bytes);
         self.saved_encoding = self.encoding;
         self.saved_bom = self.bom;
+        self.recovered_unsaved = false;
         self.presentation
             .0
             .get_mut()
@@ -337,7 +431,108 @@ fn validate_type(path: &Path) -> io::Result<()> {
     }
 }
 
+/// Serialize saves with workspace replacement/rollback within this process.
+pub struct DiskTransaction {
+    _local: std::sync::MutexGuard<'static, ()>,
+    _process: ProcessWriteLock,
+}
+pub fn disk_transaction() -> io::Result<DiskTransaction> {
+    static TRANSACTION: Mutex<()> = Mutex::new(());
+    let local = TRANSACTION
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    Ok(DiskTransaction {
+        _local: local,
+        _process: ProcessWriteLock::acquire()?,
+    })
+}
+// A stable OS lock also covers different MDcard windows/processes, so their
+// baseline check + replacement cannot both pass on the same old disk bytes.
+#[cfg(windows)]
+struct ProcessWriteLock(*mut std::ffi::c_void);
+#[cfg(windows)]
+#[link(name = "kernel32")]
+unsafe extern "system" {
+    fn CreateMutexW(
+        attributes: *const std::ffi::c_void,
+        owner: i32,
+        name: *const u16,
+    ) -> *mut std::ffi::c_void;
+    fn WaitForSingleObject(handle: *mut std::ffi::c_void, milliseconds: u32) -> u32;
+    fn ReleaseMutex(handle: *mut std::ffi::c_void) -> i32;
+    fn CloseHandle(handle: *mut std::ffi::c_void) -> i32;
+}
+#[cfg(windows)]
+impl ProcessWriteLock {
+    fn acquire() -> io::Result<Self> {
+        let name: Vec<u16> = "Local\\MDcard.DocumentWrites.v1\0".encode_utf16().collect();
+        let handle = unsafe { CreateMutexW(std::ptr::null(), 0, name.as_ptr()) };
+        // Failing closed avoids silently dropping cross-window protection.
+        if handle.is_null() {
+            return Err(io::Error::last_os_error());
+        }
+        let result = unsafe { WaitForSingleObject(handle, u32::MAX) };
+        if result != 0 && result != 0x80 {
+            unsafe {
+                CloseHandle(handle);
+            }
+            return Err(io::Error::last_os_error());
+        }
+        Ok(Self(handle))
+    }
+}
+#[cfg(windows)]
+impl Drop for ProcessWriteLock {
+    fn drop(&mut self) {
+        unsafe {
+            ReleaseMutex(self.0);
+            CloseHandle(self.0);
+        }
+    }
+}
+#[cfg(unix)]
+struct ProcessWriteLock(fs::File);
+#[cfg(unix)]
+unsafe extern "C" {
+    fn geteuid() -> u32;
+    fn flock(fd: i32, operation: i32) -> i32;
+}
+#[cfg(unix)]
+impl ProcessWriteLock {
+    fn acquire() -> io::Result<Self> {
+        use std::os::fd::AsRawFd;
+        let path = std::env::temp_dir().join(format!("mdcard-document-writes-{}.lock", unsafe {
+            geteuid()
+        }));
+        let file = fs::OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .write(true)
+            .open(path)?;
+        if unsafe { flock(file.as_raw_fd(), 2) } != 0 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(Self(file))
+    }
+}
+#[cfg(unix)]
+impl Drop for ProcessWriteLock {
+    fn drop(&mut self) {
+        use std::os::fd::AsRawFd;
+        unsafe {
+            flock(self.0.as_raw_fd(), 8);
+        }
+    }
+}
 pub fn atomic_write(path: &Path, bytes: &[u8]) -> io::Result<()> {
+    atomic_write_guarded(path, bytes, None, || true)
+}
+fn atomic_write_guarded(
+    path: &Path,
+    bytes: &[u8],
+    expected: Option<&[u8]>,
+    commit: impl FnOnce() -> bool,
+) -> io::Result<()> {
     // Replacing symlinks silently would change their semantics. Keep that choice explicit.
     if fs::symlink_metadata(path).is_ok_and(|m| m.file_type().is_symlink()) {
         return Err(io::Error::other(
@@ -350,10 +545,35 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> io::Result<()> {
         .unwrap_or(Path::new("."));
     let mut tmp = tempfile::NamedTempFile::new_in(parent)?;
     if let Ok(metadata) = fs::metadata(path) {
+        if metadata.permissions().readonly() {
+            return Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "The file is read-only.",
+            ));
+        }
         tmp.as_file().set_permissions(metadata.permissions())?;
     }
     tmp.write_all(bytes)?;
     tmp.as_file().sync_all()?;
+    if !commit() {
+        return Err(io::Error::new(
+            io::ErrorKind::Interrupted,
+            "Save cancelled.",
+        ));
+    }
+    // Recheck after staging, immediately before replacement.
+    if let Some(expected) = expected
+        && fs::read(path)?.as_slice() != expected
+    {
+        return Err(io::Error::other(
+            "The file changed outside MDcard. Use Save As to keep both versions.",
+        ));
+    }
+    if fs::symlink_metadata(path).is_ok_and(|m| m.file_type().is_symlink()) {
+        return Err(io::Error::other(
+            "Saving through a symbolic link is unsupported. Use Save As.",
+        ));
+    }
     tmp.persist(path).map_err(|e| e.error)?;
     Ok(())
 }

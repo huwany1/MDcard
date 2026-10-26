@@ -338,6 +338,9 @@ pub struct Block {
     pub mapping: Vec<crate::large_document::PreviewSourceSegment>,
 }
 pub struct RichUi {
+    recovery_revision: u64,
+    pub(crate) recovery_discard_serial: u64,
+    ime_composing: bool,
     syntax: crate::syntax_cache::SyntaxCache,
     pub preview: String,
     pub nodes: Vec<Node>,
@@ -388,6 +391,9 @@ pub struct RichUi {
 impl Default for RichUi {
     fn default() -> Self {
         Self {
+            recovery_revision: 0,
+            recovery_discard_serial: 0,
+            ime_composing: false,
             syntax: crate::syntax_cache::SyntaxCache::default(),
             preview: String::new(),
             nodes: vec![],
@@ -438,6 +444,50 @@ impl Default for RichUi {
     }
 }
 impl RichUi {
+    pub(crate) fn recovery_stamp(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut hash = std::collections::hash_map::DefaultHasher::new();
+        self.recovery_discard_serial.hash(&mut hash);
+        self.recovery_revision.hash(&mut hash);
+        if let Some(d) = &self.draft {
+            (d.expected, d.changed, d.error.is_some(), d.text.len()).hash(&mut hash);
+        }
+        if let Some((expected, node, text)) = &self.inline_edit {
+            (expected, &node.range, text.len()).hash(&mut hash);
+        }
+        for (index, view) in &self.views {
+            (index, view.expected, view.source_changed, view.source.len()).hash(&mut hash);
+        }
+        hash.finish()
+    }
+    pub(crate) fn recovery_drafts(&self) -> Vec<crate::recovery::Draft> {
+        let convert = |expected: u64, node: &Node, text: &str| crate::recovery::Draft {
+            kind: node.kind.into(),
+            text: text.into(),
+            original: node.raw.clone(),
+            range: [node.range.start, node.range.end],
+            expected,
+        };
+        let mut drafts = Vec::new();
+        if let Some(d) = &self.draft
+            && (d.changed.is_some() || d.error.is_some() || d.text != d.node.source)
+        {
+            drafts.push(convert(d.expected, &d.node, &d.text));
+        }
+        if let Some((expected, node, text)) = &self.inline_edit {
+            drafts.push(convert(*expected, node, text));
+        }
+        for (index, view) in &self.views {
+            if let Some(node) = self.nodes.get(*index)
+                && (view.source_changed.is_some() || view.source != node.source)
+            {
+                drafts.push(convert(view.expected, node, &view.source));
+            }
+        }
+        drafts.sort_by(|a, b| (&a.range, &a.kind, &a.text).cmp(&(&b.range, &b.kind, &b.text)));
+        drafts.dedup();
+        drafts
+    }
     #[cfg(test)]
     pub(crate) fn stage_pending_test_edit(
         &mut self,
@@ -451,6 +501,10 @@ impl RichUi {
         let draft = self.draft.as_mut().unwrap();
         draft.text = value.into();
         draft.changed = Some(Instant::now());
+    }
+    #[cfg(test)]
+    pub(crate) fn make_pending_test_edit_due(&mut self) {
+        self.draft.as_mut().unwrap().changed = Some(Instant::now() - Duration::from_secs(1));
     }
     pub fn install_incremental(
         &mut self,
@@ -700,6 +754,17 @@ impl RichUi {
         }
     }
     pub fn record_input(&mut self, ctx: &egui::Context) {
+        for event in ctx.input(|i| i.events.clone()) {
+            if let egui::Event::Ime(ime) = event {
+                match ime {
+                    egui::ImeEvent::Preedit(_) => self.ime_composing = true,
+                    egui::ImeEvent::Commit(_) | egui::ImeEvent::Disabled => {
+                        self.ime_composing = false
+                    }
+                    _ => {}
+                }
+            }
+        }
         self.frame_resident.clear();
         if std::env::var_os("MDCARD_RICH_REPORT").is_none() {
             return;
@@ -1066,6 +1131,7 @@ impl RichUi {
                     {
                         view.source_changed = None;
                         self.inline_edit = Some((view.expected, node.clone(), view.source.clone()));
+                        self.recovery_revision = self.recovery_revision.wrapping_add(1);
                     }
                     if let Some(ext) = export
                         && let Some(r) = &result
@@ -1181,7 +1247,7 @@ impl RichUi {
         if let Some(edit) = self.take_pending(false) {
             return Some(edit);
         }
-        if self.inline_edit.is_some() {
+        if !self.ime_composing && self.inline_edit.is_some() {
             return self.inline_edit.take();
         }
         let draft = self.draft.as_mut()?;
@@ -1226,6 +1292,13 @@ impl RichUi {
             self.discard_confirmation = true;
             return None;
         }
+        if let Some(response) = &response {
+            control(
+                &mut self.controls,
+                "floating-window",
+                response.response.rect,
+            );
+        }
         if !open
             || response
                 .as_ref()
@@ -1241,9 +1314,10 @@ impl RichUi {
             }
         }
         let d = self.draft.as_mut().unwrap();
-        if apply
-            || d.changed
-                .is_some_and(|t| t.elapsed() >= Duration::from_millis(250))
+        if !self.ime_composing
+            && (apply
+                || d.changed
+                    .is_some_and(|t| t.elapsed() >= Duration::from_millis(250)))
         {
             d.changed = None;
             return Some((d.expected, d.node.clone(), d.text.clone()));
@@ -1288,11 +1362,20 @@ impl RichUi {
             }
         }
     }
+    pub fn pending_edits(&self) -> bool {
+        self.inline_edit.is_some()
+            || self
+                .draft
+                .as_ref()
+                .is_some_and(|d| d.changed.is_some() || d.error.is_some())
+            || self.views.values().any(|v| v.source_changed.is_some())
+    }
     pub fn synchronization_error(&self) -> Option<&str> {
         self.message.as_deref()
     }
     /// Called only by the explicit discard confirmation; authoritative source is untouched.
     pub(crate) fn discard_pending_edits(&mut self) {
+        self.recovery_discard_serial = self.recovery_discard_serial.wrapping_add(1);
         self.draft = None;
         self.inline_edit = None;
         self.views.clear();
@@ -1301,6 +1384,9 @@ impl RichUi {
         self.refresh_now = true;
     }
     pub fn take_pending(&mut self, force: bool) -> Option<(u64, Node, String)> {
+        if self.ime_composing {
+            return None;
+        }
         if force
             && let Some(d) = self
                 .draft

@@ -289,8 +289,10 @@ impl Index {
         let mut patches = Vec::new();
         let mut mapped = selection.map(|c| byte_at(text, c));
         let bytes = mapped[0].min(mapped[1])..mapped[0].max(mapped[1]);
-        // A structural command acts on one block only; never silently eat a cross-block selection.
-        if !bytes.is_empty() {
+        // Source-selection commands act on one block. A grid Cell has its own
+        // explicit table/row/column target and must not consume or be blocked by
+        // an unrelated source selection left by copying the manuscript.
+        if !bytes.is_empty() && !matches!(&command, Command::Cell { .. }) {
             let a = self.block_at(bytes.start);
             let b = self.block_at(bytes.end.saturating_sub(1));
             if a != b {

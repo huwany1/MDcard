@@ -27,6 +27,10 @@ pub struct Preferences {
     pub font_size: f32,
     /// None selects wrapping automatically according to document size.
     pub source_wrap: Option<bool>,
+    /// Original-file writes require an explicit opt in.
+    pub autosave: bool,
+    /// Independent local crash protection; missing old settings default to on.
+    pub recovery: bool,
 }
 fn deserialize_language<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
@@ -46,6 +50,8 @@ impl Default for Preferences {
             reduce_motion: false,
             font_size: 15.0,
             source_wrap: None,
+            autosave: false,
+            recovery: true,
         }
     }
 }
@@ -64,7 +70,10 @@ pub fn path() -> PathBuf {
         .join("settings.json")
 }
 pub fn load() -> Result<Preferences, String> {
-    let bytes = match std::fs::read(path()) {
+    load_from(&path())
+}
+fn load_from(path: &std::path::Path) -> Result<Preferences, String> {
+    let bytes = match std::fs::read(path) {
         Ok(b) => b,
         Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(Preferences::default()),
         Err(e) => return Err(format!("Could not read settings: {e}")),
@@ -96,6 +105,45 @@ fn save_to(path: &std::path::Path, p: &Preferences) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn autosave_defaults_migration_failures_and_explicit_choices() {
+        assert!(!Preferences::default().autosave);
+        assert!(Preferences::default().recovery);
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("settings.json");
+        assert!(!load_from(&file).unwrap().autosave);
+        assert!(load_from(&file).unwrap().recovery);
+        std::fs::write(&file, r#"{"appearance":"Dark"}"#).unwrap();
+        assert!(!load_from(&file).unwrap().autosave);
+        assert!(load_from(&file).unwrap().recovery);
+        std::fs::write(&file, "invalid").unwrap();
+        assert!(load_from(&file).is_err());
+        assert!(!load_from(&file).unwrap_or_default().autosave);
+        assert!(load_from(dir.path()).is_err());
+        assert!(!load_from(dir.path()).unwrap_or_default().autosave);
+        std::fs::write(&file, r#"{"autosave":false,"appearance":"Dark"}"#).unwrap();
+        let prior_disabled = load_from(&file).unwrap();
+        assert!(!prior_disabled.autosave);
+        assert_eq!(prior_disabled.appearance, Appearance::Dark);
+        save_to(&file, &prior_disabled).unwrap();
+        assert!(!load_from(&file).unwrap().autosave);
+        for autosave in [true, false] {
+            let p = Preferences {
+                autosave,
+                ..Default::default()
+            };
+            save_to(&file, &p).unwrap();
+            assert_eq!(load_from(&file).unwrap(), p);
+        }
+        for recovery in [false, true] {
+            let p = Preferences {
+                recovery,
+                ..Default::default()
+            };
+            save_to(&file, &p).unwrap();
+            assert_eq!(load_from(&file).unwrap().recovery, recovery);
+        }
+    }
     #[test]
     fn settings_roundtrip_and_failed_save_preserves_previous() {
         let dir = tempfile::tempdir().unwrap();

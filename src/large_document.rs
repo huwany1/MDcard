@@ -17,6 +17,9 @@ use tree_sitter::{InputEdit, Parser, Point, Tree};
 pub const THRESHOLD: usize = 64 * 1024;
 const OVERSCAN: f32 = 420.;
 const MAX_WINDOW_CHARS: usize = 24 * 1024;
+// Full Markdown block trees can exceed 30x source bytes on long soft-line prose.
+// Keep Tree-sitter for bounded whole documents and local grammar contexts.
+const MAX_FULL_TREE_BYTES: usize = 1024 * 1024;
 
 /// Fenwick cumulative heights: updates and offset lookup are O(log n).
 #[derive(Default, Clone)]
@@ -180,13 +183,15 @@ impl Worker {
                     if job.reset || generation != job.generation {
                         tree = None;
                         local_tree = None;
+                        syntax_blocks.clear();
+                        previous_rope = Rope::new();
                         generation = job.generation;
                         cache.clear();
                         semantic_cache.clear();
                     }
-                    let incremental = tree.is_some();
+                    let incremental = !syntax_blocks.is_empty();
                     let started = Instant::now();
-                    let local = if tree.is_some() {
+                    let local = if incremental {
                         parse_local(
                             &mut parser,
                             &mut syntax_blocks,
@@ -205,6 +210,11 @@ impl Worker {
                     }
                     let changed = if let Some(ranges) = local {
                         ranges
+                    } else if job.rope.len_bytes() > MAX_FULL_TREE_BYTES {
+                        local_tree = None;
+                        tree = None;
+                        syntax_blocks = streaming_blocks(&job.rope.to_string());
+                        std::iter::once(0..job.rope.len_bytes()).collect()
                     } else {
                         local_tree = None;
                         let next = parser
@@ -671,6 +681,9 @@ fn parse_local(
     let old_text = previous.byte_slice(old_range.clone()).to_string();
     let delta = edit.new_end_byte as isize - edit.old_end_byte as isize;
     let new_range = old_range.start..old_range.end.checked_add_signed(delta)?;
+    if new_range.len() > 8192 {
+        return None;
+    }
     let new_text = job.rope.byte_slice(new_range.clone()).to_string();
     let mut old_tree = if let Some((range, tree)) = cached.take() {
         if range == old_range {
@@ -725,6 +738,69 @@ fn parse_local(
     Some(vec![new_range])
 }
 
+/// Same CommonMark parser used by the preview, with only top-level source spans
+/// retained. Inline events are consumed rather than collected into a giant tree.
+fn streaming_blocks(text: &str) -> Vec<(Range<usize>, &'static str)> {
+    use pulldown_cmark::{CodeBlockKind, Event, Tag};
+    let parser = pulldown_cmark::Parser::new_ext(text, pulldown_cmark::Options::all());
+    let definitions = parser
+        .reference_definitions()
+        .iter()
+        .map(|(_, def)| def.span.clone())
+        .collect::<Vec<_>>();
+    let mut blocks = Vec::new();
+    let mut depth = 0usize;
+    for (event, range) in parser.into_offset_iter() {
+        match event {
+            Event::Start(tag) => {
+                if depth == 0 {
+                    let kind = match tag {
+                        Tag::Paragraph => "paragraph",
+                        Tag::Heading { .. }
+                            if text[range.clone()].trim_start().starts_with('#') =>
+                        {
+                            "atx_heading"
+                        }
+                        Tag::Heading { .. } => "setext_heading",
+                        Tag::CodeBlock(CodeBlockKind::Fenced(_)) => "fenced_code_block",
+                        Tag::CodeBlock(CodeBlockKind::Indented) => "indented_code_block",
+                        Tag::BlockQuote(_) => "block_quote",
+                        Tag::List(_) => "list",
+                        Tag::Table(_) => "pipe_table",
+                        Tag::HtmlBlock => "html_block",
+                        _ => "block",
+                    };
+                    blocks.push((range, kind));
+                }
+                depth += 1;
+            }
+            Event::End(_) => depth = depth.saturating_sub(1),
+            Event::Rule if depth == 0 => blocks.push((range, "thematic_break")),
+            Event::DisplayMath(_)
+            | Event::InlineMath(_)
+            | Event::Text(_)
+            | Event::Code(_)
+            | Event::InlineHtml(_)
+            | Event::Html(_)
+            | Event::FootnoteReference(_)
+                if depth == 0 =>
+            {
+                blocks.push((range, "paragraph"));
+            }
+            _ => {}
+        }
+    }
+    for range in definitions {
+        if !blocks
+            .iter()
+            .any(|(block, _)| block.start < range.end && range.start < block.end)
+        {
+            blocks.push((range, "link_reference_definition"));
+        }
+    }
+    blocks.sort_unstable_by_key(|(range, _)| range.start);
+    blocks
+}
 fn collect_blocks(node: tree_sitter::Node<'_>, out: &mut Vec<(Range<usize>, &'static str)>) {
     if matches!(node.kind(), "document" | "section") {
         let mut cursor = node.walk();
@@ -1196,7 +1272,6 @@ fn semantic_pages(text: &str) -> Vec<(usize, String, Option<CodePage>)> {
     let options = pulldown_cmark::Options::all();
     let events = pulldown_cmark::Parser::new_ext(text, options)
         .into_offset_iter()
-        .map(|(event, range)| (event.into_static(), range))
         .collect::<Vec<_>>();
     let mut code_sources = HashMap::new();
     let mut table_headers = HashMap::new();
@@ -1231,23 +1306,23 @@ fn semantic_pages(text: &str) -> Vec<(usize, String, Option<CodePage>)> {
             code_sources.insert(index, (Arc::<str>::from(code), language));
         }
     }
-    let mut stack = Vec::<Tag<'static>>::new();
-    let mut buffer = Vec::<Event<'static>>::new();
+    let mut stack = Vec::<Tag<'_>>::new();
+    let mut buffer = Vec::<Event<'_>>::new();
     let mut pages = Vec::new();
     let mut payload = 0usize;
     let mut boundary = 0usize;
     let mut active_code: Option<(Arc<str>, String, usize, usize)> = None;
     let mut table_header = Vec::new();
     #[allow(clippy::too_many_arguments)] // Explicit streaming state at each AST boundary.
-    fn flush(
-        buffer: &mut Vec<Event<'static>>,
-        stack: &[Tag<'static>],
+    fn flush<'a>(
+        buffer: &mut Vec<Event<'a>>,
+        stack: &[Tag<'a>],
         pages: &mut Vec<(usize, String, Option<CodePage>)>,
         payload: &mut usize,
         boundary: usize,
         code: &mut Option<(Arc<str>, String, usize, usize)>,
         options: pulldown_cmark::Options,
-        table_header: &[Event<'static>],
+        table_header: &[Event<'a>],
     ) {
         if *payload == 0 {
             return;
@@ -2554,6 +2629,42 @@ fn cursor_range(
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "memory-profile")]
+    #[test]
+    #[ignore = "Isolated process only: installs global Tree-sitter allocator before parsing"]
+    fn tree_memory_profile() {
+        crate::memory_profile::install_tree_sitter_allocator();
+        let mib = std::env::var("MDCARD_PROFILE_MIB")
+            .unwrap_or_else(|_| "16".into())
+            .parse::<usize>()
+            .unwrap();
+        let line =
+            "A measured manuscript paragraph with plain ASCII text for consistent byte counts. \n";
+        let text = line.repeat((mib * 1024 * 1024).div_ceil(line.len()));
+        let mut parser = tree_sitter::Parser::new();
+        parser
+            .set_language(&tree_sitter_md::LANGUAGE.into())
+            .unwrap();
+        let mut records = vec![
+            serde_json::json!({"stage":"before-parse","heap":crate::memory_profile::report()}),
+        ];
+        let tree = parser.parse(&text, None).unwrap();
+        records.push(serde_json::json!({"stage":"parsed","nodes":tree.root_node().descendant_count(),"heap":crate::memory_profile::report()}));
+        drop(tree);
+        records.push(
+            serde_json::json!({"stage":"tree-dropped","heap":crate::memory_profile::report()}),
+        );
+        parser.reset();
+        records.push(
+            serde_json::json!({"stage":"parser-reset","heap":crate::memory_profile::report()}),
+        );
+        drop(parser);
+        records.push(
+            serde_json::json!({"stage":"parser-dropped","heap":crate::memory_profile::report()}),
+        );
+        let path = std::env::var_os("MDCARD_TREE_MEMORY_REPORT").expect("isolated output required");
+        std::fs::write(path, serde_json::to_vec_pretty(&records).unwrap()).unwrap();
+    }
     use super::*;
     #[test]
     fn reopening_same_wrapped_layout_does_not_measure_a_temporary_top_before_its_index() {
@@ -3022,6 +3133,358 @@ mod tests {
         let reverse = cursor_range(selection.secondary, selection.primary);
         assert_eq!(reverse.primary.index, 0);
         assert_eq!(reverse.secondary.index, 1500);
+    }
+    #[test]
+    fn streaming_boundaries_keep_nested_containers_fences_tables_and_definitions() {
+        let source = "# 标题\n\nprose [link][target].\ncontinued.\n\n> quote\n>\n> - nested\n\n- first\n- second\n\n```rust\ncode\n```\n\n    indented\n\n| H | V |\n|---|---|\n| a | b |\n\n---\n\n[target]: https://example.test \"Title\"\n";
+        let blocks = streaming_blocks(source);
+        assert_eq!(
+            blocks.iter().map(|(_, kind)| *kind).collect::<Vec<_>>(),
+            [
+                "atx_heading",
+                "paragraph",
+                "block_quote",
+                "list",
+                "fenced_code_block",
+                "indented_code_block",
+                "pipe_table",
+                "thematic_break",
+                "link_reference_definition"
+            ]
+        );
+        assert!(
+            blocks
+                .windows(2)
+                .all(|pair| pair[0].0.end <= pair[1].0.start)
+        );
+        assert!(source[blocks[2].0.clone()].contains("- nested"));
+        assert!(source[blocks[3].0.clone()].contains("- second"));
+        let definitions = blocks
+            .iter()
+            .filter(|(_, kind)| *kind == "link_reference_definition")
+            .map(|(range, _)| &source[range.clone()])
+            .collect::<Vec<_>>()
+            .join("\n");
+        let parser = pulldown_cmark::Parser::new_ext(&definitions, pulldown_cmark::Options::all());
+        assert!(
+            resolve_references(
+                "[visible][target]",
+                &definitions,
+                parser.reference_definitions()
+            )
+            .contains("https://example.test")
+        );
+    }
+    #[test]
+    fn oversized_worker_keeps_unicode_rich_content_mapping_and_latest_revision() {
+        fn next(worker: &Worker, revision: u64) -> Parsed {
+            let deadline = Instant::now() + std::time::Duration::from_secs(30);
+            loop {
+                if let Some(parsed) = worker.poll().0 {
+                    assert_eq!(parsed.revision, revision);
+                    return parsed;
+                }
+                assert!(Instant::now() < deadline, "worker did not publish");
+                std::thread::sleep(std::time::Duration::from_millis(2));
+            }
+        }
+        let prefix = "Plain Unicode 中文 e\u{301} 👩🏽‍💻 line.\n".repeat(40000);
+        let mut text = format!(
+            "# Heading\n\n{prefix}\n\n[visible][target]\n\n[target]: https://example.test \"Title\"\n\n```math\nx^2\n```\n\n| H | V |\n|---|---|\n| a | b |\n\nTail marker."
+        );
+        assert!(text.len() > MAX_FULL_TREE_BYTES);
+        let worker = Worker::new(egui::Context::default());
+        let mut rope = Rope::from_str(&text);
+        worker.submit(Job {
+            generation: 1,
+            revision: 0,
+            rope: rope.clone(),
+            edits: Vec::new(),
+            reset: true,
+        });
+        let parsed = next(&worker, 0);
+        assert_eq!(parsed.nodes.len(), 1);
+        assert_eq!(parsed.nodes[0].source, "x^2");
+        assert!(parsed.preview.contains("https://example.test"));
+        assert!(parsed.blocks.iter().any(|block| !block.mapping.is_empty()));
+        for block in &parsed.blocks {
+            for map in block.mapping.iter().filter(|map| map.linear) {
+                assert_eq!(
+                    &parsed.preview[block.preview.start + map.preview.start
+                        ..block.preview.start + map.preview.end],
+                    &text[map.source.clone()]
+                );
+            }
+        }
+        let at = text.len();
+        let start_position = point(&rope, at);
+        text.push('B');
+        rope.insert(rope.len_chars(), "B");
+        worker.submit(Job {
+            generation: 1,
+            revision: 1,
+            rope: rope.clone(),
+            edits: vec![InputEdit {
+                start_byte: at,
+                old_end_byte: at,
+                new_end_byte: at + 1,
+                start_position,
+                old_end_position: start_position,
+                new_end_position: point(&rope, at + 1),
+            }],
+            reset: false,
+        });
+        let parsed = next(&worker, 1);
+        assert!(
+            parsed.local_parse,
+            "bounded tail block still uses incremental Tree-sitter"
+        );
+        assert!(parsed.preview.ends_with("Tail marker.B\n\n"));
+    }
+    #[test]
+    fn mixed_markdown_grows_across_backend_boundary_shrinks_and_edits_again() {
+        fn poll(worker: &Worker, revision: u64) -> Parsed {
+            let deadline = Instant::now() + std::time::Duration::from_secs(30);
+            loop {
+                if let Some(parsed) = worker.poll().0 {
+                    assert_eq!(parsed.revision, revision);
+                    return parsed;
+                }
+                assert!(Instant::now() < deadline);
+                std::thread::sleep(std::time::Duration::from_millis(2));
+            }
+        }
+        fn replace(worker: &Worker, rope: &mut Rope, text: &str, revision: u64) -> Parsed {
+            let old_end_byte = rope.len_bytes();
+            let old_end_position = point(rope, old_end_byte);
+            *rope = Rope::from_str(text);
+            worker.submit(Job {
+                generation: 7,
+                revision,
+                rope: rope.clone(),
+                reset: false,
+                edits: vec![InputEdit {
+                    start_byte: 0,
+                    old_end_byte,
+                    new_end_byte: text.len(),
+                    start_position: Point::new(0, 0),
+                    old_end_position,
+                    new_end_position: point(rope, text.len()),
+                }],
+            });
+            poll(worker, revision)
+        }
+        fn check(parsed: &Parsed, source: &str) {
+            assert_eq!(parsed.source_hash, rich_nodes::hash(source));
+            assert_eq!(
+                parsed
+                    .nodes
+                    .iter()
+                    .map(|node| (node.kind, node.source.as_str()))
+                    .collect::<Vec<_>>(),
+                [("math", "x+1"), ("math", "y^2"), ("math", "z_1")]
+            );
+            assert!(parsed.preview.contains("https://example.test"));
+            assert!(
+                parsed
+                    .preview
+                    .contains("<div>HTML 中文 &amp; literal.</div>")
+            );
+            assert!(parsed.preview.contains("[^note]"));
+            assert!(parsed.preview.contains("nested-cell"));
+            assert!(
+                parsed
+                    .headings
+                    .iter()
+                    .any(|(_, title, _)| title == "Mixed 标题")
+            );
+            for block in &parsed.blocks {
+                assert!(
+                    source.is_char_boundary(block.source.start)
+                        && source.is_char_boundary(block.source.end)
+                );
+                for span in block.mapping.iter().filter(|span| span.linear) {
+                    assert_eq!(
+                        &parsed.preview[block.preview.start + span.preview.start
+                            ..block.preview.start + span.preview.end],
+                        &source[span.source.clone()]
+                    );
+                }
+            }
+        }
+        let code = "let code = \"中文 👩🏽‍💻 literal $no_math$\";\n".repeat(900);
+        let fragment = format!(
+            "# Mixed 标题\n\nInline $x+1$ and 中文 e\u{301}.\n\n$$y^2$$\n\n```math\nz_1\n```\n\n<div>HTML 中文 &amp; literal.</div>\n\nFootnote[^note] and [global][target].\n\n[^note]: Footnote body.\n\n> | Nested | Table |\n> |---|---|\n> | nested-cell | value |\n\n```rust\n{code}```\n\n[target]: https://example.test \"Title\"\n\nFinal paragraph."
+        );
+        assert!(fragment.len() < MAX_FULL_TREE_BYTES);
+        let worker = Worker::new(egui::Context::default());
+        let mut rope = Rope::from_str(&fragment);
+        worker.submit(Job {
+            generation: 7,
+            revision: 0,
+            rope: rope.clone(),
+            edits: Vec::new(),
+            reset: true,
+        });
+        let small = poll(&worker, 0);
+        check(&small, &fragment);
+        let large = format!("{}\n\n{fragment}", "Plain padding line.\n".repeat(60000));
+        assert!(large.len() > MAX_FULL_TREE_BYTES);
+        let grown = replace(&worker, &mut rope, &large, 1);
+        check(&grown, &large);
+        // Prefix changes global source offsets, while the same parsed rich source,
+        // original fenced-code bytes and literal markup remain available.
+        for parsed in [&small, &grown] {
+            let recovered_code = parsed
+                .blocks
+                .iter()
+                .filter_map(|block| block.code.as_ref())
+                .filter(|page| page.language == "rust")
+                .map(|page| &page.source[page.bytes.clone()])
+                .collect::<String>();
+            assert_eq!(recovered_code, code);
+        }
+        let shrunk = replace(&worker, &mut rope, &fragment, 2);
+        check(&shrunk, &fragment);
+        let at = rope.len_bytes();
+        let start = point(&rope, at);
+        rope.insert(rope.len_chars(), "B");
+        worker.submit(Job {
+            generation: 7,
+            revision: 3,
+            rope: rope.clone(),
+            reset: false,
+            edits: vec![InputEdit {
+                start_byte: at,
+                old_end_byte: at,
+                new_end_byte: at + 1,
+                start_position: start,
+                old_end_position: start,
+                new_end_position: point(&rope, at + 1),
+            }],
+        });
+        let edited = poll(&worker, 3);
+        check(&edited, &format!("{fragment}B"));
+        assert!(edited.local_parse);
+        assert!(edited.preview.ends_with("Final paragraph.B\n\n"));
+    }
+    #[test]
+    fn giant_paste_into_small_paragraph_uses_bounded_full_document_backend() {
+        let worker = Worker::new(egui::Context::default());
+        let mut rope = Rope::from_str("Small paragraph.");
+        worker.submit(Job {
+            generation: 9,
+            revision: 0,
+            rope: rope.clone(),
+            edits: Vec::new(),
+            reset: true,
+        });
+        let deadline = Instant::now() + std::time::Duration::from_secs(30);
+        while worker.poll().0.is_none() {
+            assert!(Instant::now() < deadline);
+            std::thread::sleep(std::time::Duration::from_millis(2));
+        }
+        let paste = "plain pasted line.\n".repeat(60000);
+        rope.insert(0, &paste);
+        worker.submit(Job {
+            generation: 9,
+            revision: 1,
+            rope: rope.clone(),
+            reset: false,
+            edits: vec![InputEdit {
+                start_byte: 0,
+                old_end_byte: 0,
+                new_end_byte: paste.len(),
+                start_position: Point::new(0, 0),
+                old_end_position: Point::new(0, 0),
+                new_end_position: point(&rope, paste.len()),
+            }],
+        });
+        let deadline = Instant::now() + std::time::Duration::from_secs(30);
+        loop {
+            if let Some(parsed) = worker.poll().0 {
+                assert_eq!(parsed.revision, 1);
+                assert!(
+                    !parsed.local_parse,
+                    "the new local range exceeds 8192 bytes"
+                );
+                assert!(rope.len_bytes() > MAX_FULL_TREE_BYTES);
+                assert!(parsed.preview.ends_with("Small paragraph.\n\n"));
+                break;
+            }
+            assert!(Instant::now() < deadline);
+            std::thread::sleep(std::time::Duration::from_millis(2));
+        }
+    }
+    #[test]
+    fn reset_with_a_coalesced_edit_never_reuses_previous_buffer_boundaries() {
+        fn poll(worker: &Worker) -> Parsed {
+            let deadline = Instant::now() + std::time::Duration::from_secs(10);
+            loop {
+                if let Some(parsed) = worker.poll().0 {
+                    return parsed;
+                }
+                assert!(Instant::now() < deadline);
+                std::thread::sleep(std::time::Duration::from_millis(2));
+            }
+        }
+        let worker = Worker::new(egui::Context::default());
+        worker.submit(Job {
+            generation: 1,
+            revision: 0,
+            rope: Rope::from_str("Old only.\n\nOld tail."),
+            edits: Vec::new(),
+            reset: true,
+        });
+        poll(&worker);
+        for (generation, text) in [
+            (2, "New only.\n\nNew tail.B"),
+            (2, "Yet only.\n\nYet tail.C"),
+        ] {
+            let rope = Rope::from_str(text);
+            let at = text.len() - 1;
+            // Mailbox coalescing can attach one subsequent edit to a reset.
+            worker.submit(Job {
+                generation,
+                revision: 1,
+                rope: rope.clone(),
+                reset: true,
+                edits: vec![InputEdit {
+                    start_byte: at,
+                    old_end_byte: at,
+                    new_end_byte: at + 1,
+                    start_position: point(&rope, at),
+                    old_end_position: point(&rope, at),
+                    new_end_position: point(&rope, at + 1),
+                }],
+            });
+            let parsed = poll(&worker);
+            assert!(!parsed.local_parse && !parsed.incremental);
+            assert_eq!(parsed.generation, generation);
+            assert_eq!(parsed.source_hash, rich_nodes::hash(text));
+            let fresh = Worker::new(egui::Context::default());
+            fresh.submit(Job {
+                generation,
+                revision: 1,
+                rope: Rope::from_str(text),
+                edits: Vec::new(),
+                reset: true,
+            });
+            let expected = poll(&fresh);
+            assert_eq!(parsed.preview, expected.preview);
+            assert_eq!(
+                parsed
+                    .blocks
+                    .iter()
+                    .map(|block| &block.source)
+                    .collect::<Vec<_>>(),
+                expected
+                    .blocks
+                    .iter()
+                    .map(|block| &block.source)
+                    .collect::<Vec<_>>()
+            );
+        }
     }
     #[test]
     fn reference_links_use_global_definitions_without_copying_unrelated_ones() {

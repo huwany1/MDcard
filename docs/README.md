@@ -5,11 +5,13 @@
 | 目的 | 文档 |
 | --- | --- |
 | 模块关系与数据约束 | [维护地图](ARCHITECTURE.md) |
+| 稿件崩溃恢复 | [使用说明](CRASH_RECOVERY.md)、[2026-10-26验收](CRASH_RECOVERY_ACCEPTANCE_2026-10-26.md) |
+| 原文件自动保存 | [使用说明](AUTOSAVE.md)、[历史默认开启验证](AUTOSAVE_DEFAULT_ON_2026-10-25.md)、[初版历史验收](AUTOSAVE_ACCEPTANCE_2026-10-25.md) |
 | 搜索与替换 | [全局搜索](GLOBAL_SEARCH.md) |
 | 表格与块操作 | [结构编辑](STRUCTURAL_EDITING.md) |
 | 公式、图表与导出 | [数学图表](MATH_DIAGRAMS.md)、[导出](LOSSLESS_EXPORT.md) |
 | 阅读位置与精确恢复 | [阅读状态](READING_STATE.md)、[精度](READING_PRECISION.md) |
-| 大文件与性能边界 | [大稿架构](LARGE_DOCUMENT_PERFORMANCE.md) |
+| 大文件与性能边界 | [大稿架构](LARGE_DOCUMENT_PERFORMANCE.md)、[2026-10-26内存诊断验收](MEMORY_ACCEPTANCE_2026-10-26.md) |
 | 图标维护 | [接入](ICON_INTEGRATION.md)、[设计源](../assets/branding/mdcard-icon/DESIGN.md) |
 | 可复用开发工具 | [工具入口](../scripts/README.md) |
 | 授权与来源 | [授权](LICENSING.md)、[第三方](THIRD_PARTY.md) |

@@ -3,7 +3,7 @@
 //! Strict local text codecs. Detection is a suggestion, never a lossless guarantee.
 use std::io;
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Encoding {
     #[default]
     Utf8,

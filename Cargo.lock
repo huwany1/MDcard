@@ -1848,6 +1848,7 @@ dependencies = [
  "egui_commonmark",
  "egui_extras",
  "encoding_rs",
+ "getrandom 0.3.4",
  "globset",
  "image",
  "libc",

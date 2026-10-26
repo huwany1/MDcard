@@ -1172,7 +1172,6 @@ pub enum Command {
     },
     Create(PathBuf),
     Open(PathBuf),
-    Save(Document),
     Refresh,
     History,
 }
@@ -1185,7 +1184,6 @@ pub enum Output {
     RolledBack(Vec<Document>),
     Created(PathBuf),
     Opened(Document),
-    Saved(Document),
     History(Vec<HistoryItem>),
     Error(String),
 }
@@ -1305,14 +1303,16 @@ impl Worker {
                                 index.quick(&query, &recent, &guard).map(Output::Quick)
                             }
                             Command::Apply(preview) => {
-                                let result = commit(&preview)
+                                let result = crate::document::disk_transaction()
+                                    .and_then(|_transaction| commit(&preview))
                                     .map(|(d, id)| Output::Committed(d, id))
                                     .map_err(|e| e.to_string());
                                 refresh.store(true, Ordering::Relaxed);
                                 result
                             }
                             Command::Rollback { id, overlays } => {
-                                let result = rollback(&index.root, &id, &overlays)
+                                let result = crate::document::disk_transaction()
+                                    .and_then(|_transaction| rollback(&index.root, &id, &overlays))
                                     .map(Output::RolledBack)
                                     .map_err(|e| e.to_string());
                                 refresh.store(true, Ordering::Relaxed);
@@ -1334,15 +1334,6 @@ impl Worker {
                             Command::Open(path) => Document::open(&path)
                                 .map(Output::Opened)
                                 .map_err(|e| e.to_string()),
-                            Command::Save(mut doc) => (|| -> io::Result<Output> {
-                                let path = doc
-                                    .path
-                                    .clone()
-                                    .ok_or_else(|| io::Error::other("No document path"))?;
-                                doc.save_to(&path)?;
-                                Ok(Output::Saved(doc))
-                            })()
-                            .map_err(|e| e.to_string()),
                             Command::Refresh => {
                                 refresh.store(true, Ordering::Relaxed);
                                 Ok(Output::Status(index.status.clone()))

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 MDcard contributors
 
+mod autosave;
 mod branding;
 mod diagnostic_sink;
 mod document;
@@ -9,12 +10,15 @@ mod encoding;
 mod export_ui;
 mod large_document;
 mod localization;
+#[cfg(feature = "memory-profile")]
+mod memory_profile;
 mod preferences;
 #[cfg(target_os = "linux")]
 mod process_tree;
 mod reading_geometry;
 mod reading_precision;
 mod reading_state;
+mod recovery;
 #[rustfmt::skip]
 mod update_probe;
 mod rendering;
@@ -150,6 +154,10 @@ enum Action {
 }
 
 struct Editor {
+    recovery: recovery::Recovery,
+    saves: autosave::SaveCoordinator,
+    save_then_action: bool,
+    ime_composing: bool,
     reading: reading_state::ReadingState,
     diagnostic_reports: diagnostic_sink::DiagnosticSinks,
     large: large_document::LargeDocument,
@@ -166,6 +174,7 @@ struct Editor {
     language: Language,
     preferences: Preferences,
     saved_preferences: Preferences,
+    failed_preferences: Option<Preferences>,
     running_gpu: bool,
     requested_gpu_at_start: bool,
     automatic_compatibility: bool,
@@ -219,6 +228,18 @@ impl Editor {
     /// Commit node drafts before an operation observes or replaces the source.
     /// A failed patch keeps its editor/error visible and blocks the operation.
     fn flush_rich_edits(&mut self, ctx: &egui::Context) -> bool {
+        if self.ime_composing {
+            self.status = "Waiting for valid edits to synchronize";
+            return false;
+        }
+        if self.structure.pending_edits() {
+            self.error = Some(
+                self.language
+                    .text("Waiting for valid edits to synchronize")
+                    .into(),
+            );
+            return false;
+        }
         while let Some((expected, node, value)) = self.rich.take_pending(true) {
             match rich_nodes::patch(&self.doc.text, expected, &node, &value) {
                 Ok(next) => {
@@ -395,6 +416,19 @@ impl Editor {
         let size = ui.add(egui::Slider::new(&mut self.font_size, 12.0..=23.0).suffix(" px"));
         theme::record_control(ui, &size, "reading-font-size");
         ui.separator();
+        theme::toggle(
+            ui,
+            &mut self.preferences.autosave,
+            language.text("Auto save"),
+        );
+        ui.add(egui::Label::new(RichText::new(language.text("Writes to the original file after 2 seconds without editing. Save untitled documents manually first.")).small().color(p.muted)).wrap());
+        theme::toggle(
+            ui,
+            &mut self.preferences.recovery,
+            language.text("Crash recovery"),
+        );
+        ui.add(egui::Label::new(RichText::new(language.text("Keeps independent local recovery copies. Turning this off keeps pending copies.")).small().color(p.muted)).wrap());
+        ui.separator();
         ui.label(theme::label(language.text("PERFORMANCE"), p));
         theme::toggle(
             ui,
@@ -509,21 +543,33 @@ impl Editor {
     }
     fn persist_preferences(&mut self, ctx: &egui::Context) {
         self.preferences.font_size = self.font_size;
-        if self.preferences != self.saved_preferences && !ctx.input(|i| i.pointer.any_down()) {
-            match preferences::save(&self.preferences) {
-                Ok(()) => {
-                    self.saved_preferences = self.preferences.clone();
-                    self.settings_error = None;
-                }
-                Err(e) => {
-                    self.preferences = self.saved_preferences.clone();
-                    self.font_size = self.preferences.font_size;
-                    self.settings_error = Some(format!(
-                        "{} {e}",
-                        "Could not save settings; previous settings restored."
-                    ));
-                    self.error = self.settings_error.clone();
-                }
+        if self.preferences != self.saved_preferences
+            && self.failed_preferences.as_ref() != Some(&self.preferences)
+            && !ctx.input(|i| i.pointer.any_down())
+        {
+            self.apply_preferences_result(preferences::save(&self.preferences));
+        }
+    }
+    fn apply_preferences_result(&mut self, result: std::io::Result<()>) {
+        match result {
+            Ok(()) => {
+                self.saved_preferences = self.preferences.clone();
+                self.failed_preferences = None;
+                self.settings_error = None;
+            }
+            Err(e) => {
+                let autosave = self.preferences.autosave;
+                let recovery = self.preferences.recovery;
+                self.preferences = self.saved_preferences.clone();
+                self.preferences.autosave = autosave;
+                self.preferences.recovery = recovery;
+                self.failed_preferences = Some(self.preferences.clone());
+                self.font_size = self.preferences.font_size;
+                self.settings_error = Some(format!(
+                    "{} {e}",
+                    "Could not save settings; protection choices apply only to this session."
+                ));
+                self.error = self.settings_error.clone();
             }
         }
     }
@@ -622,6 +668,14 @@ impl Editor {
             .canonicalize()
             .unwrap_or(startup_directory);
         let mut app = Self {
+            recovery: if cfg!(test) {
+                recovery::Recovery::default()
+            } else {
+                recovery::Recovery::persistent()
+            },
+            saves: autosave::SaveCoordinator::default(),
+            save_then_action: false,
+            ime_composing: false,
             diagnostic_reports: diagnostic_sink::DiagnosticSinks::default(),
             reading: if cfg!(test) {
                 reading_state::ReadingState::default()
@@ -644,6 +698,7 @@ impl Editor {
             requested_gpu_at_start: preferences.gpu_acceleration,
             automatic_compatibility: rendering::automatic_compatibility(),
             saved_preferences: preferences.clone(),
+            failed_preferences: None,
             font_size: preferences.font_size,
             theme_key: (dark, preferences.accent),
             preferences,
@@ -744,7 +799,11 @@ impl Editor {
     }
     /// Every successful file-open route commits here. Failure leaves the old
     /// buffer, identity, pending restore and native scroll state intact.
-    fn commit_document(&mut self, mut doc: Document, secondary: bool) {
+    fn commit_document(&mut self, mut doc: Document, secondary: bool) -> bool {
+        if !self.saves.quiesce(secondary) {
+            return false;
+        }
+        self.saves.reset(secondary);
         self.global.invalidate_open();
         self.reading.flush();
         if secondary {
@@ -769,8 +828,13 @@ impl Editor {
             self.doc = doc;
             self.cache = CommonMarkCache::default();
         }
+        true
     }
     fn save(&mut self, save_as: bool, ctx: &egui::Context) -> bool {
+        if self.global.busy || (save_as && !self.saves.quiesce(false)) {
+            self.status = "A save is finishing. Please wait.";
+            return false;
+        }
         if !self.flush_rich_edits(ctx) {
             return false;
         }
@@ -793,32 +857,14 @@ impl Editor {
             dialog.save_file()
         };
         let Some(path) = path else {
+            self.save_then_action = false;
             return false;
         };
-        let added_path = self.doc.path.as_ref() != Some(&path);
-        let old_id = self.doc.id;
-        match self.doc.save_to(&path) {
-            Ok(()) => {
-                if added_path {
-                    self.reading.copied_path(&mut self.doc, old_id, "main");
-                    self.sync_file_root();
-                }
-                self.cache = CommonMarkCache::default();
-                self.status = "Saved to disk";
-                true
-            }
-            Err(e) => {
-                self.failed_open = None;
-                self.error = Some(format!(
-                    "{}\n{}",
-                    "Could not save. Your edits are still here.",
-                    localized_document_error(Language::English, &e)
-                ));
-                false
-            }
-        }
+        self.start_save(false, path, false, ctx);
+        false
     }
     fn request(&mut self, action: Action, ctx: &egui::Context) {
+        self.save_then_action = false;
         if !self.flush_rich_edits(ctx) {
             return;
         }
@@ -832,9 +878,39 @@ impl Editor {
             );
             return;
         }
-        if self.doc.dirty() {
+        let idle = self.saves.quiesce(false);
+        if matches!(action, Action::Quit) && !self.saves.quiesce(true) {
+            self.error = Some(
+                self.language
+                    .text("A save is finishing. Please wait.")
+                    .into(),
+            );
+            return;
+        }
+        if self.doc.dirty() || self.recovery.has_restored_drafts(false) || !idle {
             self.pending = Some(action);
         } else {
+            self.perform(action, ctx);
+        }
+    }
+    fn discard_pending_action(&mut self, ctx: &egui::Context) {
+        if !self.saves.quiesce(false) {
+            return;
+        }
+        if !self.recovery.invalidate(false) {
+            self.error = Some(
+                self.language
+                    .text("Could not discard recovery copy. Resolve the storage error and retry.")
+                    .into(),
+            );
+            return;
+        }
+        self.save_then_action = false;
+        self.doc.discard_changes();
+        self.rich.discard_pending_edits();
+        self.structure.draft = None;
+        self.cache = CommonMarkCache::default();
+        if let Some(action) = self.pending.take() {
             self.perform(action, ctx);
         }
     }
@@ -1860,6 +1936,7 @@ if response.clicked(){clicked=Some(*byte);}});
                 self.document_generation,
             );
             self.editor_focus = false;
+            theme::record_control(ui, &response, "main-source-editor");
             self.structure.source_rect = self.large.source_rect;
             if response.has_focus() {
                 self.structure.cell_focus_owner = false;
@@ -1938,6 +2015,7 @@ if response.clicked(){clicked=Some(*byte);}});
                 .hint_text(language.text("# A new idea\n\nStart writing…"))
                 .lock_focus(true);
             let output = edit.layouter(&mut no_wrap).show(ui);
+            theme::record_control(ui, &output.response, "main-source-editor");
             let cursor = output
                 .galley
                 .cursor_from_pos(egui::vec2(0., viewport.min.y));
@@ -2602,7 +2680,11 @@ if response.clicked(){clicked=Some(*byte);}});
             if cancel {
                 self.rename_open = false;
             }
-            if apply && self.flush_rich_edits(ctx) {
+            if apply
+                && self.saves.quiesce(false)
+                && self.saves.quiesce(true)
+                && self.flush_rich_edits(ctx)
+            {
                 let old = self.doc.path.clone();
                 match self.doc.rename_in_place(&self.rename_name) {
                     Ok(()) => {
@@ -2676,12 +2758,28 @@ if response.clicked(){clicked=Some(*byte);}});
                     "“{name}” has unsaved changes. Save them before continuing.",
                     &[("name", &self.doc.name(self.language))],
                 ));
+                if !self.doc.dirty() && !self.saves.active(false) {
+                    ui.label(language.text("The latest changes have already been saved to disk."));
+                }
+                if self.saves.active(false) {
+                    ui.label(
+                        language.text(
+                            "A save is finishing. Changes already written cannot be discarded.",
+                        ),
+                    );
+                    ctx.request_repaint_after(std::time::Duration::from_millis(20));
+                }
                 ui.add_space(18.0);
                 ui.horizontal_wrapped(|ui| {
                     if button(ui, language.text("Cancel")).clicked() {
                         decision = Some(0);
                     }
-                    if button(ui, language.text("Discard")).clicked() {
+                    let discard = ui.add_enabled(
+                        !self.saves.active(false),
+                        egui::Button::new(language.text("Discard")),
+                    );
+                    theme::record_control(ui, &discard, "unsaved-discard");
+                    if discard.clicked() {
                         decision = Some(1);
                     }
                     if ui
@@ -2707,17 +2805,15 @@ if response.clicked(){clicked=Some(*byte);}});
             match decision {
                 Some(0) => {
                     self.pending = None;
+                    self.save_then_action = false;
                     self.restore_edit_focus();
                 }
                 Some(1) => {
-                    let action = self.pending.take().unwrap();
-                    self.perform(action, ctx);
+                    self.discard_pending_action(ctx);
                 }
                 Some(2) => {
-                    if self.save(false, ctx) {
-                        let action = self.pending.take().unwrap();
-                        self.perform(action, ctx);
-                    }
+                    self.save(false, ctx);
+                    self.save_then_action = self.saves.active(false);
                 }
                 _ => {}
             }
@@ -2786,6 +2882,18 @@ impl eframe::App for Editor {
             self.doc.revision(),
             ctx,
         );
+        for event in ctx.input(|i| i.events.clone()) {
+            if let egui::Event::Ime(ime) = event {
+                match ime {
+                    egui::ImeEvent::Preedit(_) => self.ime_composing = true,
+                    egui::ImeEvent::Commit(_) | egui::ImeEvent::Disabled => {
+                        self.ime_composing = false
+                    }
+                    _ => {}
+                }
+            }
+        }
+        self.poll_saves(ctx);
         self.global.begin_frame();
         self.poll_global_search(ctx);
         if self.global.busy {
@@ -2884,7 +2992,13 @@ impl eframe::App for Editor {
         }
         if ctx.input(|i| i.viewport().close_requested())
             && !self.allow_close
-            && (self.doc.dirty() || self.global.secondary.as_ref().is_some_and(|d| d.dirty()))
+            && (self.doc.dirty()
+                || self.global.secondary.as_ref().is_some_and(|d| d.dirty())
+                || self.saves.active(false)
+                || self.saves.active(true)
+                || self.rich.pending_edits()
+                || self.structure.pending_edits()
+                || self.ime_composing)
         {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             self.request(Action::Quit, ctx);
@@ -3074,6 +3188,8 @@ impl eframe::App for Editor {
                 let path = self.doc.path.as_ref().map(|p|p.display().to_string()).unwrap_or_else(||language.text("Untitled").into());
                 let state = format!("{}{}",language.text(if !self.last_secondary {"Active"} else {"Main document"}),if self.doc.presentation_dirty() {format!(" · {}",language.text("Unsaved changes"))} else {String::new()});
                 theme::document_header(ui,&self.doc.name(language),&path,&state,(!self.last_secondary,self.doc.presentation_dirty()),p);
+                self.autosave_status(ui, false);
+                self.recovery_status(ui, false);
                 match mode {
                     Mode::Edit => self.editor(ui),
                     Mode::Read => {
@@ -3171,6 +3287,7 @@ impl eframe::App for Editor {
         self.file_search(ctx);
         self.global_search_windows(ctx);
         self.dialogs(ctx);
+        self.recovery_dialog(ctx);
         theme::end_window_focus(ctx, "search", self.global.windows_open());
         if !self.global.open {
             theme::forget_window_focus(ctx, "history");
@@ -3187,6 +3304,8 @@ impl eframe::App for Editor {
                 || self.error.is_some(),
         );
         self.persist_preferences(ctx);
+        self.tick_autosave(ctx, Instant::now());
+        self.tick_recovery(ctx, Instant::now());
         let mode = match self.mode {
             Mode::Read => "Read",
             Mode::Edit => "Write",
@@ -3239,8 +3358,10 @@ impl eframe::App for Editor {
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
         ctx.request_repaint_after(std::time::Duration::from_millis(250));
-        self.rich
-            .report(structure_frame_start.elapsed().as_secs_f64() * 1000.);
+        if !self.doc.is_recovery_copy() {
+            self.rich
+                .report(structure_frame_start.elapsed().as_secs_f64() * 1000.);
+        }
         self.large.finish_frame();
         self.rich.release_offscreen(ctx);
         if self.running_gpu {
@@ -3256,12 +3377,20 @@ impl eframe::App for Editor {
         if std::env::var_os("MDCARD_PERFORMANCE_CONTINUOUS").is_some() {
             ctx.request_repaint();
         }
-        self.large.report(
-            self.rich.cache_stats(),
-            &self.renderer,
-            self.document_generation,
-        );
+        if !self.doc.is_recovery_copy() {
+            self.large.report(
+                self.rich.cache_stats(),
+                &self.renderer,
+                self.document_generation,
+            );
+        }
         if let Some(path) = std::env::var_os("MDCARD_READING_REPORT")
+            && !self.doc.is_recovery_copy()
+            && self
+                .global
+                .secondary
+                .as_ref()
+                .is_none_or(|d| !d.is_recovery_copy())
             && let Ok(bytes) = serde_json::to_vec(
                 &self
                     .reading
@@ -3288,7 +3417,13 @@ impl eframe::App for Editor {
             let brand = ctx.data(|data| {
                 data.get_temp::<serde_json::Value>(egui::Id::new("mdcard-brand-drawn"))
             });
-            let report = serde_json::json!({"native_icons":self.native_icons.report(),"branding":brand,"system_theme":format!("{:?}",ctx.system_theme()),"appearance":format!("{:?}",self.preferences.appearance),"active_pane":if self.last_secondary {"secondary"} else {"main"},"navigation":self.navigation,"mode":mode,"content_rect":[r.min.x,r.min.y,r.max.x,r.max.y],"primary_content_width":ctx.data(|d|d.get_temp::<f32>(egui::Id::new("ui-primary-content-width"))),"pixels_per_point":ctx.pixels_per_point(),"native_pixels_per_point":ctx.native_pixels_per_point(),"dirty":self.doc.presentation_dirty(),"status_key":self.status_key(),"document_generation":self.document_generation,"revision":self.doc.revision(),"selection":[selection.primary.index,selection.secondary.index],"focused":format!("{:?}",ctx.memory(|m|m.focused())),"settings_open":self.settings_open,"encoding_open":self.encoding_open,"can_split":self.can_split_ui(ctx),"workspace_root":self.files.root,"workspace_files":self.files.scan.entries.len(),"workspace_scanning":self.files.scanning,"document_path":self.doc.path,"controls":controls});
+            let report = serde_json::json!({"native_icons":self.native_icons.report(),"branding":brand,"system_theme":format!("{:?}",ctx.system_theme()),"appearance":format!("{:?}",self.preferences.appearance),"active_pane":if self.last_secondary {"secondary"} else {"main"},"navigation":self.navigation,"mode":mode,"content_rect":[r.min.x,r.min.y,r.max.x,r.max.y],"primary_content_width":ctx.data(|d|d.get_temp::<f32>(egui::Id::new("ui-primary-content-width"))),"pixels_per_point":ctx.pixels_per_point(),"native_pixels_per_point":ctx.native_pixels_per_point(),"dirty":self.doc.presentation_dirty(),"status_key":self.status_key(),"document_generation":self.document_generation,"revision":self.doc.revision(),"selection":[selection.primary.index,selection.secondary.index],"focused":format!("{:?}",ctx.memory(|m|m.focused())),"settings_open":self.settings_open,"encoding_open":self.encoding_open,"can_split":self.can_split_ui(ctx),"workspace_root":self.files.root,"workspace_files":self.files.scan.entries.len(),"workspace_scanning":self.files.scanning,"document_path":self.doc.path,"document_text_bytes":self.doc.text.len(),"document_digest":self.doc.is_recovery_copy().then(||format!("{:016x}",self.doc.diagnostic_digest())),"recovery_origin":self.doc.is_recovery_copy(),"error":self.error,"autosave":self.autosave_report(),"recovery":self.recovery_report(),"controls":controls});
+            #[cfg(feature = "memory-profile")]
+            let report = {
+                let mut report = report;
+                report["memory_heap"] = memory_profile::report();
+                report
+            };
             if let Ok(bytes) = serde_json::to_vec(&report) {
                 let _ = self
                     .diagnostic_reports
@@ -3304,6 +3439,8 @@ fn consume_file_search_shortcut(input: &mut egui::InputState) -> bool {
 }
 
 fn main() {
+    #[cfg(feature = "memory-profile")]
+    memory_profile::install_tree_sitter_allocator();
     if std::env::args_os()
         .skip(1)
         .any(|arg| arg == "--version" || arg == "-V")
@@ -3448,6 +3585,8 @@ fn localized_document_error(language: Language, error: &std::io::Error) -> Strin
     for key in [
         "The file changed outside MDcard. Use Save As to keep both versions.",
         "Saving through a symbolic link is unsupported. Use Save As.",
+        "Save worker stopped.",
+        "The file is read-only.",
         "Only regular text files can be opened.",
         "The document exceeds the 16 MiB opening limit.",
         "The file contains binary control bytes. Only UTF-8 text is supported.",
@@ -3480,10 +3619,13 @@ fn localized_message(language: Language, message: &str) -> String {
     for key in [
         "Could not open the document.",
         "Could not save. Your edits are still here.",
-        "Could not save settings; previous settings restored.",
+        "Could not save settings; auto save choice applies only to this session.",
+        "Could not save settings; protection choices apply only to this session.",
         "The document is not valid UTF-8.",
         "The file changed outside MDcard. Use Save As to keep both versions.",
         "Saving through a symbolic link is unsupported. Use Save As.",
+        "Save worker stopped.",
+        "The file is read-only.",
         "Only regular text files can be opened.",
         "The document exceeds the 16 MiB opening limit.",
         "The file contains binary control bytes. Only UTF-8 text is supported.",
@@ -4497,6 +4639,8 @@ mod preview_layout_tests {
             Preferences {
                 language: Some(Language::English),
                 reduce_motion: true,
+                // General editor regressions opt out; default policy has dedicated tests.
+                autosave: false,
                 ..Default::default()
             },
             None,
@@ -4555,7 +4699,8 @@ mod preview_layout_tests {
         app.doc = Document::open(&path).unwrap();
         app.rich
             .stage_pending_test_edit(source, app.document_generation, "z^3", &ctx);
-        assert!(app.save(false, &ctx));
+        assert!(!app.save(false, &ctx));
+        crate::autosave::wait_for_saves(&mut app, &ctx);
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "$z^3$\r\n");
         assert!(!app.doc.dirty());
         app.rich
@@ -4593,7 +4738,8 @@ mod preview_layout_tests {
         // The independently edited document remains recoverable and saveable.
         app.rich.discard_pending_edits();
         app.error = None;
-        assert!(app.save(false, &ctx));
+        assert!(!app.save(false, &ctx));
+        crate::autosave::wait_for_saves(&mut app, &ctx);
         assert_eq!(app.doc.text, "$outside$\n");
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "$outside$\n");
         assert_eq!(
