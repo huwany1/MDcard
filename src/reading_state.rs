@@ -2390,6 +2390,54 @@ impl ReadingState {
             })
             .map(|a| a.source.source_byte)
     }
+    /// Live layout can preserve a content block's pixels before its optional
+    /// relocation proof is enriched. This never authorizes old source offsets.
+    pub fn live_snapshot_without_proof(&self, doc: &Document, key: &str, generation: u64) -> bool {
+        self.runtime.get(key).is_some_and(|rt| {
+            rt.id == Some(doc.id)
+                && rt.buffer_id == doc.buffer_id()
+                && rt.generation == generation
+                && rt
+                    .pending
+                    .as_ref()
+                    .and_then(|p| p.position.text_anchor.as_ref())
+                    .or_else(|| rt.last.as_ref().and_then(|p| p.text_anchor.as_ref()))
+                    .is_none_or(|anchor| anchor.source.proof.is_none())
+        })
+    }
+    pub fn live_snapshot_geometry_ready(&mut self, doc: &Document, key: &str) -> bool {
+        let index = self.index(doc);
+        let current = index.revision == doc.revision();
+        let fingerprint = index.fingerprint;
+        current
+            && self.runtime.get(key).is_some_and(|rt| {
+                rt.geometry.is_some()
+                    && rt
+                        .pinned
+                        .as_ref()
+                        .is_some_and(|pin| pin.source.source_fingerprint == fingerprint)
+            })
+    }
+    #[cfg(test)]
+    pub(crate) fn unverified_snapshot_anchor_for_test(&mut self, doc: &Document, key: &str) {
+        if let Some(rt) = self.runtime.get_mut(key) {
+            rt.cancel_precision();
+            if let Some(pin) = &mut rt.pinned {
+                pin.source.proof = None;
+            }
+            if let Some(anchor) = rt.last.as_mut().and_then(|p| p.text_anchor.as_mut()) {
+                anchor.source.proof = None;
+            }
+        }
+        if let Some(anchor) = self
+            .records
+            .get_mut(&doc.id)
+            .and_then(|r| r.views.get_mut(key))
+            .and_then(|p| p.text_anchor.as_mut())
+        {
+            anchor.source.proof = None;
+        }
+    }
     #[allow(clippy::too_many_arguments)] // Actual viewport, current offset and reachable range are distinct layout observations.
     pub fn geometry_frame(
         &mut self,

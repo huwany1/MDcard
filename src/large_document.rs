@@ -104,6 +104,7 @@ pub struct ParsedBlock {
 pub struct Parsed {
     pub generation: u64,
     pub revision: u64,
+    pub source_revision: u64,
     pub preview: String,
     pub nodes: Vec<rich_nodes::Node>,
     pub blocks: Vec<ParsedBlock>,
@@ -120,6 +121,7 @@ pub struct Parsed {
 struct Job {
     generation: u64,
     revision: u64,
+    source_revision: u64,
     rope: Rope,
     edits: Vec<InputEdit>,
     reset: bool,
@@ -544,6 +546,7 @@ impl Worker {
                     let result = Parsed {
                         generation: job.generation,
                         revision: job.revision,
+                        source_revision: job.source_revision,
                         preview,
                         nodes,
                         blocks,
@@ -598,6 +601,12 @@ impl Worker {
             job.edits = previous.edits;
             job.reset = previous.reset;
         }
+        // A stalled parser retains one latest Rope, never an unbounded edit log.
+        // When that log grows, a fresh tree safely replaces incremental history.
+        if job.edits.len() > 256 {
+            job.edits.clear();
+            job.reset = true;
+        }
         state.job = Some(job);
         wake.notify_one();
     }
@@ -610,6 +619,175 @@ impl Drop for Worker {
         if let Some(thread) = self.thread.take() {
             let _ = thread.join();
         }
+    }
+}
+
+#[cfg(test)]
+mod preview_lifecycle_tests {
+    use super::*;
+    fn parsed(epoch: u64, revision: u64, source_revision: u64, text: &str) -> Parsed {
+        Parsed {
+            generation: epoch,
+            revision,
+            source_revision,
+            preview: text.into(),
+            nodes: vec![],
+            blocks: vec![],
+            headings: vec![],
+            source_hash: rich_nodes::hash(text),
+            parse_ms: 0.,
+            transform_ms: 0.,
+            changed: vec![],
+            reused_blocks: 0,
+            parsed_blocks: 0,
+            incremental: false,
+            local_parse: false,
+        }
+    }
+    fn controlled() -> LargeDocument {
+        LargeDocument {
+            worker: Some(Worker {
+                shared: Arc::new((Mutex::new(Mailbox::default()), Condvar::new())),
+                thread: None,
+            }),
+            ..Default::default()
+        }
+    }
+    #[test]
+    fn threshold_reentry_rejects_previous_epoch_and_versions_never_regress() {
+        let ctx = egui::Context::default();
+        let mut large = controlled();
+        let first = "A stable paragraph.\n\n".repeat(4000);
+        large.ensure(&first, 7, 0, &ctx);
+        let old_epoch = large.parser_epoch;
+        large.ensure("Small body.", 7, 1, &ctx);
+        let next = format!("New body.\n\n{first}");
+        large.ensure(&next, 7, 2, &ctx);
+        let epoch = large.parser_epoch;
+        assert_ne!(old_epoch, epoch);
+        let inbox = large.worker.as_ref().unwrap().shared.clone();
+        inbox.0.lock().unwrap().result = Some(parsed(old_epoch, 0, 0, "OLD ACTIVE PERIOD"));
+        large.ensure(&next, 7, 2, &ctx);
+        assert!(large.parsed.is_none());
+        inbox.0.lock().unwrap().result = Some(parsed(epoch, 0, 2, "CURRENT"));
+        large.ensure(&next, 7, 2, &ctx);
+        assert_eq!(large.parsed.as_ref().unwrap().preview, "CURRENT");
+        let edited = format!("{next} edit");
+        large.ensure(&edited, 7, 3, &ctx);
+        inbox.0.lock().unwrap().result = Some(parsed(epoch, 1, 3, "NEWEST"));
+        large.ensure(&edited, 7, 3, &ctx);
+        inbox.0.lock().unwrap().result = Some(parsed(epoch, 0, 2, "OBSOLETE"));
+        large.ensure(&edited, 7, 3, &ctx);
+        assert_eq!(large.parsed.as_ref().unwrap().preview, "NEWEST");
+        large.ensure(&edited, 8, 0, &ctx);
+        inbox.0.lock().unwrap().result = Some(parsed(epoch, 1, 3, "OTHER DOCUMENT"));
+        large.ensure(&edited, 8, 0, &ctx);
+        assert!(large.parsed.is_none());
+    }
+    #[test]
+    fn completed_intermediate_version_can_display_without_waiting_for_typing_to_stop() {
+        let ctx = egui::Context::default();
+        let mut large = controlled();
+        let text = "Paragraph.\n\n".repeat(6000);
+        large.ensure(&text, 1, 0, &ctx);
+        let epoch = large.parser_epoch;
+        let latest = format!("{text} pending input");
+        large.ensure(&latest, 1, 1, &ctx);
+        large
+            .worker
+            .as_ref()
+            .unwrap()
+            .shared
+            .0
+            .lock()
+            .unwrap()
+            .result = Some(parsed(epoch, 0, 0, "READABLE INTERMEDIATE"));
+        large.ensure(&latest, 1, 1, &ctx);
+        assert_eq!(
+            large.parsed.as_ref().unwrap().preview,
+            "READABLE INTERMEDIATE"
+        );
+        assert_ne!(large.parsed.as_ref().unwrap().revision, large.revision);
+    }
+    #[test]
+    fn stale_outline_offsets_never_navigate_or_survive_a_source_version_change() {
+        let ctx = egui::Context::default();
+        let mut large = controlled();
+        let original = format!(
+            "# First\n\n{}## Old tail\n",
+            "A stable paragraph.\n\n".repeat(7000)
+        );
+        let tail = original.find("## Old tail").unwrap();
+        large.ensure(&original, 7, 0, &ctx);
+        let epoch = large.parser_epoch;
+        let inbox = large.worker.as_ref().unwrap().shared.clone();
+        let mut first = parsed(epoch, 0, 0, &original);
+        first.headings = vec![(1, "First".into(), 0), (2, "Old tail".into(), tail)];
+        inbox.0.lock().unwrap().result = Some(first);
+        large.ensure(&original, 7, 0, &ctx);
+        large.selection = [7, 7];
+        let selection = large.selection;
+        assert!(large.jump_to_outline(tail, 7, 0).is_some());
+        let shortened = &original[..THRESHOLD + 100];
+        large.ensure(shortened, 7, 1, &ctx);
+        assert!(tail > large.rope.len_bytes());
+        assert!(!large.outline_current(7, 1));
+        assert_eq!(large.jump_to_outline(tail, 7, 1), None);
+        assert!(large.jump.is_none() && large.preview_jump.is_none());
+        assert_eq!(large.selection, selection);
+        let mut latest = parsed(epoch, large.revision, 1, shortened);
+        latest.headings = vec![(1, "First".into(), 0)];
+        inbox.0.lock().unwrap().result = Some(latest);
+        large.ensure(shortened, 7, 1, &ctx);
+        assert_eq!(large.jump_to_outline(0, 7, 1), Some(0));
+        let shifted = format!("前缀🙂{shortened}");
+        large.ensure(&shifted, 7, 2, &ctx);
+        assert_eq!(
+            large.jump_to_outline(0, 7, 2),
+            None,
+            "in-bounds stale offset is unsafe too"
+        );
+        assert!(large.jump.is_none() && large.preview_jump.is_none());
+        assert_eq!(large.selection, selection);
+        let mut current = parsed(epoch, large.revision, 2, &shifted);
+        current.headings = vec![(1, "First".into(), "前缀🙂".len())];
+        inbox.0.lock().unwrap().result = Some(current);
+        large.ensure(&shifted, 7, 2, &ctx);
+        assert_eq!(
+            large.jump_to_outline("前缀🙂".len(), 7, 2),
+            Some("前缀🙂".chars().count())
+        );
+        assert_eq!(large.jump_to_outline("前缀🙂".len(), 8, 2), None);
+        large.parsed.as_mut().unwrap().source_revision = 1;
+        large.guard_outline_jump(7, 2);
+        assert!(large.jump.is_none() && large.preview_jump.is_none());
+    }
+    #[test]
+    fn coalesced_edit_history_and_snapshot_mailbox_are_bounded() {
+        let large = controlled();
+        let worker = large.worker.as_ref().unwrap();
+        for revision in 0..2000 {
+            worker.submit(Job {
+                generation: 1,
+                revision,
+                source_revision: revision,
+                rope: Rope::from_str("latest"),
+                reset: false,
+                edits: vec![InputEdit {
+                    start_byte: 0,
+                    old_end_byte: 0,
+                    new_end_byte: 0,
+                    start_position: Point::new(0, 0),
+                    old_end_position: Point::new(0, 0),
+                    new_end_position: Point::new(0, 0),
+                }],
+            });
+        }
+        let inbox = worker.shared.0.lock().unwrap();
+        let job = inbox.job.as_ref().unwrap();
+        assert_eq!(job.revision, 1999);
+        assert!(job.edits.len() <= 256);
+        assert!(job.reset);
     }
 }
 
@@ -1553,6 +1731,7 @@ pub struct LargeDocument {
     pub rope: Rope,
     pub revision: u64,
     generation: Option<u64>,
+    parser_epoch: u64,
     document_revision: u64,
     worker: Option<Worker>,
     pub parsed: Option<Parsed>,
@@ -1571,6 +1750,9 @@ pub struct LargeDocument {
     pub source_anchor: usize,
     pub preview_anchor: usize,
     pub jump: Option<usize>,
+    // Editing may remount the source around an off-window caret. This is not
+    // explicit navigation and must never cancel the preview's content anchor.
+    source_reveal: Option<usize>,
     pub preview_jump: Option<usize>,
     pub last_source_offset: f32,
     pub last_source_horizontal_offset: f32,
@@ -1610,13 +1792,85 @@ pub struct LargeDocument {
     pub preview_height_stamp: u64,
     caret_column: Option<usize>,
     ime_composing: bool,
+    parse_wait_started: Option<Instant>,
     last_galley: Option<Arc<egui::Galley>>,
     caret_x: Option<f32>,
     pub selection_trace: VecDeque<serde_json::Value>,
+    outline_jump_stamp: Option<(u64, u64, u64, usize)>,
 }
 impl LargeDocument {
+    pub fn outline_current(&self, generation: u64, source_revision: u64) -> bool {
+        self.active
+            && self.generation == Some(generation)
+            && self.document_revision == source_revision
+            && self.parsed.as_ref().is_some_and(|p| {
+                p.generation == generation
+                    && p.revision == self.revision
+                    && p.source_revision == source_revision
+            })
+    }
+    pub fn jump_to_outline(
+        &mut self,
+        byte: usize,
+        generation: u64,
+        source_revision: u64,
+    ) -> Option<usize> {
+        if !self.outline_current(generation, source_revision)
+            || !self
+                .parsed
+                .as_ref()?
+                .headings
+                .iter()
+                .any(|(_, _, at)| *at == byte)
+        {
+            return None;
+        }
+        let character = self.rope.try_byte_to_char(byte).ok()?;
+        self.outline_jump_stamp = Some((generation, self.revision, source_revision, byte));
+        self.jump = Some(byte);
+        self.preview_jump = Some(byte);
+        Some(character)
+    }
+    /// Recheck at consumption: a source edit may happen after a TOC click.
+    pub fn guard_outline_jump(&mut self, generation: u64, source_revision: u64) {
+        if let Some((expected_generation, expected_revision, expected_source, byte)) =
+            self.outline_jump_stamp
+        {
+            if generation != expected_generation
+                || self.revision != expected_revision
+                || source_revision != expected_source
+                || !self.outline_current(generation, source_revision)
+            {
+                if self.jump == Some(byte) {
+                    self.jump = None;
+                }
+                if self.preview_jump == Some(byte) {
+                    self.preview_jump = None;
+                }
+                self.outline_jump_stamp = None;
+            } else if self.jump.is_none() && self.preview_jump.is_none() {
+                self.outline_jump_stamp = None;
+            }
+        }
+    }
     pub fn opening(&mut self) {
         self.load_started = Some(Instant::now());
+    }
+    pub fn preview_wait(&self) -> Option<std::time::Duration> {
+        self.parse_wait_started.map(|t| t.elapsed())
+    }
+    pub fn parser_failed(&self) -> bool {
+        self.worker
+            .as_ref()
+            .is_some_and(|w| w.thread.as_ref().is_some_and(|t| t.is_finished()))
+    }
+    pub fn retry_preview(&mut self, ctx: &egui::Context) {
+        if self.parser_failed() {
+            self.worker = Some(Worker::new(ctx.clone()));
+        }
+        self.parse_wait_started = Some(Instant::now());
+        self.submit(Vec::new(), true);
+        ctx.request_repaint();
     }
     pub fn ensure(
         &mut self,
@@ -1627,9 +1881,19 @@ impl LargeDocument {
     ) {
         self.active = text.len() >= THRESHOLD;
         if !self.active {
+            // Leaving the viewport adapter invalidates its tree/result lifecycle.
+            // The small-document renderer can now install a newer snapshot.
+            self.generation = None;
+            self.parsed = None;
+            self.installed_revision = None;
+            self.sync_from_source = false;
+            self.sync_from_preview = false;
+            self.parse_wait_started = None;
+            self.guard_outline_jump(generation, document_revision);
             return;
         }
         if self.generation != Some(generation) {
+            self.parser_epoch = self.parser_epoch.wrapping_add(1);
             self.rope = Rope::from_str(text);
             self.generation = Some(generation);
             self.revision = 0;
@@ -1643,22 +1907,25 @@ impl LargeDocument {
             self.heights = Heights::default();
             self.width = 0.;
             self.jump = None;
+            self.source_reveal = None;
             self.last_window = 0..0;
             if self.worker.is_none() {
                 self.worker = Some(Worker::new(ctx.clone()));
             }
             self.submit(Vec::new(), true);
+            self.parse_wait_started = Some(Instant::now());
         } else if self.document_revision != document_revision {
             // External structural / replace / history transactions are explicit, rare full snapshots.
             let before = self.rope.to_string();
             let (a, b, c) = diff(&before, text);
+            self.document_revision = document_revision.wrapping_sub(1);
             self.replace(a..b, &text[a..c]);
             self.document_revision = document_revision;
         }
         if let Some(worker) = &self.worker {
             let (result, timings) = worker.poll();
             for timing in timings {
-                if timing.generation == generation && timing.incremental {
+                if timing.generation == self.parser_epoch && timing.incremental {
                     bounded_push(&mut self.parse_samples_ms, timing.ms);
                     if self.parse_records.len() >= 2048 {
                         self.parse_records.pop_front();
@@ -1666,24 +1933,37 @@ impl LargeDocument {
                     self.parse_records.push_back(serde_json::json!({"revision":timing.revision,"ms":timing.ms,"local":timing.local,"current_at_poll":timing.revision==self.revision}));
                 }
             }
-            if let Some(parsed) = result
-                && parsed.generation == generation
-                && parsed.revision == self.revision
+            if let Some(mut parsed) = result
+                && parsed.generation == self.parser_epoch
+                && parsed.revision <= self.revision
+                && self
+                    .parsed
+                    .as_ref()
+                    .is_none_or(|old| parsed.revision > old.revision)
             {
+                parsed.generation = generation;
                 self.parse_revision = parsed.revision;
                 self.parsed = Some(parsed);
+                if self.parse_revision == self.revision {
+                    self.parse_wait_started = None;
+                }
                 if self.first_preview_ms.is_none() {
                     self.first_preview_ms =
                         self.opened.map(|at| at.elapsed().as_secs_f64() * 1000.);
                 }
             }
         }
+        if self.parse_wait_started.is_some() {
+            ctx.request_repaint_after(std::time::Duration::from_secs(1));
+        }
+        self.guard_outline_jump(generation, document_revision);
     }
     fn submit(&self, edits: Vec<InputEdit>, reset: bool) {
         if let Some(worker) = &self.worker {
             worker.submit(Job {
-                generation: self.generation.unwrap(),
+                generation: self.parser_epoch,
                 revision: self.revision,
+                source_revision: self.document_revision,
                 rope: self.rope.clone(),
                 edits,
                 reset,
@@ -1699,6 +1979,8 @@ impl LargeDocument {
         self.rope.remove(a..b);
         self.rope.insert(a, insert);
         self.revision += 1;
+        self.parse_wait_started.get_or_insert_with(Instant::now);
+        self.document_revision = self.document_revision.wrapping_add(1);
         let new_end_byte = bytes.start + insert.len();
         let new_end_position = point(&self.rope, new_end_byte);
         self.submit(
@@ -1866,6 +2148,7 @@ impl LargeDocument {
         reading_key: &str,
         open_generation: u64,
     ) -> (egui::Response, bool) {
+        self.guard_outline_jump(open_generation, document.revision());
         reading.layer(reading_key, ui.layer_id());
         self.pending_external_selection = false;
         let width = ui.available_width();
@@ -1886,6 +2169,7 @@ impl LargeDocument {
                     .collect(),
             );
         }
+        let manual_source_scroll = scroll_gesture(ui, ui.available_rect_before_wrap());
         let mut state = egui::text_edit::TextEditState::load(ui.ctx(), id).unwrap_or_default();
         let reading_layout = format!("large-source:{width:.1}:{font}:{wrap}");
         if let Some(heights) = reading.take_calibration(document, reading_key, &reading_layout) {
@@ -2143,7 +2427,7 @@ impl LargeDocument {
                 self.document_revision = document.revision();
                 let at = range.start + text.chars().count();
                 global = egui::text::CCursorRange::one(egui::text::CCursor::new(at));
-                self.jump = Some(self.rope.char_to_byte(at));
+                self.source_reveal = Some(self.rope.char_to_byte(at));
                 undoer.feed_state(ui.input(|i| i.time), &(global, document.text.clone()));
                 state.set_undoer(undoer);
                 changed = true;
@@ -2154,6 +2438,8 @@ impl LargeDocument {
             self.preview_jump = Some(byte);
             self.sync_from_source = true;
         }
+        let source_jump = self.jump.or(self.source_reveal);
+        let source_only_reveal = self.jump.is_none() && self.source_reveal.is_some();
         let mut area = if wrap {
             egui::ScrollArea::vertical()
         } else {
@@ -2168,7 +2454,7 @@ impl LargeDocument {
             &reading_layout,
             ui.ctx(),
             ui.available_rect_before_wrap(),
-            self.jump.is_some() || self.sync_from_preview,
+            source_jump.is_some() || self.sync_from_preview,
         );
         if self.last_window.is_empty()
             && reading.awaiting_initial_source_index(document, reading_key)
@@ -2221,10 +2507,10 @@ impl LargeDocument {
                 .vertical_scroll_offset(target[1]);
         }
         let driven_by_preview = self.sync_from_preview;
-        if self.jump.is_some() || self.sync_from_preview {
-            let byte = self.jump.unwrap_or(self.preview_anchor);
+        if source_jump.is_some() || self.sync_from_preview {
+            let byte = source_jump.unwrap_or(self.preview_anchor);
             area = area.vertical_scroll_offset(self.source_y(byte));
-            if !wrap && self.jump.is_some() {
+            if !wrap && source_jump.is_some() {
                 let line = self.rope.byte_to_line(byte);
                 let column = self.rope.byte_to_char(byte) - self.rope.line_to_char(line);
                 area = area
@@ -2274,7 +2560,7 @@ impl LargeDocument {
                 let line_start=self.rope.line_to_char(first);let chars_per_row=(width/(font*0.61)).max(1.)as usize;
                 let budget=if wrap{((viewport.height()+OVERSCAN*2.)/(font*1.3)).ceil()as usize*chars_per_row}else{chars_per_row*4};
                 let row=((viewport.min.y-self.line_heights.prefix(first))/(font*1.3).ceil()).max(0.)as usize;
-                let target=self.jump.or(precise_byte).map(|byte|self.rope.byte_to_char(byte.min(self.rope.len_bytes()))).unwrap_or_else(||if wrap{line_start+row.saturating_sub(5)*chars_per_row}else{line_start+(viewport.min.x/(font*0.61)).max(0.)as usize});
+                let target=source_jump.or(precise_byte).map(|byte|self.rope.byte_to_char(byte.min(self.rope.len_bytes()))).unwrap_or_else(||if wrap{line_start+row.saturating_sub(5)*chars_per_row}else{line_start+(viewport.min.x/(font*0.61)).max(0.)as usize});
                 window_start=target.saturating_sub(chars_per_row*2).max(line_start).min(end.saturating_sub(budget));end=(window_start+budget.min(MAX_WINDOW_CHARS)).min(end);
                 if wrap{extra_y=(window_start-line_start)as f32/chars_per_row as f32*(font*1.3).ceil();}else{extra_x=(window_start-line_start)as f32*font*0.61;ui.set_min_width(self.rope.line(first).len_chars()as f32*font*0.61);}
                 last=first+1;
@@ -2336,7 +2622,7 @@ impl LargeDocument {
             if !partial_logical_line&&extra_y==0.&&last-first==before_window.bytes().filter(|b|*b==b'\n').count()+usize::from(!before_window.ends_with('\n')){
                 let mut logical=first;let mut height=0.;for row in &output.galley.rows{height+=row.height();if row.ends_with_newline||std::ptr::eq(row,output.galley.rows.last().unwrap()){if logical<self.line_heights.len(){let measured=height.max(font);if (self.line_heights.value(logical)-measured).abs()>0.1{self.line_height_stamp=self.line_height_stamp.wrapping_add(1);}self.line_heights.set(logical,measured);if self.measured_line_heights.len()<10000||self.measured_line_heights.contains_key(&logical){self.measured_line_heights.insert(logical,measured);}}logical+=1;height=0.;}}
             }
-            if let Some(byte)=self.jump.take(){let char_index=self.rope.byte_to_char(byte.min(self.rope.len_bytes()));if char_index>=window_start&&char_index<=end{let rect=output.galley.pos_from_cursor(egui::text::CCursor::new(char_index-window_start)).translate(output.galley_pos.to_vec2());ui.scroll_to_rect_animation(rect,Some(egui::Align::TOP),egui::style::ScrollAnimation::none());}}
+            if let Some(byte)=self.jump.take().or(self.source_reveal.take()){let char_index=self.rope.byte_to_char(byte.min(self.rope.len_bytes()));if char_index>=window_start&&char_index<=end{let rect=output.galley.pos_from_cursor(egui::text::CCursor::new(char_index-window_start)).translate(output.galley_pos.to_vec2());ui.scroll_to_rect_animation(rect,Some(egui::Align::TOP),egui::style::ScrollAnimation::none());}}
             self.last_window=window_start..end;
             state.cursor.set_char_range(Some(global));state.store(ui.ctx(),id);
             self.selection=[global.primary.index,global.secondary.index];
@@ -2411,7 +2697,11 @@ impl LargeDocument {
             self.last_source_offset = offset;
             let line = self.line_heights.at(offset);
             self.source_anchor = self.rope.line_to_byte(line.min(self.rope.len_lines() - 1));
-            if !driven_by_preview && reading_target.is_none() {
+            if manual_source_scroll
+                && !driven_by_preview
+                && !source_only_reveal
+                && reading_target.is_none()
+            {
                 self.sync_from_source = true;
             }
         }
@@ -2606,6 +2896,19 @@ pub fn diff(before: &str, after: &str) -> (usize, usize, usize) {
         new_end += 1;
     }
     (start, old_end, new_end)
+}
+/// Offset changes caused by layout, reading restoration or caret reveal are
+/// internal. Only an actual scroll gesture may drive the other split pane.
+pub fn scroll_gesture(ui: &egui::Ui, viewport: egui::Rect) -> bool {
+    ui.input(|input| {
+        input
+            .pointer
+            .hover_pos()
+            .is_some_and(|p| viewport.contains(p))
+            && (input.raw_scroll_delta != egui::Vec2::ZERO
+                || input.smooth_scroll_delta != egui::Vec2::ZERO
+                || input.pointer.primary_down())
+    })
 }
 fn bounded_push(queue: &mut VecDeque<f64>, sample: f64) {
     if queue.len() >= 2048 {
@@ -2890,6 +3193,110 @@ mod tests {
             assert!(changed, "a mounted editor must process its real Text event");
             assert_eq!(cloned.text, expected);
             assert_eq!(cloned.revision(), doc.revision() + 1);
+        }
+    }
+    #[test]
+    fn offscreen_paste_reveals_source_without_navigating_the_preview() {
+        let ctx = egui::Context::default();
+        let mut large = LargeDocument::default();
+        let mut doc = crate::Document::from_text(
+            &"A source paragraph with a retained caret.\n\n".repeat(5000),
+        );
+        large.ensure(&doc.text, 1, doc.revision(), &ctx);
+        let id = egui::Id::new(("source-editor", 1u64));
+        let mut state = egui::text_edit::TextEditState::default();
+        state
+            .cursor
+            .set_char_range(Some(crate::reading_state::cursor([14, 14])));
+        state.store(&ctx, id);
+        large.jump = Some(large.rope.char_to_byte(12_000));
+        let mut reading = crate::reading_state::ReadingState::default();
+        for frame in 0..4 {
+            let _ = ctx.run(egui::RawInput::default(), |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    large.show_source(
+                        ui,
+                        &mut doc,
+                        id,
+                        15.,
+                        true,
+                        frame == 0,
+                        &mut reading,
+                        "main/source",
+                        1,
+                    );
+                });
+            });
+        }
+        assert!(
+            large.last_window.start > 14,
+            "caret must be outside the mounted window"
+        );
+        large.preview_jump = None;
+        large.sync_from_source = false;
+        large.sync_from_preview = false;
+        ctx.memory_mut(|m| m.request_focus(id));
+        let original = doc.text.clone();
+        let _ = ctx.run(
+            egui::RawInput {
+                events: vec![egui::Event::Paste("新增🙂".into())],
+                ..Default::default()
+            },
+            |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    assert!(
+                        large
+                            .show_source(
+                                ui,
+                                &mut doc,
+                                id,
+                                15.,
+                                true,
+                                false,
+                                &mut reading,
+                                "main/source",
+                                1
+                            )
+                            .1
+                    );
+                });
+            },
+        );
+        let mut expected = original;
+        expected.insert_str(14, "新增🙂");
+        assert_eq!(doc.text, expected);
+        assert_eq!(large.selection, [17, 17]);
+        assert!(ctx.memory(|m| m.has_focus(id)));
+        assert!(
+            large.preview_jump.is_none(),
+            "an edit reveal is not preview navigation"
+        );
+        assert!(
+            !large.sync_from_source,
+            "an internal source reveal must not synchronize the preview"
+        );
+        for _ in 0..4 {
+            let _ = ctx.run(egui::RawInput::default(), |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    large.show_source(
+                        ui,
+                        &mut doc,
+                        id,
+                        15.,
+                        true,
+                        false,
+                        &mut reading,
+                        "main/source",
+                        1,
+                    );
+                });
+            });
+            assert!(
+                !large.sync_from_source,
+                "later layout/caret compensation must remain local"
+            );
+            assert!(large.preview_jump.is_none());
+            assert_eq!(large.selection, [17, 17]);
         }
     }
     #[test]
@@ -3198,6 +3605,7 @@ mod tests {
         worker.submit(Job {
             generation: 1,
             revision: 0,
+            source_revision: 0,
             rope: rope.clone(),
             edits: Vec::new(),
             reset: true,
@@ -3223,6 +3631,7 @@ mod tests {
         worker.submit(Job {
             generation: 1,
             revision: 1,
+            source_revision: 1,
             rope: rope.clone(),
             edits: vec![InputEdit {
                 start_byte: at,
@@ -3261,6 +3670,7 @@ mod tests {
             worker.submit(Job {
                 generation: 7,
                 revision,
+                source_revision: revision,
                 rope: rope.clone(),
                 reset: false,
                 edits: vec![InputEdit {
@@ -3322,6 +3732,7 @@ mod tests {
         worker.submit(Job {
             generation: 7,
             revision: 0,
+            source_revision: 0,
             rope: rope.clone(),
             edits: Vec::new(),
             reset: true,
@@ -3352,6 +3763,7 @@ mod tests {
         worker.submit(Job {
             generation: 7,
             revision: 3,
+            source_revision: 3,
             rope: rope.clone(),
             reset: false,
             edits: vec![InputEdit {
@@ -3375,6 +3787,7 @@ mod tests {
         worker.submit(Job {
             generation: 9,
             revision: 0,
+            source_revision: 0,
             rope: rope.clone(),
             edits: Vec::new(),
             reset: true,
@@ -3389,6 +3802,7 @@ mod tests {
         worker.submit(Job {
             generation: 9,
             revision: 1,
+            source_revision: 1,
             rope: rope.clone(),
             reset: false,
             edits: vec![InputEdit {
@@ -3432,6 +3846,7 @@ mod tests {
         worker.submit(Job {
             generation: 1,
             revision: 0,
+            source_revision: 0,
             rope: Rope::from_str("Old only.\n\nOld tail."),
             edits: Vec::new(),
             reset: true,
@@ -3447,6 +3862,7 @@ mod tests {
             worker.submit(Job {
                 generation,
                 revision: 1,
+                source_revision: 1,
                 rope: rope.clone(),
                 reset: true,
                 edits: vec![InputEdit {
@@ -3466,6 +3882,7 @@ mod tests {
             fresh.submit(Job {
                 generation,
                 revision: 1,
+                source_revision: 1,
                 rope: Rope::from_str(text),
                 edits: Vec::new(),
                 reset: true,

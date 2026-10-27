@@ -19,6 +19,8 @@
 | 结构 GUI 回归 | `verify-structure-windows.ps1 -Exe <release-exe>`、`python3 scripts/verify-structure-linux.py <release-exe>`；Windows 需要已解锁的 125% DPI 桌面，Linux 使用独占 Xvfb |
 | GPU/CPU 回退 | `verify-ui-gpu-windows.ps1 -Exe <release-exe>`、`sh scripts/verify-ui-gpu-linux.sh`；Linux 需要 Mesa Vulkan CPU 驱动与 zenity；脚本独占各自测试显示 |
 | 原生性能测量 | `benchmark-large-document.py`、`benchmark-large-code.py`、`benchmark-large-media.py`、`verify-large-document-master.py`；Linux Xvfb/Openbox/xdotool，先构建 target/release/mdcard；media 还需 renderer |
+| 分屏预览原生录屏/计时 | `python -X utf8 verify-preview-windows.py --help`、`run-preview-acceptance.py`、`summarize-preview.py`；Windows独占桌面，Pillow、imageio-ffmpeg、psutil；固定8字节槽、逐revision大小断言、缺失/截尾及桌面捕获上界，见[说明](../docs/REALTIME_PREVIEW.md) |
+| 分屏预览保存/恢复原生回归 | `pwsh -NoProfile -File scripts/verify-preview-regressions-windows.ps1 -Exe <candidate-exe> -OutputDirectory <全新目录>`；实际定时自动保存、关闭自动保存后的独立恢复、搜索选择、强杀重启及精确恢复独立副本；使用隔离设置与稿件 |
 | 独立阅读匹配语料 | `generate-reading-precision-master-fixtures.py --output <dir>`，运行 `tests/reading-precision-acceptance` 的 adapter，再用 `score-reading-precision-master.py --help` 对冻结答案评分 |
 | 字体和编码夹具 | `generate-diagram-font.py`、`generate-ui-fonts.py`（fonttools 4.61.1）、`generate-encoding-fixtures.py`；常规编译不必重生成，改动后复核来源及哈希 |
 | 声明与公开范围检查 | `collect-licenses.py`、`renderer/licenses.mjs`；`audit-publication.py --index-file <candidate-index> --output <local-json>` 扫描隔离候选索引（省略 index-file 则扫描当前索引），`--ancestor <ref>` 可另扫历史；模式匹配不保证发现所有隐私信息 |
