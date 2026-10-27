@@ -910,30 +910,11 @@ impl CommonMarkViewerInternal {
             }
             pulldown_cmark::TagEnd::Image => {
                 if let Some(image) = self.image.take() {
-                    // Use the same URI, sizing and loader stage as the image
-                    // widget. Bytes alone can be ready before decoding/texture
-                    // upload has produced the height painted by this pass.
-                    let asset = self.observe_text.then(|| {
-                        let uri = image.uri.clone();
-                        let loading = egui::Image::from_uri(&uri)
-                            .fit_to_original_size(1.0)
-                            .max_width(options.max_width(ui))
-                            .load_for_size(ui.ctx(), ui.available_size());
-                        let (pending, error) = match loading {
-                            Ok(egui::load::TexturePoll::Pending { .. }) => (true, None),
-                            Ok(egui::load::TexturePoll::Ready { .. }) => (false, None),
-                            Err(error) => (false, Some(error.to_string())),
-                        };
-                        crate::AssetObservation {
-                            uri,
-                            pending,
-                            error,
-                        }
-                    });
-                    image.end(ui, options);
-                    if let Some(asset) = asset {
-                        self.assets.push(asset);
+                    if self.observe_text {
+                        self.assets.push(preview_image(ui, image, options));
+                        return;
                     }
+                    image.end(ui, options);
                 }
             }
             pulldown_cmark::TagEnd::HtmlBlock => {
@@ -963,5 +944,98 @@ impl CommonMarkViewerInternal {
             block.end(ui, cache, options, max_width);
             self.line.try_insert_end(ui);
         }
+    }
+}
+
+/// Each image owns its wait/error UI. A bounded history preserves useful height
+/// across retries without allowing an external URL to gate the whole document.
+fn preview_image(
+    ui: &mut Ui,
+    image: crate::Image,
+    options: &CommonMarkOptions,
+) -> crate::AssetObservation {
+    use std::time::{Duration, Instant};
+    type History = std::collections::VecDeque<(String, Instant, f32)>;
+    let uri = image.uri.clone();
+    let state_id = egui::Id::new("mdcard-image-wait-history");
+    let ((started, mut height), evicted) = ui.ctx().data_mut(|data| {
+        let history = data.get_temp_mut_or_default::<History>(state_id);
+        let entry = history
+            .iter()
+            .position(|(key, _, _)| key == &uri)
+            .and_then(|i| history.remove(i))
+            .unwrap_or_else(|| (uri.clone(), Instant::now(), 160.));
+        let result = (entry.1, entry.2);
+        history.push_back(entry);
+        let evicted = (history.len() > 64).then(|| history.pop_front().unwrap().0);
+        (result, evicted)
+    });
+    if let Some(uri) = evicted {
+        ui.ctx().forget_image(&uri);
+    }
+    let width = options.max_width(ui).min(ui.available_width()).max(48.);
+    let loading = egui::Image::from_uri(&uri)
+        .fit_to_original_size(1.0)
+        .max_width(width)
+        .load_for_size(ui.ctx(), ui.available_size());
+    let mut pending = false;
+    let mut error = None;
+    let mut retry_rect = None;
+    let mut placeholder_rect = None;
+    match loading {
+        Ok(egui::load::TexturePoll::Ready { texture }) => {
+            height = texture.size.y * (width / texture.size.x.max(1.)).min(1.);
+            image.end(ui, options);
+        }
+        other => {
+            pending = matches!(&other, Ok(egui::load::TexturePoll::Pending { .. }))
+                && started.elapsed() < Duration::from_secs(15);
+            error = match other {
+                Err(e) => Some(format!("Image could not be loaded: {e}")),
+                _ if !pending => {
+                    Some("Image loading timed out. Retry when the source is available.".into())
+                }
+                _ => None,
+            };
+            let placeholder = ui.allocate_ui_with_layout(
+                egui::vec2(width, height.clamp(80., 1200.)),
+                egui::Layout::top_down(egui::Align::Min),
+                |ui| {
+                    ui.set_min_height(height.clamp(80., 1200.));
+                    ui.label(error.as_deref().unwrap_or("Loading image…"));
+                    let retry = ui.small_button("Retry image");
+                    retry_rect = Some(retry.rect);
+                    if retry.clicked() {
+                        ui.ctx().forget_image(&uri);
+                        ui.ctx().data_mut(|data| {
+                            let history = data.get_temp_mut_or_default::<History>(state_id);
+                            if let Some((_, at, _)) =
+                                history.iter_mut().find(|(key, _, _)| key == &uri)
+                            {
+                                *at = Instant::now();
+                            }
+                        });
+                        ui.ctx().request_repaint();
+                    }
+                },
+            );
+            placeholder_rect = Some(placeholder.response.rect);
+            if pending {
+                ui.ctx().request_repaint_after(Duration::from_millis(250));
+            }
+        }
+    }
+    ui.ctx().data_mut(|data| {
+        let history = data.get_temp_mut_or_default::<History>(state_id);
+        if let Some((_, _, h)) = history.iter_mut().find(|(key, _, _)| key == &uri) {
+            *h = height;
+        }
+    });
+    crate::AssetObservation {
+        uri,
+        pending,
+        error,
+        placeholder_rect,
+        retry_rect,
     }
 }

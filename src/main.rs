@@ -1712,19 +1712,20 @@ impl Editor {
                     ui.label(RichText::new(language.text("Headings will appear here.")).size(12.0).color(p.muted));
                 }
                 if self.large.active && text_files::markdown(self.doc.path.as_deref()) {
+                    let toc_current=self.large.outline_current(self.document_generation,self.doc.revision());
                     let mut clicked=None;
                     let mut toc_controls=Vec::new();
                     if let Some(parsed)=&self.large.parsed {
                         let toc=egui::ScrollArea::vertical().id_salt("outline").max_height((sidebar_height-150.0).max(40.0)).show_rows(ui,28.,parsed.headings.len(),|ui,rows|{ui.spacing_mut().interact_size.y=24.;ui.spacing_mut().button_padding.y=4.;ui.spacing_mut().item_spacing.y=4.;
                             for index in rows {let(level,title,byte)=&parsed.headings[index];
-                                ui.horizontal(|ui|{ui.add_space((level.saturating_sub(1)as f32*9.).min(36.));let response=ui.add(egui::Button::new(RichText::new(title).size(12.).color(p.ink)).frame(false));theme::record_control(ui,&response,&format!("outline:{byte}"));if std::env::var_os("MDCARD_PERFORMANCE_REPORT").is_some(){toc_controls.push(serde_json::json!({"title":title,"byte":byte,"rect":[response.rect.min.x,response.rect.min.y,response.rect.max.x,response.rect.max.y]}));}
+                                ui.horizontal(|ui|{ui.add_space((level.saturating_sub(1)as f32*9.).min(36.));let response=ui.add_enabled(toc_current,egui::Button::new(RichText::new(title).size(12.).color(p.ink)).frame(false));theme::record_control(ui,&response,&format!("outline:{byte}"));if std::env::var_os("MDCARD_PERFORMANCE_REPORT").is_some(){toc_controls.push(serde_json::json!({"title":title,"byte":byte,"enabled":toc_current,"rect":[response.rect.min.x,response.rect.min.y,response.rect.max.x,response.rect.max.y]}));}
 if response.clicked(){clicked=Some(*byte);}});
                             }
                         });
                         self.large.toc_scrollbar=ctx.read_response(toc.id.with(1usize)).map(|r|r.rect);
                     }
                     self.large.toc_controls=toc_controls;
-                    if let Some(byte)=clicked{self.large.jump=Some(byte);self.large.preview_jump=Some(byte);self.editor_focus=true;let id=egui::Id::new(("source-editor",self.document_generation));let mut state=egui::text_edit::TextEditState::load(ctx,id).unwrap_or_default();state.cursor.set_char_range(Some(egui::text::CCursorRange::one(egui::text::CCursor::new(self.large.rope.byte_to_char(byte)))));state.store(ctx,id);}
+                    if let Some(byte)=clicked && let Some(character)=self.large.jump_to_outline(byte,self.document_generation,self.doc.revision()){self.editor_focus=true;let id=egui::Id::new(("source-editor",self.document_generation));let mut state=egui::text_edit::TextEditState::load(ctx,id).unwrap_or_else(||structure_ui::bounded_source_state(self.doc.text.len()));state.cursor.set_char_range(Some(egui::text::CCursorRange::one(egui::text::CCursor::new(character))));state.store(ctx,id);}
                 } else { egui::ScrollArea::vertical()
                     .id_salt("outline")
                     .max_height((sidebar_height - 150.0).max(40.0))
@@ -1738,7 +1739,7 @@ if response.clicked(){clicked=Some(*byte);}});
                         }).into_iter().enumerate() {
                             ui.horizontal(|ui| {
                                 ui.add_space(((level.saturating_sub(1)) as f32 * 9.0).min(36.0));
-                                let response=ui.add(
+                                let response=ui.add_enabled(self.outline_changed.is_none(),
                                     egui::Button::new(
                                         RichText::new(&title).size(12.0).color(if level == 1 {
                                             p.ink
@@ -2137,6 +2138,7 @@ if response.clicked(){clicked=Some(*byte);}});
             .phase("sourceEditor", phase_start.elapsed().as_secs_f64() * 1000.);
     }
     fn preview(&mut self, ui: &mut egui::Ui) {
+        let preview_started = Instant::now();
         self.large.ensure(
             &self.doc.text,
             self.document_generation,
@@ -2144,12 +2146,14 @@ if response.clicked(){clicked=Some(*byte);}});
             ui.ctx(),
         );
         if self.large.active {
-            if self.large.installed_revision != Some(self.large.revision)
-                && let Some(parsed) = &mut self.large.parsed
-                && parsed.revision == self.large.revision
+            if let Some(parsed) = &mut self.large.parsed
+                && self.large.installed_revision != Some(parsed.revision)
             {
-                self.rich.install_incremental(parsed, &self.doc);
-                self.large.installed_revision = Some(parsed.revision);
+                let current = parsed.revision == self.large.revision
+                    && parsed.source_revision == self.doc.revision();
+                if self.rich.install_incremental(parsed, &self.doc, current) {
+                    self.large.installed_revision = Some(parsed.revision);
+                }
             }
             self.rich.poll_results(ui.ctx());
         } else {
@@ -2158,6 +2162,17 @@ if response.clicked(){clicked=Some(*byte);}});
         }
         let language = self.language;
         let p = self.palette;
+        let markdown = text_files::markdown(self.doc.path.as_deref());
+        let coordinates_current = !markdown
+            || (self.rich.source_ready(&self.doc, self.document_generation)
+                && (!self.large.active
+                    || self
+                        .large
+                        .parsed
+                        .as_ref()
+                        .is_some_and(|parsed| parsed.revision == self.large.revision)));
+        let displayable = !markdown || self.rich.displayable(&self.doc, self.document_generation);
+        self.rich.source_interactions = coordinates_current;
         ui.set_clip_rect(ui.clip_rect().intersect(ui.max_rect()));
         ui.horizontal(|ui| {
             ui.label(
@@ -2173,8 +2188,33 @@ if response.clicked(){clicked=Some(*byte);}});
                 .color(p.muted),
             );
             ui.allocate_space(Vec2::new(0.0, theme::CONTROL_HEIGHT));
+            if displayable && !coordinates_current {
+                ui.label(
+                    RichText::new(language.text("Updating preview…"))
+                        .small()
+                        .color(p.muted),
+                );
+            }
         });
         ui.add_space(8.0);
+        if self.large.active
+            && (self.large.parser_failed()
+                || self
+                    .large
+                    .preview_wait()
+                    .is_some_and(|wait| wait.as_secs() >= 5))
+        {
+            ui.horizontal_wrapped(|ui| {
+                ui.label(language.text(if self.large.parser_failed() {
+                    "Preview parsing stopped. Your text is still editable."
+                } else {
+                    "This document is taking longer to parse. You can keep editing."
+                }));
+                if ui.button(language.text("Retry preview")).clicked() {
+                    self.large.retry_preview(ui.ctx());
+                }
+            });
+        }
         if self.large.active && !text_files::markdown(self.doc.path.as_deref()) {
             self.large.show_plain_preview(
                 ui,
@@ -2189,33 +2229,34 @@ if response.clicked(){clicked=Some(*byte);}});
         let reading_key = "main/preview";
         self.reading.layer(reading_key, ui.layer_id());
         let reading_layout = format!("preview:{:.1}:{}", ui.available_width(), self.font_size);
-        let reading_restore = self.reading.plan(
-            &self.doc,
-            reading_key,
-            self.document_generation,
-            &reading_layout,
-            ui.ctx(),
-            ui.available_rect_before_wrap(),
-            self.large.preview_jump.is_some()
-                || self.global.jump.is_some()
-                || self.large.sync_from_source,
-        );
-        let markdown = text_files::markdown(self.doc.path.as_deref());
-        if (self.large.active
-            && self
-                .large
-                .parsed
-                .as_ref()
-                .is_none_or(|p| p.revision != self.large.revision))
-            || (markdown && !self.rich.source_ready(&self.doc, self.document_generation))
-        {
+        let mut reading_restore = coordinates_current
+            .then(|| {
+                self.reading.plan(
+                    &self.doc,
+                    reading_key,
+                    self.document_generation,
+                    &reading_layout,
+                    ui.ctx(),
+                    ui.available_rect_before_wrap(),
+                    self.large.preview_jump.is_some()
+                        || self.global.jump.is_some()
+                        || self.large.sync_from_source,
+                )
+            })
+            .flatten();
+        if !coordinates_current {
             self.reading.await_source_layout(reading_key);
-            ui.spinner();
-            ui.ctx()
-                .request_repaint_after(std::time::Duration::from_millis(20));
+            self.large.sync_from_source = false;
+            self.large.sync_from_preview = false;
+        }
+        if !displayable {
+            ui.horizontal(|ui| {
+                ui.spinner();
+                ui.label(language.text("Preparing the first preview…"));
+            });
             return;
         }
-        if text_files::markdown(self.doc.path.as_deref()) {
+        if markdown && coordinates_current {
             if let Some(heights) =
                 self.reading
                     .take_calibration(&self.doc, reading_key, &reading_layout)
@@ -2233,6 +2274,38 @@ if response.clicked(){clicked=Some(*byte);}});
         let mut scroll = egui::ScrollArea::both()
             .id_salt(("preview-scroll", self.doc.id, self.document_generation))
             .auto_shrink([false; 2]);
+        let manual_preview_scroll =
+            large_document::scroll_gesture(ui, ui.available_rect_before_wrap());
+        let explicit_scroll = self.large.preview_jump.is_some()
+            || self.global.jump.is_some()
+            || self.large.sync_from_source
+            || manual_preview_scroll;
+        if explicit_scroll {
+            self.rich.finish_snapshot_scroll();
+        }
+        let snapshot_scroll = self
+            .rich
+            .take_snapshot_scroll(ui.available_width(), self.font_size);
+        let live_snapshot_scroll = snapshot_scroll.is_some()
+            && !explicit_scroll
+            && (!coordinates_current
+                || self.reading.live_snapshot_without_proof(
+                    &self.doc,
+                    reading_key,
+                    self.document_generation,
+                ));
+        if live_snapshot_scroll && let Some(offset) = snapshot_scroll {
+            if coordinates_current {
+                // An unchanged content key is a pixel anchor for this live
+                // commit. A coarse old reading record must not override it.
+                // Recapture source geometry solely from the current galleys.
+                self.reading.cancel(reading_key, "live-snapshot-anchor");
+                reading_restore = None;
+            }
+            scroll = scroll.vertical_scroll_offset(offset);
+        } else if coordinates_current {
+            self.rich.finish_snapshot_scroll();
+        }
         let mut reading_target = reading_restore.as_ref().map(|restore| {
             if restore.exact {
                 restore.position.offset
@@ -2273,15 +2346,18 @@ if response.clicked(){clicked=Some(*byte);}});
             self.large.sync_from_source = false;
             self.large.sync_from_preview = false;
         }
-        let driven_by_source =
-            self.large.active && (self.large.preview_jump.is_some() || self.large.sync_from_source);
+        let driven_by_source = coordinates_current
+            && self.large.active
+            && (self.large.preview_jump.is_some() || self.large.sync_from_source);
         let mut preview_anchor_delta = 0.;
         let mut preview_galleys = Vec::new();
-        let preview_source_pin = self.reading.precise_byte(reading_key);
+        let preview_source_pin = coordinates_current
+            .then(|| self.reading.precise_byte(reading_key))
+            .flatten();
         let mut image_pending = false;
         let mut image_errors = Vec::new();
         let mut plain_anchor = (0, 0., 0.);
-        if self.large.active {
+        if self.large.active && coordinates_current {
             if let Some(byte) = self.large.preview_jump.take() {
                 scroll = scroll.vertical_scroll_offset(self.large.preview_y(byte));
             } else if self.large.sync_from_source {
@@ -2431,6 +2507,18 @@ if response.clicked(){clicked=Some(*byte);}});
                                     })
                                     .inner;
                                 for asset in assets {
+                                    if let Some(rect) = asset.retry_rect {
+                                        rich.borrow_mut().add_control(
+                                            format!("image-retry-{}", asset.uri),
+                                            rect,
+                                        );
+                                    }
+                                    if let Some(rect) = asset.placeholder_rect {
+                                        rich.borrow_mut().add_control(
+                                            format!("image-placeholder-{}", asset.uri),
+                                            rect,
+                                        );
+                                    }
                                     image_pending |= asset.pending;
                                     if let Some(error) = asset.error {
                                         image_errors.push(format!("{}: {}", asset.uri, error));
@@ -2485,6 +2573,30 @@ if response.clicked(){clicked=Some(*byte);}});
             scroll_state.offset.y = (scroll_state.offset.y + preview_anchor_delta).max(0.);
             scroll_state.store(ui.ctx(), preview_scroll.id);
             ui.ctx().request_repaint();
+        }
+        self.rich.remember_viewport(scroll_state.offset.y);
+        self.rich.trace_preview_scroll(serde_json::json!({"frame":ui.ctx().cumulative_frame_nr(),"source":self.doc.revision(),"current":coordinates_current,"snapshot":snapshot_scroll,"live":live_snapshot_scroll,"explicit":explicit_scroll,"manual":manual_preview_scroll,"restore":reading_restore.is_some(),"area_offset":preview_scroll.state.offset.y,"delta":preview_anchor_delta,"offset":scroll_state.offset.y,"source_sync":self.large.sync_from_source,"preview_jump":self.large.preview_jump}));
+        self.rich.preview_painted(
+            coordinates_current,
+            preview_started.elapsed().as_secs_f64() * 1000.,
+        );
+        if live_snapshot_scroll && preview_anchor_delta.abs() > 0.01 {
+            // These galleys were painted at the pre-compensation offset. Keep
+            // the content anchor until the corrected offset is actually drawn;
+            // otherwise geometry captures another paragraph and scrolls back.
+            self.rich.compensate_snapshot_scroll(preview_anchor_delta);
+            self.reading.await_source_layout(reading_key);
+            self.large.preview_rect = Some(preview_scroll.inner_rect);
+            self.large.last_preview_offset = scroll_state.offset.y;
+            ui.ctx().request_repaint();
+            return;
+        }
+        if !coordinates_current {
+            // Rendering an installed snapshot is safe. Persisting its source
+            // offsets, driving the editor or opening a rich writeback is not.
+            self.large.preview_rect = Some(preview_scroll.inner_rect);
+            self.large.last_preview_offset = scroll_state.offset.y;
+            return;
         }
         if let Some(restore) = &reading_restore
             && !restore.exact
@@ -2576,10 +2688,17 @@ if response.clicked(){clicked=Some(*byte);}});
             if (offset - self.large.last_preview_offset).abs() > 0.5 {
                 self.large.last_preview_offset = offset;
                 self.large.preview_anchor = self.large.preview_byte(offset);
-                if !driven_by_source && reading_target.is_none() {
+                if manual_preview_scroll && !driven_by_source && reading_target.is_none() {
                     self.large.sync_from_preview = true;
                 }
             }
+        }
+        if live_snapshot_scroll
+            && self
+                .reading
+                .live_snapshot_geometry_ready(&self.doc, reading_key)
+        {
+            self.rich.finish_snapshot_scroll();
         }
     }
     fn show_encoding(&mut self, target: Option<PathBuf>, ctx: &egui::Context) {
@@ -3357,7 +3476,23 @@ impl eframe::App for Editor {
         {
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
-        ctx.request_repaint_after(std::time::Duration::from_millis(250));
+        // Timed work schedules its own wakeups. Once it settles the preview
+        // sleeps until input, a loader completion or a worker result arrives.
+        if self.files.scanning || self.global.busy {
+            ctx.request_repaint_after(std::time::Duration::from_millis(100));
+        }
+        if self.screenshot_path.is_some() && !self.screenshot_requested {
+            ctx.request_repaint_after(
+                std::time::Duration::from_secs(3).saturating_sub(self.started.elapsed()),
+            );
+        }
+        if let Some(seconds) = self.auto_quit {
+            let remaining =
+                std::time::Duration::from_secs_f32(seconds).saturating_sub(self.started.elapsed());
+            if !remaining.is_zero() {
+                ctx.request_repaint_after(remaining);
+            }
+        }
         if !self.doc.is_recovery_copy() {
             self.rich
                 .report(structure_frame_start.elapsed().as_secs_f64() * 1000.);
@@ -4343,6 +4478,146 @@ mod ui_polish_tests {
 #[cfg(test)]
 mod preview_layout_tests {
     #[test]
+    fn live_snapshot_pixel_anchor_precedes_unverified_reading_fallback() {
+        for scroll_offset in [180., 900.] {
+            let ctx = egui::Context::default();
+            let text = (0..100)
+                .map(|i| {
+                    format!(
+                        "Paragraph {i:04} with unchanged content for its live pixel anchor.\n\n"
+                    )
+                })
+                .collect::<String>();
+            let mut app = editor(&ctx, &text);
+            app.reading.bind(&mut app.doc, "main", 0);
+            let mut frame = 0;
+            let mut render = |app: &mut Editor, wheel: bool| {
+                frame += 1;
+                let mut events = vec![egui::Event::PointerMoved(egui::pos2(400., 300.))];
+                if wheel {
+                    events.push(egui::Event::MouseWheel {
+                        unit: egui::MouseWheelUnit::Point,
+                        delta: egui::vec2(0., -scroll_offset),
+                        modifiers: egui::Modifiers::NONE,
+                    });
+                }
+                let _ = ctx.run(
+                    egui::RawInput {
+                        time: Some(frame as f64 / 60.),
+                        screen_rect: Some(egui::Rect::from_min_size(
+                            egui::Pos2::ZERO,
+                            egui::vec2(700., 600.),
+                        )),
+                        events,
+                        ..Default::default()
+                    },
+                    |ctx| {
+                        egui::CentralPanel::default().show(ctx, |ui| app.preview(ui));
+                    },
+                );
+            };
+            for i in 0..100 {
+                render(&mut app, i == 4);
+            }
+            let before =
+                app.reading.report(&app.doc, None)["views"]["main/preview"]["geometry"].clone();
+            let byte = before["source_byte"].as_u64().unwrap();
+            let y = before["viewport_y"].as_f64().unwrap();
+            assert!(byte > 0);
+            let compensations = app.rich.snapshot_compensations;
+            app.reading
+                .unverified_snapshot_anchor_for_test(&app.doc, "main/preview");
+            app.doc.text.insert_str(0, "01234567890123456789");
+            app.doc.mark_text_changed();
+            render(&mut app, false);
+            assert!(
+                app.reading.report(&app.doc, None)["views"]["main/preview"]["geometry"].is_null()
+            );
+            std::thread::sleep(std::time::Duration::from_millis(135));
+            let deadline = Instant::now() + std::time::Duration::from_secs(2);
+            loop {
+                render(&mut app, false);
+                let after =
+                    app.reading.report(&app.doc, None)["views"]["main/preview"]["geometry"].clone();
+                if after["source_byte"].as_u64() == Some(byte + 20) {
+                    assert!(
+                        (after["viewport_y"].as_f64().unwrap() - y).abs() <= 2.,
+                        "{before} -> {after}"
+                    );
+                    break;
+                }
+                assert!(Instant::now() < deadline, "{before} -> {after}");
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            }
+            if scroll_offset == 180. {
+                assert!(
+                    app.rich.snapshot_compensations > compensations,
+                    "near-top fixture must actually remeasure the changed overscan block"
+                );
+            }
+        }
+    }
+    #[test]
+    fn delete_across_viewport_threshold_retains_one_native_undo_transaction() {
+        for bytes in [70 * 1024, 16 * 1024 * 1024 - 1024] {
+            let ctx = egui::Context::default();
+            let text = format!(
+                "# Header\n\n{}",
+                "A stable source paragraph.\n\n".repeat(bytes / 28)
+            );
+            let mut app = editor(&ctx, "Small bootstrap.");
+            app.doc = Document::from_text(&text);
+            app.reading.bind(&mut app.doc, "main", 0);
+            let id = egui::Id::new(("source-editor", 0u64));
+            let mut frame = 0;
+            let mut render = |app: &mut Editor, events: Vec<egui::Event>| {
+                frame += 1;
+                let _ = ctx.run(
+                    egui::RawInput {
+                        time: Some(frame as f64 * 0.2),
+                        screen_rect: Some(egui::Rect::from_min_size(
+                            egui::Pos2::ZERO,
+                            egui::vec2(1280., 800.),
+                        )),
+                        events,
+                        ..Default::default()
+                    },
+                    |ctx| {
+                        app.structure_shortcuts(ctx);
+                        egui::CentralPanel::default().show(ctx, |ui| app.editor(ui));
+                    },
+                );
+            };
+            render(&mut app, vec![]);
+            ctx.memory_mut(|memory| memory.request_focus(id));
+            let key = |key| egui::Event::Key {
+                key,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: egui::Modifiers::COMMAND,
+            };
+            render(
+                &mut app,
+                vec![
+                    key(egui::Key::A),
+                    egui::Event::Paste("# Small\n\nSurviving body.".into()),
+                ],
+            );
+            assert!(app.doc.text.len() < 64 * 1024);
+            for _ in 0..6 {
+                render(&mut app, vec![]);
+            }
+            render(&mut app, vec![key(egui::Key::Z)]);
+            assert_eq!(
+                app.doc.text, text,
+                "cross-threshold undo failed for {bytes} bytes"
+            );
+            render(&mut app, vec![key(egui::Key::Y)]);
+            assert_eq!(app.doc.text, "# Small\n\nSurviving body.");
+        }
+    }
+    #[test]
     fn relocated_soft_break_run_is_mounted_inside_one_ordinary_tall_paragraph() {
         let text = format!(
             "# Shared source\n\n{}",
@@ -4453,7 +4728,10 @@ mod preview_layout_tests {
                 _ => false,
             }
         }
-        assert!(!pending.shapes.iter().any(|shape| obsolete(&shape.shape)));
+        assert!(
+            pending.shapes.iter().any(|shape| obsolete(&shape.shape)),
+            "same-buffer snapshot stays visible while source geometry remains isolated"
+        );
         std::thread::sleep(std::time::Duration::from_millis(270));
         let _ = render(&mut app);
         assert!(app.rich.source_ready(&app.doc, 0));

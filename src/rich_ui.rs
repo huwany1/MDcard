@@ -9,7 +9,7 @@ use base64::Engine;
 use egui::Vec2;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, VecDeque},
     io::{BufRead, BufReader, Write},
     path::PathBuf,
     sync::{
@@ -43,6 +43,8 @@ struct Output {
     height: f32,
     #[serde(default)]
     error: String,
+    #[serde(default, rename = "ms")]
+    render_ms: f64,
 }
 #[derive(Serialize)]
 struct Request {
@@ -221,6 +223,7 @@ impl Worker {
                     width: 0.,
                     height: 0.,
                     error,
+                    render_ms: 0.,
                 }));
                 ctx.request_repaint();
             }
@@ -338,6 +341,7 @@ pub struct Block {
     pub mapping: Vec<crate::large_document::PreviewSourceSegment>,
 }
 pub struct RichUi {
+    pub source_interactions: bool,
     recovery_revision: u64,
     pub(crate) recovery_discard_serial: u64,
     ime_composing: bool,
@@ -349,6 +353,20 @@ pub struct RichUi {
     generation: u64,
     source_revision: Option<(u64, u64)>,
     parsed_source_revision: Option<(u64, u64)>,
+    displayed_buffer: Option<u64>,
+    displayed_revision: Option<u64>,
+    update_started: Option<Instant>,
+    viewport_anchor: Vec<(u64, usize, f32)>,
+    pending_anchor: Vec<(u64, usize, f32)>,
+    snapshot_scroll_hold: Option<f32>,
+    scroll_trace: VecDeque<serde_json::Value>,
+    #[cfg(test)]
+    pub(crate) snapshot_compensations: usize,
+    parse_stage_ms: [f64; 3],
+    painted_stamp: Option<u64>,
+    preview_timings: std::collections::VecDeque<serde_json::Value>,
+    pending_at: HashMap<u64, Instant>,
+    media_timings: std::collections::VecDeque<serde_json::Value>,
     changed: Instant,
     worker: Option<Worker>,
     results: HashMap<u64, Arc<Output>>,
@@ -391,6 +409,7 @@ pub struct RichUi {
 impl Default for RichUi {
     fn default() -> Self {
         Self {
+            source_interactions: true,
             recovery_revision: 0,
             recovery_discard_serial: 0,
             ime_composing: false,
@@ -402,6 +421,20 @@ impl Default for RichUi {
             generation: u64::MAX,
             source_revision: None,
             parsed_source_revision: None,
+            displayed_buffer: None,
+            displayed_revision: None,
+            update_started: None,
+            viewport_anchor: Vec::new(),
+            pending_anchor: Vec::new(),
+            snapshot_scroll_hold: None,
+            scroll_trace: VecDeque::new(),
+            #[cfg(test)]
+            snapshot_compensations: 0,
+            parse_stage_ms: [0.; 3],
+            painted_stamp: None,
+            preview_timings: std::collections::VecDeque::new(),
+            pending_at: HashMap::new(),
+            media_timings: std::collections::VecDeque::new(),
             changed: Instant::now() - Duration::from_secs(1),
             worker: None,
             results: HashMap::new(),
@@ -510,14 +543,27 @@ impl RichUi {
         &mut self,
         parsed: &mut crate::large_document::Parsed,
         doc: &crate::document::Document,
-    ) {
+        current: bool,
+    ) -> bool {
+        if self.generation == parsed.generation
+            && self.displayed_buffer == Some(doc.buffer_id())
+            && self
+                .displayed_revision
+                .is_some_and(|r| r > parsed.source_revision)
+        {
+            return false;
+        }
         if self.generation != parsed.generation {
             self.draft = None;
             self.views.clear();
             self.inline_edit = None;
             self.dimensions.clear();
+            self.viewport_anchor.clear();
+            self.snapshot_scroll_hold = None;
         }
+        self.pending_anchor.clone_from(&self.viewport_anchor);
         self.source_map.clear();
+        self.parse_stage_ms = [0., parsed.parse_ms, parsed.transform_ms];
         self.preview = std::mem::take(&mut parsed.preview);
         self.nodes = std::mem::take(&mut parsed.nodes);
         self.blocks = parsed
@@ -533,14 +579,25 @@ impl RichUi {
                 mapping: b.mapping.clone(),
             })
             .collect();
-        self.original = doc.text.clone();
-        self.parsed_source_revision = Some((doc.buffer_id(), doc.revision()));
+        // A completed intermediate snapshot is displayable, but its offsets
+        // must never be labelled as the current editable buffer's coordinates.
+        self.original = if current {
+            doc.text.clone()
+        } else {
+            String::new()
+        };
+        self.displayed_buffer = Some(doc.buffer_id());
+        self.displayed_revision = Some(parsed.source_revision);
+        self.parsed_source_revision = current.then_some((doc.buffer_id(), doc.revision()));
+        self.source_revision = None;
         self.stamp = parsed.source_hash;
         self.generation = parsed.generation;
         self.layout_dirty = true;
         self.pending_source = None;
+        self.update_started = None;
         self.changed = Instant::now() - Duration::from_secs(1);
         self.counters.parses += 1;
+        true
     }
     pub fn visible_blocks(
         &mut self,
@@ -550,6 +607,60 @@ impl RichUi {
     ) -> (Vec<(usize, Block)>, f32, f32) {
         self.visible_blocks_around(width, font, viewport, None)
     }
+    pub fn remember_viewport(&mut self, offset: f32) {
+        let first = self.block_at(offset);
+        self.viewport_anchor = self
+            .blocks
+            .iter()
+            .enumerate()
+            .skip(first)
+            .take(4)
+            .map(|(i, b)| (b.key, i, self.block_index.prefix(i) - offset))
+            .collect();
+    }
+    /// Content identity keeps a visible block in place across snapshot commits.
+    /// This affects pixel scrolling only; it authorizes no source interaction.
+    pub fn take_snapshot_scroll(&mut self, width: f32, font: f32) -> Option<f32> {
+        if self.pending_anchor.is_empty() {
+            return self.snapshot_scroll_hold;
+        }
+        let _ = self.visible_blocks(width, font, egui::Rect::ZERO);
+        let pins = std::mem::take(&mut self.pending_anchor);
+        for (key, old_index, viewport_y) in pins {
+            if let Some(indices) = self.block_keys.get(&key)
+                && let Some(index) = indices.iter().min_by_key(|i| i.abs_diff(old_index))
+            {
+                self.snapshot_scroll_hold =
+                    Some((self.block_index.prefix(*index) - viewport_y).max(0.));
+                return self.snapshot_scroll_hold;
+            }
+        }
+        None
+    }
+    pub fn finish_snapshot_scroll(&mut self) {
+        self.snapshot_scroll_hold = None;
+        self.pending_anchor.clear();
+    }
+    pub fn compensate_snapshot_scroll(&mut self, delta: f32) {
+        if let Some(offset) = &mut self.snapshot_scroll_hold {
+            *offset = (*offset + delta).max(0.);
+            #[cfg(test)]
+            {
+                self.snapshot_compensations += 1;
+            }
+        }
+    }
+    pub fn trace_preview_scroll(&mut self, mut value: serde_json::Value) {
+        if std::env::var_os("MDCARD_PERFORMANCE_REPORT").is_none() {
+            return;
+        }
+        if self.scroll_trace.len() >= 256 {
+            self.scroll_trace.pop_front();
+        }
+        value["hold"] = serde_json::json!(self.snapshot_scroll_hold);
+        value["pins"] = serde_json::json!(self.viewport_anchor);
+        self.scroll_trace.push_back(value);
+    }
     pub fn visible_blocks_around(
         &mut self,
         width: f32,
@@ -558,7 +669,7 @@ impl RichUi {
         source_pin: Option<usize>,
     ) -> (Vec<(usize, Block)>, f32, f32) {
         if self.layout_dirty || (self.layout_width - width).abs() > 1. || self.layout_font != font {
-            let _ = self.layout_blocks(width, font);
+            self.layout_blocks(width, font);
             self.block_index =
                 crate::large_document::Heights::new(self.blocks.iter().map(|b| b.height).collect());
             self.block_keys.clear();
@@ -636,7 +747,7 @@ impl RichUi {
             .collect()
     }
     pub fn restore_reading_calibration(&mut self, width: f32, font: f32, heights: Vec<(u64, f32)>) {
-        let _ = self.layout_blocks(width, font);
+        self.layout_blocks(width, font);
         for (key, height) in heights {
             if height.is_finite() && height > 0. && height < 10_000_000. {
                 self.heights.insert(key, height);
@@ -701,7 +812,7 @@ impl RichUi {
         }
         self.resident = std::mem::take(&mut self.frame_resident);
     }
-    pub fn layout_blocks(&mut self, width: f32, font: f32) -> Vec<Block> {
+    pub fn layout_blocks(&mut self, width: f32, font: f32) {
         if (self.layout_width - width).abs() > 1. || self.layout_font != font {
             self.heights.clear();
             self.layout_width = width;
@@ -727,7 +838,6 @@ impl RichUi {
                 }
             });
         }
-        self.blocks.clone()
     }
     pub fn block_height(&mut self, key: u64, height: f32) {
         // Absolute coordinates near the tail of a long document lose subpixel
@@ -810,6 +920,12 @@ impl RichUi {
                         ..
                     } if *pressed => Some(format!("key:{key:?}:{modifiers:?}")),
                     egui::Event::Paste(s) => Some(format!("paste:{}", s.len())),
+                    egui::Event::Ime(egui::ImeEvent::Preedit(s)) => {
+                        Some(format!("ime-preedit:{}", s.len()))
+                    }
+                    egui::Event::Ime(egui::ImeEvent::Commit(s)) => {
+                        Some(format!("ime-commit:{}", s.len()))
+                    }
                     _ => None,
                 };
                 if let Some(value) = value {
@@ -830,12 +946,44 @@ impl RichUi {
         ctx: &egui::Context,
     ) {
         let key = (doc.buffer_id(), doc.revision());
+        if self
+            .displayed_buffer
+            .is_some_and(|id| id != doc.buffer_id())
+        {
+            self.viewport_anchor.clear();
+            self.finish_snapshot_scroll();
+        }
         let changed = self.source_revision != Some(key);
         self.source_revision = Some(key);
         self.ensure_source(&doc.text, generation, ctx, changed);
         if self.pending_source.is_none() {
             self.parsed_source_revision = Some(key);
+            self.displayed_buffer = Some(doc.buffer_id());
+            self.displayed_revision = Some(doc.revision());
         }
+    }
+    /// Visibility is independent of permission to interpret source coordinates.
+    /// Only an installed snapshot of this exact buffer/open generation qualifies.
+    pub fn displayable(&self, doc: &crate::document::Document, generation: u64) -> bool {
+        self.generation == generation && self.displayed_buffer == Some(doc.buffer_id())
+    }
+    pub fn preview_painted(&mut self, current: bool, layout_ms: f64) {
+        if std::env::var_os("MDCARD_RICH_REPORT").is_none()
+            || self.painted_stamp == Some(self.stamp)
+        {
+            return;
+        }
+        self.painted_stamp = Some(self.stamp);
+        if self.preview_timings.len() >= 2048 {
+            self.preview_timings.pop_front();
+        }
+        self.preview_timings.push_back(serde_json::json!({
+            "generation":self.generation,"buffer":self.displayed_buffer,
+            "revision":self.displayed_revision,"current":current,
+            "debounce_ms":self.parse_stage_ms[0],"parse_ms":self.parse_stage_ms[1],
+            "mapping_transform_ms":self.parse_stage_ms[2],"layout_ui_ms":layout_ms,
+            "ui_draw_clock_ms":preview_clock_ms(),
+            "note":"UI commands produced, not a GPU fence or hardware presentation"}));
     }
     /// Requested revisions can precede the debounced parser commit. Geometry
     /// may use the current document only after its actual rendered source is installed.
@@ -857,18 +1005,35 @@ impl RichUi {
                 if self.pending_source.as_deref() != Some(text) {
                     self.pending_source = Some(text.to_owned());
                     self.changed = Instant::now();
+                    self.update_started.get_or_insert(self.changed);
                 }
             } else {
                 // Undo can return to the already parsed version before debounce.
                 self.pending_source = None;
+                self.update_started = None;
             }
         }
         if self.pending_source.is_some() {
-            if initial || self.refresh_now || self.changed.elapsed() >= Duration::from_millis(250) {
+            if initial
+                || self.refresh_now
+                || self.changed.elapsed() >= Duration::from_millis(120)
+                || self
+                    .update_started
+                    .is_some_and(|t| t.elapsed() >= Duration::from_millis(300))
+            {
+                if initial {
+                    self.viewport_anchor.clear();
+                    self.snapshot_scroll_hold = None;
+                }
+                self.pending_anchor.clone_from(&self.viewport_anchor);
+                self.parse_stage_ms[0] = self.changed.elapsed().as_secs_f64() * 1000.;
+                let parse_started = Instant::now();
                 self.original = self.pending_source.take().unwrap();
                 self.stamp = rich_nodes::hash(&self.original);
                 self.generation = generation;
                 (self.preview, self.nodes) = rich_nodes::parse(&self.original);
+                self.parse_stage_ms[1] = parse_started.elapsed().as_secs_f64() * 1000.;
+                let mapping_started = Instant::now();
                 self.blocks = preview_blocks(&self.preview);
                 self.source_map = crate::large_document::preview_source_map(
                     &self.original,
@@ -888,15 +1053,21 @@ impl RichUi {
                         );
                 }
                 self.layout_dirty = true;
+                self.parse_stage_ms[2] = mapping_started.elapsed().as_secs_f64() * 1000.;
                 self.counters.parses += 1;
                 self.changed = Instant::now() - Duration::from_secs(1);
                 self.refresh_now = false;
+                self.update_started = None;
                 if initial {
                     self.draft = None;
                     self.views.clear();
                 }
             } else {
-                ctx.request_repaint_after(Duration::from_millis(260));
+                let idle = Duration::from_millis(120).saturating_sub(self.changed.elapsed());
+                let maximum = self.update_started.map_or(idle, |t| {
+                    Duration::from_millis(300).saturating_sub(t.elapsed())
+                });
+                ctx.request_repaint_after(idle.min(maximum));
             }
         }
         self.poll_results(ctx);
@@ -908,6 +1079,19 @@ impl RichUi {
         if let Some(w) = &self.worker {
             while let Ok(mut result) = w.rx.try_recv() {
                 self.pending.remove(&result.id);
+                let wait_ms = self
+                    .pending_at
+                    .remove(&result.id)
+                    .map(|t| t.elapsed().as_secs_f64() * 1000.);
+                if std::env::var_os("MDCARD_RICH_REPORT").is_some() {
+                    if self.media_timings.len() >= 256 {
+                        self.media_timings.pop_front();
+                    }
+                    self.media_timings
+                        .push_back(serde_json::json!({"id":result.id,"ok":result.ok,
+                        "render_ms":result.render_ms,"queue_startup_render_ms":wait_ms,
+                        "completed_clock_ms":preview_clock_ms(),"error":result.error}));
+                }
                 self.counters.completed += 1;
                 if !result.ok {
                     self.counters.errors += 1;
@@ -990,6 +1174,7 @@ impl RichUi {
         }
         let historical = self.dimensions.get(&id).copied();
         let mut visible = false;
+        let mut retry_render = false;
         if inline {
             let size = result
                 .as_ref()
@@ -1002,6 +1187,14 @@ impl RichUi {
                 ));
             let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
             control(&mut self.controls, format!("node-{index}"), rect);
+            if result.as_ref().is_some_and(|r| !r.ok) {
+                response.context_menu(|ui| {
+                    if ui.button(language.text("Retry rendering")).clicked() {
+                        retry_render = true;
+                        ui.close();
+                    }
+                });
+            }
             visible = ui.is_rect_visible(rect);
             if visible {
                 if let Some(r) = result.as_ref().filter(|r| r.ok) {
@@ -1024,6 +1217,7 @@ impl RichUi {
                         .map_or(language.text("Edit formula"), |r| r.error.as_str()),
                 )
                 .clicked()
+                && self.source_interactions
             {
                 self.open(index);
             }
@@ -1060,10 +1254,18 @@ impl RichUi {
                                 response.rect,
                             );
                         }
-                        let response = ui.small_button(language.text("Edit"));
+                        let response = ui.add_enabled(
+                            self.source_interactions,
+                            egui::Button::new(language.text("Edit")).small(),
+                        );
                         control(&mut controls, format!("node-{index}-Edit"), response.rect);
                         if response.clicked() {
                             edit = true;
+                        }
+                        if result.as_ref().is_some_and(|r| !r.ok) {
+                            let response = ui.small_button(language.text("Retry rendering"));
+                            control(&mut controls, format!("node-{index}-Retry"), response.rect);
+                            retry_render |= response.clicked();
                         }
                         if ui
                             .small_button("↺")
@@ -1096,7 +1298,13 @@ impl RichUi {
                     }
                     if view.mode == 2 {
                         ui.columns(2, |columns| {
-                            let rect = source_editor(&mut columns[0], view, self.stamp, index);
+                            let rect = source_editor(
+                                &mut columns[0],
+                                view,
+                                self.stamp,
+                                index,
+                                self.source_interactions,
+                            );
                             control(&mut controls, format!("node-{index}-editor"), rect);
                             visible = canvas(
                                 &mut columns[1],
@@ -1110,7 +1318,8 @@ impl RichUi {
                             );
                         });
                     } else if view.mode == 1 {
-                        let rect = source_editor(ui, view, self.stamp, index);
+                        let rect =
+                            source_editor(ui, view, self.stamp, index, self.source_interactions);
                         control(&mut controls, format!("node-{index}-editor"), rect);
                         visible = false;
                     } else {
@@ -1125,9 +1334,10 @@ impl RichUi {
                             index,
                         );
                     }
-                    if view
-                        .source_changed
-                        .is_some_and(|t| t.elapsed() >= Duration::from_millis(250))
+                    if self.source_interactions
+                        && view
+                            .source_changed
+                            .is_some_and(|t| t.elapsed() >= Duration::from_millis(250))
                     {
                         view.source_changed = None;
                         self.inline_edit = Some((view.expected, node.clone(), view.source.clone()));
@@ -1157,6 +1367,11 @@ impl RichUi {
                 });
             });
             self.controls.extend(controls);
+        }
+        if retry_render {
+            self.results.remove(&id);
+            self.result_age.remove(&id);
+            ui.ctx().request_repaint();
         }
         if visible {
             self.frame_layout_pending |= result.is_none();
@@ -1190,6 +1405,7 @@ impl RichUi {
                     .is_ok()
                 {
                     self.pending.insert(id);
+                    self.pending_at.insert(id, Instant::now());
                     self.counters.submissions += 1;
                 } else {
                     ui.ctx().request_repaint_after(Duration::from_millis(50));
@@ -1457,8 +1673,15 @@ fn preview_blocks(text: &str) -> Vec<Block> {
     }
     blocks
 }
-fn source_editor(ui: &mut egui::Ui, view: &mut View, stamp: u64, index: usize) -> egui::Rect {
-    let response = ui.add(
+fn source_editor(
+    ui: &mut egui::Ui,
+    view: &mut View,
+    stamp: u64,
+    index: usize,
+    enabled: bool,
+) -> egui::Rect {
+    let response = ui.add_enabled(
+        enabled,
         egui::TextEdit::multiline(&mut view.source)
             .id(egui::Id::new(("rich-node-source", index)))
             .code_editor()
@@ -1595,13 +1818,32 @@ impl RichUi {
                 self.frame_ms.pop_front();
             }
             let views=self.views.iter().map(|(id,v)|serde_json::json!({"index":id,"mode":v.mode,"zoom":v.zoom,"pan":[v.pan.x,v.pan.y]})).collect::<Vec<_>>();
-            let report = serde_json::json!({"counters":self.counters,"controls":self.controls,"sourceStamp":self.stamp,"nodes":self.nodes.len(),"cachedResults":self.results.len(),"updateCpuMs":self.frame_ms,"inputEvents":self.input_events,"viewStates":views,"inputCpuMs":self.input_cpu,"phaseCpuMs":self.phase_cpu,"scrollCpuMs":self.scroll_cpu,"interactionCpuMs":self.interaction_cpu});
+            let report = serde_json::json!({"counters":self.counters,"controls":self.controls,"sourceStamp":self.stamp,"nodes":self.nodes.len(),"cachedResults":self.results.len(),"updateCpuMs":self.frame_ms,"inputEvents":self.input_events,"viewStates":views,"inputCpuMs":self.input_cpu,"phaseCpuMs":self.phase_cpu,"scrollCpuMs":self.scroll_cpu,"interactionCpuMs":self.interaction_cpu,"displayedBuffer":self.displayed_buffer,"displayedRevision":self.displayed_revision,"mappedRevision":self.parsed_source_revision,"previewTimings":self.preview_timings,"mediaTimings":self.media_timings,"scrollTrace":self.scroll_trace});
             let _ = write_diagnostic_report(
                 &PathBuf::from(path),
                 &serde_json::to_vec(&report).unwrap(),
             );
         }
     }
+}
+fn preview_clock_ms() -> Option<f64> {
+    #[cfg(windows)]
+    {
+        #[link(name = "kernel32")]
+        unsafe extern "system" {
+            fn QueryPerformanceCounter(value: *mut i64) -> i32;
+            fn QueryPerformanceFrequency(value: *mut i64) -> i32;
+        }
+        let (mut count, mut frequency) = (0i64, 0i64);
+        // SAFETY: APIs write one live stack i64 each.
+        if unsafe {
+            QueryPerformanceCounter(&mut count) != 0
+                && QueryPerformanceFrequency(&mut frequency) != 0
+        } {
+            return Some(count as f64 * 1000. / frequency as f64);
+        }
+    }
+    None
 }
 // A live diagnostic snapshot must publish complete JSON, but is not durable
 // application state. Keep the synchronous same-directory atomic replacement
@@ -1858,6 +2100,63 @@ mod tests {
 #[cfg(test)]
 mod revision_gate_tests {
     use super::*;
+    #[test]
+    fn stale_snapshot_is_displayable_only_for_its_buffer_and_max_wait_prevents_starvation() {
+        let ctx = egui::Context::default();
+        let mut doc = crate::Document::from_text("# Visible\n\nOld body.");
+        let mut rich = RichUi::default();
+        rich.ensure_document(&doc, 10, &ctx);
+        doc.text.push_str(" Latest text.");
+        doc.mark_text_changed();
+        rich.ensure_document(&doc, 10, &ctx);
+        assert!(rich.displayable(&doc, 10));
+        assert!(!rich.source_ready(&doc, 10));
+        assert!(rich.preview.contains("Old body."));
+        assert!(!rich.preview.contains("Latest text."));
+        let other = crate::Document::from_text(&doc.text);
+        assert!(!rich.displayable(&other, 10));
+        assert!(!rich.displayable(&doc, 11));
+        // Another keystroke resets the idle timer; maximum pending age wins.
+        rich.update_started = Some(Instant::now() - Duration::from_millis(301));
+        doc.text.push_str(" Continuous input.");
+        doc.mark_text_changed();
+        rich.ensure_document(&doc, 10, &ctx);
+        assert!(rich.source_ready(&doc, 10));
+        assert!(rich.preview.contains("Continuous input."));
+        assert_eq!(rich.counters.parses, 2);
+    }
+
+    #[test]
+    fn snapshot_pixel_anchor_tracks_unchanged_content_without_source_coordinates() {
+        let ctx = egui::Context::default();
+        let mut doc = crate::Document::from_text("# Heading\n\nFirst.\n\nVisible anchor.\n\nTail.");
+        let mut rich = RichUi::default();
+        rich.ensure_document(&doc, 1, &ctx);
+        let _ = rich.visible_blocks(500., 15., egui::Rect::ZERO);
+        let old_index = rich
+            .blocks
+            .iter()
+            .position(|b| rich.preview[b.range.clone()].contains("Visible anchor"))
+            .unwrap();
+        let old_offset = rich.block_index.prefix(old_index) + 7.;
+        rich.remember_viewport(old_offset);
+        doc.text = doc.text.replacen(
+            "First.",
+            "Inserted first.\n\nAnother new paragraph.\n\nFirst.",
+            1,
+        );
+        doc.mark_text_changed();
+        rich.ensure_document(&doc, 1, &ctx);
+        rich.changed = Instant::now() - Duration::from_secs(1);
+        rich.ensure_document(&doc, 1, &ctx);
+        let offset = rich.take_snapshot_scroll(500., 15.).unwrap();
+        let index = rich
+            .blocks
+            .iter()
+            .position(|b| rich.preview[b.range.clone()].contains("Visible anchor"))
+            .unwrap();
+        assert!((rich.block_index.prefix(index) - offset + 7.).abs() < 0.1);
+    }
     #[test]
     fn buffer_revision_gate_keeps_debounce_and_frame_polling_without_repeated_source_checks() {
         let ctx = egui::Context::default();

@@ -111,6 +111,9 @@ pub struct AssetObservation {
     pub uri: String,
     pub pending: bool,
     pub error: Option<String>,
+    /// Current placeholder and retry geometry, when this block is waiting/failed.
+    pub placeholder_rect: Option<egui::Rect>,
+    pub retry_rect: Option<egui::Rect>,
 }
 
 #[derive(Debug, Default)]

@@ -14,3 +14,8 @@ No Markdown source or export pipeline is rewritten.
 
 Regression: src/main.rs::preview_layout_tests::table_cells_reflow_in_full_read_and_split_layouts
 Regression: src/main.rs::preview_layout_tests::wrapped_table_rows_contain_text_and_do_not_overlap
+
+2026-10-27: geometry/asset preview images use independent bounded wait/error
+cards with a real minimum height, 15-second timeout and per-image retry.
+The 64-URI history evicts corresponding egui byte/image/texture loader data
+via Context::forget_image. Non-asset viewer paths retain the backend widget.

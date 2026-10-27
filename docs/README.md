@@ -12,6 +12,7 @@
 | 公式、图表与导出 | [数学图表](MATH_DIAGRAMS.md)、[导出](LOSSLESS_EXPORT.md) |
 | 阅读位置与精确恢复 | [阅读状态](READING_STATE.md)、[精度](READING_PRECISION.md) |
 | 大文件与性能边界 | [大稿架构](LARGE_DOCUMENT_PERFORMANCE.md)、[2026-10-26内存诊断验收](MEMORY_ACCEPTANCE_2026-10-26.md) |
+| 分屏实时预览 | [行为与版本保护](REALTIME_PREVIEW.md)、[2026-10-27验收](REALTIME_PREVIEW_ACCEPTANCE_2026-10-27.md) |
 | 图标维护 | [接入](ICON_INTEGRATION.md)、[设计源](../assets/branding/mdcard-icon/DESIGN.md) |
 | 可复用开发工具 | [工具入口](../scripts/README.md) |
 | 授权与来源 | [授权](LICENSING.md)、[第三方](THIRD_PARTY.md) |

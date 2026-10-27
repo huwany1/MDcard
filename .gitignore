@@ -3,6 +3,7 @@
 /dist/
 /artifacts/
 /evidence/
+/App/
 /tests/*-acceptance/target/
 /tests/reading-precision-implementation/target/
 

@@ -402,7 +402,13 @@
     "{time} · {pane} · {bytes} bytes · {encoding} · {bom}": "{time} · {pane} · {bytes} bytes · {encoding} · {bom}",
     "With BOM": "With BOM",
     "Without BOM": "Without BOM",
-    "The file was saved, but its recovery copy could not be cleared. Retry recovery protection.": "The file was saved, but its recovery copy could not be cleared. Retry recovery protection."
+    "The file was saved, but its recovery copy could not be cleared. Retry recovery protection.": "The file was saved, but its recovery copy could not be cleared. Retry recovery protection.",
+    "Updating preview…": "Updating preview…",
+    "Preparing the first preview…": "Preparing the first preview…",
+    "Preview parsing stopped. Your text is still editable.": "Preview parsing stopped. Your text is still editable.",
+    "This document is taking longer to parse. You can keep editing.": "This document is taking longer to parse. You can keep editing.",
+    "Retry preview": "Retry preview",
+    "Retry rendering": "Retry rendering"
   },
   "zh-CN": {
     "APPEARANCE": "外观",
@@ -807,7 +813,13 @@
     "{time} · {pane} · {bytes} bytes · {encoding} · {bom}": "{time} · {pane} · {bytes} 字节 · {encoding} · {bom}",
     "With BOM": "有 BOM",
     "Without BOM": "无 BOM",
-    "The file was saved, but its recovery copy could not be cleared. Retry recovery protection.": "原文件已保存，但恢复副本未能清理。请重试恢复保护。"
+    "The file was saved, but its recovery copy could not be cleared. Retry recovery protection.": "原文件已保存，但恢复副本未能清理。请重试恢复保护。",
+    "Updating preview…": "正在更新预览…",
+    "Preparing the first preview…": "正在准备首次预览…",
+    "Preview parsing stopped. Your text is still editable.": "预览解析已停止，正文仍可编辑。",
+    "This document is taking longer to parse. You can keep editing.": "文档解析耗时较长，你可以继续编辑。",
+    "Retry preview": "重试预览",
+    "Retry rendering": "重试渲染"
   },
   "zh-TW": {
     "APPEARANCE": "外觀",
@@ -1212,7 +1224,13 @@
     "{time} · {pane} · {bytes} bytes · {encoding} · {bom}": "{time} · {pane} · {bytes} 位元組 · {encoding} · {bom}",
     "With BOM": "含 BOM",
     "Without BOM": "無 BOM",
-    "The file was saved, but its recovery copy could not be cleared. Retry recovery protection.": "原始檔案已儲存，但復原副本未能清理。請重試復原保護。"
+    "The file was saved, but its recovery copy could not be cleared. Retry recovery protection.": "原始檔案已儲存，但復原副本未能清理。請重試復原保護。",
+    "Updating preview…": "正在更新預覽…",
+    "Preparing the first preview…": "正在準備首次預覽…",
+    "Preview parsing stopped. Your text is still editable.": "預覽解析已停止，正文仍可編輯。",
+    "This document is taking longer to parse. You can keep editing.": "文件解析耗時較長，你可以繼續編輯。",
+    "Retry preview": "重試預覽",
+    "Retry rendering": "重試繪製"
   },
   "ko": {
     "APPEARANCE": "화면 모드",
@@ -1617,7 +1635,13 @@
     "{time} · {pane} · {bytes} bytes · {encoding} · {bom}": "{time} · {pane} · {bytes} 바이트 · {encoding} · {bom}",
     "With BOM": "BOM 있음",
     "Without BOM": "BOM 없음",
-    "The file was saved, but its recovery copy could not be cleared. Retry recovery protection.": "파일은 저장했지만 복구 사본을 정리하지 못했습니다. 복구 보호를 다시 시도하세요."
+    "The file was saved, but its recovery copy could not be cleared. Retry recovery protection.": "파일은 저장했지만 복구 사본을 정리하지 못했습니다. 복구 보호를 다시 시도하세요.",
+    "Updating preview…": "미리 보기 업데이트 중…",
+    "Preparing the first preview…": "첫 미리 보기 준비 중…",
+    "Preview parsing stopped. Your text is still editable.": "미리 보기 분석이 중지되었습니다. 본문은 계속 편집할 수 있습니다.",
+    "This document is taking longer to parse. You can keep editing.": "문서 분석에 시간이 걸립니다. 계속 편집할 수 있습니다.",
+    "Retry preview": "미리 보기 재시도",
+    "Retry rendering": "렌더링 재시도"
   },
   "ja": {
     "APPEARANCE": "外観",
@@ -2022,7 +2046,13 @@
     "{time} · {pane} · {bytes} bytes · {encoding} · {bom}": "{time} · {pane} · {bytes} バイト · {encoding} · {bom}",
     "With BOM": "BOM あり",
     "Without BOM": "BOM なし",
-    "The file was saved, but its recovery copy could not be cleared. Retry recovery protection.": "ファイルは保存されましたが、復元コピーを消去できませんでした。復元保護を再試行してください。"
+    "The file was saved, but its recovery copy could not be cleared. Retry recovery protection.": "ファイルは保存されましたが、復元コピーを消去できませんでした。復元保護を再試行してください。",
+    "Updating preview…": "プレビューを更新中…",
+    "Preparing the first preview…": "初回プレビューを準備中…",
+    "Preview parsing stopped. Your text is still editable.": "プレビュー解析が停止しました。本文は引き続き編集できます。",
+    "This document is taking longer to parse. You can keep editing.": "文書の解析に時間がかかっています。編集は続けられます。",
+    "Retry preview": "プレビューを再試行",
+    "Retry rendering": "描画を再試行"
   },
   "ru": {
     "APPEARANCE": "ОФОРМЛЕНИЕ",
@@ -2427,6 +2457,12 @@
     "{time} · {pane} · {bytes} bytes · {encoding} · {bom}": "{time} · {pane} · {bytes} байт · {encoding} · {bom}",
     "With BOM": "С BOM",
     "Without BOM": "Без BOM",
-    "The file was saved, but its recovery copy could not be cleared. Retry recovery protection.": "Файл сохранён, но копию восстановления удалить не удалось. Повторите защиту восстановления."
+    "The file was saved, but its recovery copy could not be cleared. Retry recovery protection.": "Файл сохранён, но копию восстановления удалить не удалось. Повторите защиту восстановления.",
+    "Updating preview…": "Обновление предпросмотра…",
+    "Preparing the first preview…": "Подготовка первого предпросмотра…",
+    "Preview parsing stopped. Your text is still editable.": "Разбор предпросмотра остановлен. Текст можно редактировать.",
+    "This document is taking longer to parse. You can keep editing.": "Разбор документа занимает больше времени. Можно продолжать редактирование.",
+    "Retry preview": "Повторить предпросмотр",
+    "Retry rendering": "Повторить отрисовку"
   }
 }
