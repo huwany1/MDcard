@@ -1,6 +1,6 @@
 # 2026-10-27 实时预览验收
 
-状态：实现与下列 Windows 本地验收已完成。远端、正式安装包和 GitHub Release 未更新。结论仅覆盖这里列出的样本、场景和观测边界。
+状态：下列内容记录冻结R7的Windows本地验收；冻结验收时尚未推送或更新发行包。随后本地整理与PR状态见文末“本地整理与历史二进制归档”。性能数据仍只代表这里列出的原始二进制、样本和观测边界。
 
 ## 最终产物与来源
 
@@ -171,3 +171,13 @@ URI状态LRU64并调用forget_image；worker快照/结果各单槽、累计编�
 - 最终R7仅1MiB−1做12次性能复测，完整五档40次比较属于R4。最终接口/滚动帧顺序已用冻结二进制完整功能矩阵复核，仍应保留这两者的范围差异。
 
 本地候选可审查，不代表正式发行包已经替换。
+
+## 本地整理与历史二进制归档（2026-10-27）
+
+本地日常入口统一为 `D:\MDcard\App\MDcard.exe`，桌面 `MDcard.lnk` 指向该入口。此程序是冻结R7验收之后的格式整理重构建，二进制来源提交 `c980df103c01121cf3c42eb71fdd1c118b650db7`，SHA256 `e898a5528a4fe0fb5f29860fb595dfad998307f75b3c1b521cfd718714db7d0d`。完整离线renderer/runtime随App放置，当前代码覆盖旧分发运行时；本地包装、启动与清理记录在 `App/evidence/`。这些单独的安装检查不替代本文R4/R7原始性能样本，也没有把旧afbe哈希的数据改名为新exe的全量复测。
+
+代码PR为 [#6](https://github.com/huwany1/MDcard/pull/6)，创建时待合并；GitHub Release资产未替换。App是本地更新入口，不是正式Release新版本。
+
+本文提到的散落历史exe已集中封存至 `D:\MDcard-local-archive\20261027-preview-acceptance-binaries.zip`，ZIP SHA256 `11cbfb96f4f865c78b737815f6486357931303ced49d1a9a8f3dbcbb8abe1e58`；独立索引为同目录 `20261027-preview-acceptance-binaries.index.json`。ZIP中按原仓库相对路径保存baseline、仅计时baseline-measured、实测R4与冻结R7共4个exe，另附每个角色的manifest、R7完整源码manifest、基线计时diff和本次统计JSON。压缩CRC和解压后逐项SHA256均已验证。原始候选路径仅表示测量时路径；清理后需从ZIP中按同名条目取回，不能要求旧散落exe继续留在工作区。此前R4只读副本也由该ZIP替代，其edf3哈希不变。
+
+验收视频、帧、动作与性能原件仍保留在 `evidence/preview/2026-10-27/`，没有删除；用户未追踪的 `docs/ui-ux-proposal-2026-10-27/` 未改动。清理前后文件清单、删除范围、哈希和实际释放空间记录在 `App/evidence/cleanup-before.json`、`cleanup-after.json`。
