@@ -3478,7 +3478,8 @@ impl eframe::App for Editor {
         }
         // Timed work schedules its own wakeups. Once it settles the preview
         // sleeps until input, a loader completion or a worker result arrives.
-        if self.files.scanning || self.global.busy {
+        self.files.request_repaint(ctx);
+        if self.global.busy {
             ctx.request_repaint_after(std::time::Duration::from_millis(100));
         }
         if self.screenshot_path.is_some() && !self.screenshot_requested {

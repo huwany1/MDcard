@@ -349,6 +349,8 @@ pub struct RichUi {
     pub preview: String,
     pub nodes: Vec<Node>,
     original: String,
+    // Intermediate large-document snapshots do not retain their full source.
+    original_known: bool,
     source_map: Vec<crate::large_document::PreviewSourceSegment>,
     generation: u64,
     source_revision: Option<(u64, u64)>,
@@ -417,6 +419,7 @@ impl Default for RichUi {
             preview: String::new(),
             nodes: vec![],
             original: String::new(),
+            original_known: true,
             source_map: Vec::new(),
             generation: u64::MAX,
             source_revision: None,
@@ -586,6 +589,7 @@ impl RichUi {
         } else {
             String::new()
         };
+        self.original_known = current;
         self.displayed_buffer = Some(doc.buffer_id());
         self.displayed_revision = Some(parsed.source_revision);
         self.parsed_source_revision = current.then_some((doc.buffer_id(), doc.revision()));
@@ -1001,7 +1005,7 @@ impl RichUi {
         self.controls.clear();
         let initial = self.generation != generation;
         if initial || changed {
-            if initial || self.original != text {
+            if initial || !self.original_known || self.original != text {
                 if self.pending_source.as_deref() != Some(text) {
                     self.pending_source = Some(text.to_owned());
                     self.changed = Instant::now();
@@ -1029,6 +1033,7 @@ impl RichUi {
                 self.parse_stage_ms[0] = self.changed.elapsed().as_secs_f64() * 1000.;
                 let parse_started = Instant::now();
                 self.original = self.pending_source.take().unwrap();
+                self.original_known = true;
                 self.stamp = rich_nodes::hash(&self.original);
                 self.generation = generation;
                 (self.preview, self.nodes) = rich_nodes::parse(&self.original);
@@ -2100,6 +2105,47 @@ mod tests {
 #[cfg(test)]
 mod revision_gate_tests {
     use super::*;
+    #[test]
+    fn intermediate_large_snapshot_then_clear_requires_a_new_empty_parse() {
+        let ctx = egui::Context::default();
+        let mut doc = crate::Document::from_text(&"Old paragraph.\n\n".repeat(5000));
+        doc.mark_text_changed();
+        let mut parsed = crate::large_document::Parsed {
+            generation: 7,
+            revision: 0,
+            source_revision: doc.revision() - 1,
+            preview: "Old paragraph.".into(),
+            nodes: vec![],
+            blocks: vec![],
+            headings: vec![],
+            source_hash: rich_nodes::hash("Old paragraph."),
+            parse_ms: 0.,
+            transform_ms: 0.,
+            changed: vec![],
+            reused_blocks: 0,
+            parsed_blocks: 0,
+            incremental: false,
+            local_parse: false,
+        };
+        let mut rich = RichUi::default();
+        assert!(rich.install_incremental(&mut parsed, &doc, false));
+        doc.text.clear();
+        doc.mark_text_changed();
+        rich.ensure_document(&doc, 7, &ctx);
+        assert!(
+            !rich.source_ready(&doc, 7),
+            "stale source coordinates cannot be authorized"
+        );
+        assert!(rich.displayable(&doc, 7));
+        rich.changed = Instant::now() - Duration::from_secs(1);
+        rich.ensure_document(&doc, 7, &ctx);
+        assert!(rich.source_ready(&doc, 7));
+        assert!(
+            rich.preview.is_empty(),
+            "the empty document must replace the old preview"
+        );
+    }
+
     #[test]
     fn stale_snapshot_is_displayable_only_for_its_buffer_and_max_wait_prevents_starvation() {
         let ctx = egui::Context::default();

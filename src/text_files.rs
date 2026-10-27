@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 MDcard contributors
 //! One type policy shared by the picker, document loader and background file index.
+use crate::egui;
 use std::{
     collections::{HashMap, HashSet},
     fs,
@@ -510,6 +511,16 @@ impl FileIndex {
             self.pending_refresh = true;
         }
     }
+    /// Keep the UI asleep while idle but wake it for coalesced refreshes.
+    pub fn request_repaint(&self, ctx: &egui::Context) {
+        if self.scanning {
+            ctx.request_repaint_after(Duration::from_millis(100));
+        } else if self.pending_refresh
+            && let Some(started) = self.last_started
+        {
+            ctx.request_repaint_after(Duration::from_secs(2).saturating_sub(started.elapsed()));
+        }
+    }
     pub fn poll(&mut self) {
         if let Some(receiver) = &self.receiver {
             match receiver.try_recv() {
@@ -645,6 +656,16 @@ mod tests {
             index.pending_refresh,
             "coalesced request is retained for eventual refresh"
         );
+        // With the scan finished, the idle UI must still schedule the queued
+        // refresh deadline; otherwise no event may call poll() again.
+        index.last_started = Some(Instant::now() - Duration::from_secs(1));
+        let ctx = egui::Context::default();
+        for _ in 0..3 {
+            let _ = ctx.run(egui::RawInput::default(), |_| {});
+        }
+        let frame = ctx.run(egui::RawInput::default(), |ctx| index.request_repaint(ctx));
+        let delay = frame.viewport_output[&egui::ViewportId::ROOT].repaint_delay;
+        assert!(delay > Duration::ZERO && delay <= Duration::from_secs(1));
         // Advance only the scheduler clock; no two-second delay is needed for this test.
         index.last_started = Some(Instant::now() - Duration::from_secs(3));
         index.poll();
