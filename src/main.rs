@@ -37,6 +37,7 @@ mod structure_ui;
 mod syntax_cache;
 mod text_files;
 mod theme;
+mod virtual_input;
 mod window_corners;
 
 use document::{Document, outline};
@@ -158,6 +159,8 @@ enum Action {
 }
 
 struct Editor {
+    virtual_input: Option<virtual_input::VirtualInput>,
+    virtual_input_gl: bool,
     recovery: recovery::Recovery,
     saves: autosave::SaveCoordinator,
     save_then_action: bool,
@@ -229,6 +232,27 @@ struct Editor {
 }
 
 impl Editor {
+    fn publish_virtual_input(&self, ctx: &egui::Context) {
+        if let Some(input) = &self.virtual_input {
+            let selection = self.source_selection(ctx);
+            let session = virtual_input::Session {
+                buffer_id: self.doc.buffer_id(),
+                generation: self.document_generation,
+                revision: self.doc.revision(),
+            };
+            input.publish(ctx, session, serde_json::json!({
+                "scroll": self.large.split_scroll.virtual_input_state(&self.doc.text,ctx.cumulative_frame_nr()),
+                "document_text_bytes":self.doc.text.len(),"dirty":self.doc.dirty(),
+                "selection":[selection.primary.index,selection.secondary.index],
+                "focused":format!("{:?}",ctx.memory(|m|m.focused())),
+                "ime":self.ime_composing,"pixels_per_point":ctx.pixels_per_point(),
+            }));
+            if self.virtual_input_gl {
+                input.paint_callback(ctx, session);
+            }
+        }
+    }
+
     /// Commit node drafts before an operation observes or replaces the source.
     /// A failed patch keeps its editor/error visible and blocks the operation.
     fn flush_rich_edits(&mut self, ctx: &egui::Context) -> bool {
@@ -673,6 +697,8 @@ impl Editor {
             .canonicalize()
             .unwrap_or(startup_directory);
         let mut app = Self {
+            virtual_input: virtual_input::VirtualInput::from_environment(ctx),
+            virtual_input_gl: cc.gl.is_some(),
             recovery: if cfg!(test) {
                 recovery::Recovery::default()
             } else {
@@ -3238,6 +3264,20 @@ if response.clicked(){clicked=Some(*byte);}});
 }
 
 impl eframe::App for Editor {
+    fn raw_input_hook(&mut self, ctx: &egui::Context, raw: &mut egui::RawInput) {
+        if let Some(input) = &mut self.virtual_input {
+            input.hook(
+                ctx,
+                raw,
+                virtual_input::Session {
+                    buffer_id: self.doc.buffer_id(),
+                    generation: self.document_generation,
+                    revision: self.doc.revision(),
+                },
+            );
+        }
+    }
+
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let mut _full_update = update_probe::UpdateGuard::start();
         _full_update.tag(
@@ -3301,6 +3341,7 @@ impl eframe::App for Editor {
             });
             self.global_search_windows(ctx);
             ctx.request_repaint_after(std::time::Duration::from_millis(20));
+            self.publish_virtual_input(ctx);
             return;
         }
         let structure_frame_start = Instant::now();
@@ -3856,6 +3897,7 @@ impl eframe::App for Editor {
                     .write(diagnostic_sink::Kind::Ui, path, &bytes);
             }
         }
+        self.publish_virtual_input(ctx);
     }
 }
 

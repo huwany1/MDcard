@@ -1500,6 +1500,8 @@ mod tests {
         let palette = crate::theme::Palette::new(false, 0);
         let now = std::time::Instant::now();
         Editor {
+            virtual_input: None,
+            virtual_input_gl: false,
             recovery: crate::recovery::Recovery::default(),
             saves: crate::autosave::SaveCoordinator::default(),
             save_then_action: false,
