@@ -7,12 +7,13 @@ use std::{io, path::Path};
 pub enum Kind {
     Reading,
     Ui,
+    Scroll,
 }
 
 #[derive(Default)]
 pub struct DiagnosticSinks {
     #[cfg(target_os = "linux")]
-    slots: [Option<linux::Handle>; 2],
+    slots: [Option<linux::Handle>; 3],
 }
 
 impl DiagnosticSinks {
@@ -22,6 +23,7 @@ impl DiagnosticSinks {
             let slot = match kind {
                 Kind::Reading => &mut self.slots[0],
                 Kind::Ui => &mut self.slots[1],
+                Kind::Scroll => &mut self.slots[2],
             };
             // On any error the local handle is dropped, so the next call must reopen.
             let handle = linux::publish(slot.take(), path.as_ref(), bytes)?;

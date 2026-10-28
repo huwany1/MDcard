@@ -341,6 +341,8 @@ pub struct Block {
     pub mapping: Vec<crate::large_document::PreviewSourceSegment>,
 }
 pub struct RichUi {
+    #[cfg(test)]
+    hold_parser: bool,
     pub source_interactions: bool,
     recovery_revision: u64,
     pub(crate) recovery_discard_serial: u64,
@@ -360,7 +362,9 @@ pub struct RichUi {
     update_started: Option<Instant>,
     viewport_anchor: Vec<(u64, usize, f32)>,
     pending_anchor: Vec<(u64, usize, f32)>,
+    pending_first_identity: Option<(u64, String, u32, u32)>,
     snapshot_scroll_hold: Option<f32>,
+    snapshot_scroll_verified: Option<(u32, u32)>,
     scroll_trace: VecDeque<serde_json::Value>,
     #[cfg(test)]
     pub(crate) snapshot_compensations: usize,
@@ -411,6 +415,8 @@ pub struct RichUi {
 impl Default for RichUi {
     fn default() -> Self {
         Self {
+            #[cfg(test)]
+            hold_parser: false,
             source_interactions: true,
             recovery_revision: 0,
             recovery_discard_serial: 0,
@@ -429,7 +435,9 @@ impl Default for RichUi {
             update_started: None,
             viewport_anchor: Vec::new(),
             pending_anchor: Vec::new(),
+            pending_first_identity: None,
             snapshot_scroll_hold: None,
+            snapshot_scroll_verified: None,
             scroll_trace: VecDeque::new(),
             #[cfg(test)]
             snapshot_compensations: 0,
@@ -565,6 +573,8 @@ impl RichUi {
             self.snapshot_scroll_hold = None;
         }
         self.pending_anchor.clone_from(&self.viewport_anchor);
+        self.pending_first_identity = self.first_viewport_identity();
+        self.snapshot_scroll_verified = None;
         self.source_map.clear();
         self.parse_stage_ms = [0., parsed.parse_ms, parsed.transform_ms];
         self.preview = std::mem::take(&mut parsed.preview);
@@ -625,6 +635,10 @@ impl RichUi {
     /// Content identity keeps a visible block in place across snapshot commits.
     /// This affects pixel scrolling only; it authorizes no source interaction.
     pub fn take_snapshot_scroll(&mut self, width: f32, font: f32) -> Option<f32> {
+        let layout = (width.to_bits(), font.to_bits());
+        if self.snapshot_scroll_verified != Some(layout) {
+            self.snapshot_scroll_verified = None;
+        }
         if self.pending_anchor.is_empty() {
             return self.snapshot_scroll_hold;
         }
@@ -636,14 +650,50 @@ impl RichUi {
             {
                 self.snapshot_scroll_hold =
                     Some((self.block_index.prefix(*index) - viewport_y).max(0.));
+                let verified = indices.len() == 1
+                    && self.pending_first_identity.as_ref().is_some_and(
+                        |(old_key, old_text, old_width, old_font)| {
+                            *old_key == key
+                                && *old_width == width.to_bits()
+                                && *old_font == font.to_bits()
+                                && self.preview.get(self.blocks[*index].range.clone())
+                                    == Some(old_text.as_str())
+                        },
+                    );
+                self.snapshot_scroll_verified = verified.then_some(layout);
+                self.pending_first_identity = None;
                 return self.snapshot_scroll_hold;
             }
         }
         None
     }
+    fn first_viewport_identity(&self) -> Option<(u64, String, u32, u32)> {
+        // Only the first viewport block may certify a live hold. Later pins
+        // can be offscreen (for example a footer below one very tall block).
+        let &(key, index, _) = self.viewport_anchor.first()?;
+        let indices = self.block_keys.get(&key)?;
+        if indices.as_slice() != [index] {
+            return None;
+        }
+        let text = self.preview.get(self.blocks.get(index)?.range.clone())?;
+        if text.len() > 64 * 1024 {
+            return None;
+        }
+        Some((
+            key,
+            text.to_owned(),
+            self.layout_width.to_bits(),
+            self.layout_font.to_bits(),
+        ))
+    }
+    pub fn verified_snapshot_scroll(&self) -> bool {
+        self.snapshot_scroll_hold.is_some() && self.snapshot_scroll_verified.is_some()
+    }
     pub fn finish_snapshot_scroll(&mut self) {
         self.snapshot_scroll_hold = None;
         self.pending_anchor.clear();
+        self.pending_first_identity = None;
+        self.snapshot_scroll_verified = None;
     }
     pub fn compensate_snapshot_scroll(&mut self, delta: f32) {
         if let Some(offset) = &mut self.snapshot_scroll_hold {
@@ -742,6 +792,14 @@ impl RichUi {
             ((y - top) / height).clamp(0., 1.),
             0.,
         )
+    }
+    pub fn scroll_block_anchor(&self, y: f32) -> (usize, f32, f32) {
+        let (start, fraction, viewport_y) = self.reading_anchor(y);
+        let block = self.blocks.get(self.block_at(y));
+        let byte = block.map_or(start, |b| {
+            b.source.start + ((b.source.len().saturating_sub(1)) as f32 * fraction) as usize
+        });
+        (byte, fraction, viewport_y)
     }
     pub fn reading_calibration(&self) -> Vec<(u64, f32)> {
         self.blocks
@@ -996,6 +1054,13 @@ impl RichUi {
             && self.pending_source.is_none()
             && self.parsed_source_revision == Some((doc.buffer_id(), doc.revision()))
     }
+    pub fn parser_epoch(&self) -> u64 {
+        self.stamp
+    }
+    #[cfg(test)]
+    pub fn hold_parser_for_test(&mut self, hold: bool) {
+        self.hold_parser = hold;
+    }
     #[cfg(test)]
     pub fn ensure(&mut self, text: &str, generation: u64, ctx: &egui::Context) {
         self.source_revision = None;
@@ -1018,18 +1083,25 @@ impl RichUi {
             }
         }
         if self.pending_source.is_some() {
-            if initial
-                || self.refresh_now
-                || self.changed.elapsed() >= Duration::from_millis(120)
-                || self
-                    .update_started
-                    .is_some_and(|t| t.elapsed() >= Duration::from_millis(300))
+            #[cfg(test)]
+            let parser_held = self.hold_parser;
+            #[cfg(not(test))]
+            let parser_held = false;
+            if !parser_held
+                && (initial
+                    || self.refresh_now
+                    || self.changed.elapsed() >= Duration::from_millis(120)
+                    || self
+                        .update_started
+                        .is_some_and(|t| t.elapsed() >= Duration::from_millis(300)))
             {
                 if initial {
                     self.viewport_anchor.clear();
                     self.snapshot_scroll_hold = None;
                 }
                 self.pending_anchor.clone_from(&self.viewport_anchor);
+                self.pending_first_identity = self.first_viewport_identity();
+                self.snapshot_scroll_verified = None;
                 self.parse_stage_ms[0] = self.changed.elapsed().as_secs_f64() * 1000.;
                 let parse_started = Instant::now();
                 self.original = self.pending_source.take().unwrap();
@@ -1831,7 +1903,7 @@ impl RichUi {
         }
     }
 }
-fn preview_clock_ms() -> Option<f64> {
+pub(crate) fn preview_clock_ms() -> Option<f64> {
     #[cfg(windows)]
     {
         #[link(name = "kernel32")]
@@ -2202,6 +2274,75 @@ mod revision_gate_tests {
             .position(|b| rich.preview[b.range.clone()].contains("Visible anchor"))
             .unwrap();
         assert!((rich.block_index.prefix(index) - offset + 7.).abs() < 0.1);
+        assert!(
+            rich.verified_snapshot_scroll(),
+            "first visible unchanged block is unique in both versions and its complete bytes match"
+        );
+    }
+    #[test]
+    fn repeated_or_offscreen_snapshot_pins_cannot_certify_a_live_proof_override() {
+        for text in [
+            "Repeated.\n\nRepeated.\n\nUnique footer.",
+            "Changing visible block.\n\nUnique footer.",
+        ] {
+            let ctx = egui::Context::default();
+            let mut doc = crate::Document::from_text(text);
+            let mut rich = RichUi::default();
+            rich.ensure_document(&doc, 1, &ctx);
+            let _ = rich.visible_blocks(500., 15., egui::Rect::ZERO);
+            rich.remember_viewport(0.);
+            doc.text = if text.starts_with("Repeated") {
+                format!("New prefix.\n\n{text}")
+            } else {
+                text.replacen("Changing visible block.", "Changed visible block.", 1)
+            };
+            doc.mark_text_changed();
+            rich.ensure_document(&doc, 1, &ctx);
+            rich.changed = Instant::now() - Duration::from_secs(1);
+            rich.ensure_document(&doc, 1, &ctx);
+            let _ = rich.take_snapshot_scroll(500., 15.);
+            assert!(
+                !rich.verified_snapshot_scroll(),
+                "repeated first block or later offscreen footer must not override a text relocation proof"
+            );
+        }
+    }
+    #[test]
+    fn a_changed_layout_rejects_the_live_first_block_certificate() {
+        for (width, font, after_hold) in [
+            (520., 15., false),
+            (500., 19., false),
+            (520., 15., true),
+            (500., 19., true),
+        ] {
+            let ctx = egui::Context::default();
+            let mut doc =
+                crate::Document::from_text("# Header\n\nUnique unchanged content.\n\nTail.");
+            let mut rich = RichUi::default();
+            rich.ensure_document(&doc, 1, &ctx);
+            let _ = rich.visible_blocks(500., 15., egui::Rect::ZERO);
+            let index = rich
+                .blocks
+                .iter()
+                .position(|b| rich.preview[b.range.clone()].contains("Unique unchanged"))
+                .unwrap();
+            rich.remember_viewport(rich.block_index.prefix(index) + 7.);
+            doc.text.insert_str(0, "Prefix.\n\n");
+            doc.mark_text_changed();
+            rich.ensure_document(&doc, 1, &ctx);
+            rich.changed = Instant::now() - Duration::from_secs(1);
+            rich.ensure_document(&doc, 1, &ctx);
+            if after_hold {
+                assert!(rich.take_snapshot_scroll(500., 15.).is_some());
+                assert!(rich.verified_snapshot_scroll());
+                assert!(rich.pending_anchor.is_empty());
+            }
+            let _ = rich.take_snapshot_scroll(width, font);
+            assert!(
+                !rich.verified_snapshot_scroll(),
+                "changed width/font must defer to ordinary text layout restoration"
+            );
+        }
     }
     #[test]
     fn buffer_revision_gate_keeps_debounce_and_frame_polling_without_repeated_source_checks() {

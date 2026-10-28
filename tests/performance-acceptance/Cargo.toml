@@ -4,6 +4,9 @@ name = "large-document-independent-acceptance"
 version = "0.0.0"
 edition = "2024"
 
+[features]
+memory-profile = []
+
 [dependencies]
 egui = "=0.33.3"
 serde = { version = "1", features = ["derive"] }
@@ -19,3 +22,6 @@ tree-sitter-md = "0.5.3"
 
 unicode-segmentation = "=1.13.3"
 egui_commonmark = { path = "../../vendor/egui_commonmark", features = ["pulldown_cmark"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"

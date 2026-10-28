@@ -19,3 +19,15 @@ Regression: src/main.rs::preview_layout_tests::wrapped_table_rows_contain_text_a
 cards with a real minimum height, 15-second timeout and per-image retry.
 The 64-URI history evicts corresponding egui byte/image/texture loader data
 via Context::forget_image. Non-asset viewer paths retain the backend widget.
+
+2026-10-28: PaintedText carries semantic TableRow intervals and measured row
+geometry for Split synchronization. The real Label layout is retained for a
+clipped first cell only while its row intersects the viewport; layout-only
+observations are distinct from painted shapes. Selection and elided tooltips
+use the native egui Label behavior. Quoted and alert tables share table().
+Terminal rows expose their own lower extent. Application geometry validates
+both endpoints and source-line adjacency against the current source index,
+rejecting generated page headers and discontinuous endpoint projections.
+Regressions: reading_geometry::tests::semantic_table_*,
+large_document::tests::semantic_table_geometry_rejects_repeated_page_headers_and_keeps_terminal_body_rows,
+split_scroll_tests::table_tall_terminal_row_uses_current_layout_extent_bidirectionally.

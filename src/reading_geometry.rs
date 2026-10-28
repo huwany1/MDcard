@@ -20,6 +20,8 @@ pub struct MappedGalley {
     pub galley: Arc<egui::Galley>,
     pub pos: egui::Pos2,
     pub segments: Vec<Segment>,
+    pub table_row: Option<egui_commonmark::PaintedTableRow>,
+    pub layout_only: bool,
     characters: Arc<CharacterIndex>,
 }
 struct CachedCharacters {
@@ -151,6 +153,8 @@ impl GeometryCache {
             galley,
             pos,
             segments,
+            table_row: None,
+            layout_only: false,
             characters,
         }
     }
@@ -159,6 +163,7 @@ impl GeometryCache {
         painted: egui_commonmark::PaintedText,
         raw: &str,
         project: &impl Fn(Range<usize>) -> Option<Range<usize>>,
+        source_lines: Option<&[usize]>,
     ) -> MappedGalley {
         let started = std::time::Instant::now();
         let previous = self.frame_work_ms;
@@ -185,10 +190,47 @@ impl GeometryCache {
         }
         let characters = self.characters(&painted.galley);
         self.frame_work_ms = previous + started.elapsed().as_secs_f64() * 1000.;
+        let table_row = painted.table_row.and_then(|row| {
+            // Both boundaries must have real provenance and belong to the
+            // same/adjacent source rows. The existing revision-bound index
+            // certifies this without scanning long source lines during paint.
+            let start = project(row.source.start..row.source.start + 1)?;
+            let end = if row.end_after_row {
+                project(row.source.end.checked_sub(1)?..row.source.end)?.end
+            } else {
+                project(row.source.end..row.source.end + 1)?.start
+            };
+            let lines = source_lines?;
+            let start_line = lines
+                .partition_point(|b| *b <= start.start)
+                .saturating_sub(1);
+            let end_line = lines
+                .partition_point(|b| {
+                    *b <= if row.end_after_row {
+                        end.saturating_sub(1)
+                    } else {
+                        end
+                    }
+                })
+                .saturating_sub(1);
+            let valid = if row.end_after_row {
+                end_line == start_line
+            } else {
+                end_line == start_line + if row.header { 2 } else { 1 }
+            };
+            (start.start < end && valid).then_some(egui_commonmark::PaintedTableRow {
+                source: start.start..end,
+                end_after_row: row.end_after_row,
+                header: row.header,
+                rect: row.rect,
+            })
+        });
         MappedGalley {
             galley: painted.galley,
             pos: painted.pos,
             segments,
+            table_row,
+            layout_only: painted.layout_only,
             characters,
         }
     }
@@ -382,7 +424,11 @@ impl MappedGalley {
             logical_line: 0,
             frame,
             precision: "text",
-            origin: "galley-current-pass",
+            origin: if self.layout_only {
+                "galley-layout-current-pass"
+            } else {
+                "galley-current-pass"
+            },
             clamped: false,
             clamp_reason: None,
             compensations: 0,
@@ -539,6 +585,108 @@ impl MappedGalley {
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn table_geometry(
+        raw: &str,
+        source: &str,
+        project: impl Fn(Range<usize>) -> Option<Range<usize>>,
+    ) -> Vec<MappedGalley> {
+        let lines: Vec<_> = std::iter::once(0)
+            .chain(source.match_indices('\n').map(|(at, _)| at + 1))
+            .collect();
+        let ctx = egui::Context::default();
+        let mut cache = egui_commonmark::CommonMarkCache::default();
+        let mut mapping = GeometryCache::default();
+        let mut result = Vec::new();
+        let _ = ctx.run(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(300., 340.),
+                )),
+                ..Default::default()
+            },
+            |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    for painted in egui_commonmark::CommonMarkViewer::new()
+                        .show_with_geometry(ui, &mut cache, raw)
+                        .1
+                    {
+                        result.push(mapping.markdown(painted, raw, &project, Some(&lines)));
+                    }
+                });
+            },
+        );
+        result
+    }
+    #[test]
+    fn semantic_table_rows_support_unpiped_nested_and_tall_terminal_rows_but_not_code_pipes() {
+        for prefix in ["", "> "] {
+            let source = format!(
+                "{prefix}ID | Value\n{prefix}--- | ---\n{prefix}ROW_FIRST | small\n{prefix}ROW_LAST | {}\n",
+                "中文很长的最后一行内容 ".repeat(400)
+            );
+            let actual = table_geometry(&source, &source, Some);
+            let first = source.find("ROW_FIRST").unwrap();
+            let last = source.find("ROW_LAST").unwrap();
+            assert!(
+                actual.iter().any(|g| g
+                    .table_row
+                    .as_ref()
+                    .is_some_and(|r| r.source == (first..last))),
+                "semantic unpiped/nested body row missing: {prefix:?}"
+            );
+            let terminal = actual
+                .iter()
+                .filter_map(|g| g.table_row.as_ref())
+                .find(|r| r.source.start == last)
+                .expect("last AST row has geometry without another row");
+            assert!(terminal.end_after_row);
+            assert!(
+                terminal.rect.height() > 340.,
+                "last row must exceed viewport height"
+            );
+            eprintln!(
+                "TERMINAL_ROW prefix={prefix:?} source={:?} height={}",
+                terminal.source,
+                terminal.rect.height()
+            );
+        }
+        let code = "```text\n| ID | Value |\n| --- | --- |\n| ROW_CODE | a |\n```\n";
+        assert!(
+            table_geometry(code, code, Some)
+                .iter()
+                .all(|g| g.table_row.is_none())
+        );
+    }
+    #[test]
+    fn semantic_table_interval_rejects_discontinuous_header_even_with_mapped_endpoints() {
+        let source = format!(
+            "ID | Value\n--- | ---\n{}ROW_LAST | last\n",
+            "ROW_SKIP | other\n".repeat(30)
+        );
+        let raw = "ID | Value\n--- | ---\nROW_LAST | last\n";
+        let body = raw.find("ROW_LAST").unwrap();
+        let original = source.find("ROW_LAST").unwrap();
+        let actual = table_geometry(raw, &source, |range| {
+            if range.start < body {
+                Some(range)
+            } else {
+                Some(original + range.start - body..original + range.end - body)
+            }
+        });
+        assert!(
+            actual
+                .iter()
+                .filter(|g| g.galley.text().contains("ID"))
+                .all(|g| g.table_row.is_none()),
+            "mapped endpoint bytes alone cannot certify a synthetic header interval"
+        );
+        assert!(actual.iter().any(|g| {
+            g.table_row
+                .as_ref()
+                .is_some_and(|r| r.source.start == original && r.end_after_row)
+        }));
+    }
     #[test]
     fn fenced_code_and_entities_keep_original_graphemes() {
         let source = "A &amp; B\n\n```rust\nlet fenced_code = 3;\n```\n";
@@ -552,7 +700,7 @@ mod tests {
                     .show_with_geometry(ui, &mut cache, source)
                     .1
                 {
-                    let mapped = geometry.markdown(actual, source, &|r| Some(r));
+                    let mapped = geometry.markdown(actual, source, &|r| Some(r), None);
                     for needle in ["&amp;", "fenced_code"] {
                         if let Some(g) =
                             mapped.target(source.find(needle).unwrap(), source, ui.max_rect(), 1)
@@ -581,7 +729,7 @@ mod tests {
                 let (_, painted) = egui_commonmark::CommonMarkViewer::new()
                     .show_with_geometry(ui, &mut cache, source);
                 for text in painted {
-                    let actual = mapping.markdown(text, source, &|range| Some(range));
+                    let actual = mapping.markdown(text, source, &|range| Some(range), None);
                     for needle in [
                         "Heading",
                         "bold",

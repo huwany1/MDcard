@@ -19,3 +19,15 @@ this modified component is AGPL-3.0-only. Distributors must retain LICENSE-MIT,
 LICENSE-APACHE, LICENSE-AGPL and this change notice alongside the project's
 AGPL declaration. Review changes against the upstream 0.22.0 crate
 before proposing an update.
+
+2026-10-28: Split scroll synchronization observes semantic table-row source
+intervals and the row geometry measured during the same render pass. Partially
+visible rows retain the actual first-cell Label layout even when that label is
+clipped; these observations are marked separately from painted text, and fully
+offscreen rows do not contribute layout anchors. Native label selection and
+elided-text tooltips remain available. Quoted/alert tables now consume table
+events through the same row renderer. Source provenance and adjacent logical
+rows are validated by MDcard's revision-bound source index; repeated synthetic
+page headers cannot acquire original row identity. Terminal rows retain their
+own measured extent without requiring a following row. Original license texts
+and the license expression above are unchanged.

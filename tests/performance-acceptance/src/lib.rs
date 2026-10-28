@@ -16,6 +16,13 @@ pub use document::Document;
 mod encoding;
 #[path = "../../../src/large_document.rs"]
 mod large_document;
+#[path = "../../../src/split_scroll.rs"]
+mod split_scroll;
+#[path = "../../../src/diagnostic_sink.rs"]
+mod diagnostic_sink;
+// This headless acceptance crate has no Windows presentation clock. The real
+// scroll controller, geometry and bounded diagnostic sink are still compiled.
+mod rich_ui { pub fn preview_clock_ms()->Option<f64>{None} }
 #[path = "../../../src/localization.rs"]
 mod localization;
 #[path = "../../../src/rich_nodes.rs"]

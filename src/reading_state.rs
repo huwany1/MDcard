@@ -1680,6 +1680,13 @@ impl ReadingState {
             |positions| positions.partition_point(|b| *b <= byte).saturating_sub(1),
         )
     }
+    /// Reuse the revision-bound background index; never scan text during paint.
+    pub fn current_line_starts(&self, doc: &Document) -> Option<std::sync::Arc<Vec<usize>>> {
+        self.indexes
+            .get(&(doc.id, doc.buffer_id()))
+            .filter(|index| index.revision == doc.revision())
+            .map(|index| index.line_starts.clone())
+    }
     pub fn selection(&mut self, doc: &Document, key: &str) -> Option<[usize; 2]> {
         let rt = self.runtime.get_mut(key)?;
         if !rt.selection_pending {
@@ -2403,6 +2410,11 @@ impl ReadingState {
                     .and_then(|p| p.position.text_anchor.as_ref())
                     .or_else(|| rt.last.as_ref().and_then(|p| p.text_anchor.as_ref()))
                     .is_none_or(|anchor| anchor.source.proof.is_none())
+        })
+    }
+    pub fn live_snapshot_session(&self, doc: &Document, key: &str, generation: u64) -> bool {
+        self.runtime.get(key).is_some_and(|rt| {
+            rt.id == Some(doc.id) && rt.buffer_id == doc.buffer_id() && rt.generation == generation
         })
     }
     pub fn live_snapshot_geometry_ready(&mut self, doc: &Document, key: &str) -> bool {
