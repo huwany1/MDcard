@@ -29,6 +29,9 @@ mod rich_ui;
 mod search;
 mod search_ui;
 mod source_layout;
+mod split_scroll;
+#[cfg(test)]
+mod split_scroll_tests;
 mod structure;
 mod structure_ui;
 mod syntax_cache;
@@ -1994,6 +1997,15 @@ if response.clicked(){clicked=Some(*byte);}});
             return;
         }
         let source_width = ui.available_width();
+        self.large.split_scroll.layout(
+            split_scroll::Pane::Source,
+            source_width,
+            self.font_size,
+            wrap,
+        );
+        self.large
+            .split_scroll
+            .geometry_stamp(split_scroll::Pane::Source, 0);
         let source_font = FontId::monospace(self.font_size);
         let source_color = ui.visuals().text_color();
         let source_layout = ui
@@ -2019,15 +2031,28 @@ if response.clicked(){clicked=Some(*byte);}});
         };
         let layout = format!("source:{:.1}:{}:{}", source_width, self.font_size, wrap);
         let navigation = self.global.jump.is_some();
-        let restore = self.reading.plan(
+        let mut restore = self.reading.plan(
             &self.doc,
             source_key,
             self.document_generation,
             &layout,
             ui.ctx(),
             ui.available_rect_before_wrap(),
-            navigation,
+            navigation
+                || self
+                    .large
+                    .split_scroll
+                    .operating(split_scroll::Pane::Source),
         );
+        if restore.is_some()
+            && self
+                .large
+                .split_scroll
+                .following(split_scroll::Pane::Source)
+        {
+            self.reading.cancel(source_key, "split-follow");
+            restore = None;
+        }
         let mut source_scroll = if wrap {
             egui::ScrollArea::vertical()
         } else {
@@ -2044,15 +2069,42 @@ if response.clicked(){clicked=Some(*byte);}});
                 .horizontal_scroll_offset(target[0])
                 .vertical_scroll_offset(target[1]);
         }
+        if navigation {
+            self.large.split_scroll.navigating();
+        }
+        let keyboard_scroll = self.large.split_scroll.keyboard(
+            ui,
+            split_scroll::Pane::Source,
+            ui.ctx().memory(|m| m.has_focus(source_id)),
+        );
+        let sync_target = self.large.split_scroll.target(
+            split_scroll::Pane::Source,
+            &self.doc.text,
+            ui.ctx(),
+            |_| None,
+        );
+        if let Some(y) = keyboard_scroll.or(sync_target) {
+            source_scroll = source_scroll.vertical_scroll_offset(y);
+        }
         let mut source_galleys = Vec::new();
         let mut source_anchor = (0, 0., 0.);
+        let mut source_drawn_offset = 0.;
         let mut restore_target = None;
+        let split_source_fill = self.large.split_scroll.enabled();
         let source_output = source_scroll.show_viewport(ui, |ui, viewport| {
+            source_drawn_offset = viewport.min.y;
             let edit = egui::TextEdit::multiline(&mut self.doc.text)
                 .id(egui::Id::new(("source-editor", self.document_generation)))
                 .font(FontId::monospace(self.font_size))
                 .desired_width(source_width)
-                .desired_rows(40)
+                .desired_rows(if split_source_fill { 1 } else { 40 })
+                // min_size includes TextEdit's own margins. Use the finite
+                // outer viewport, not ScrollArea's unbounded content height.
+                .min_size(if split_source_fill {
+                    Vec2::new(0., viewport.height())
+                } else {
+                    Vec2::ZERO
+                })
                 .frame(false)
                 .hint_text(language.text("# A new idea\n\nStart writing…"))
                 .lock_focus(true);
@@ -2124,13 +2176,40 @@ if response.clicked(){clicked=Some(*byte);}});
             }
         });
         let mut scroll_state = source_output.state;
+        self.large.split_scroll.observe(
+            split_scroll::Pane::Source,
+            ui,
+            source_output.id,
+            source_output.inner_rect,
+            source_drawn_offset,
+            source_output.state.offset.y,
+            (source_output.content_size.y - source_output.inner_rect.height()).max(0.),
+            source_galleys.clone(),
+            &self.doc.text,
+            self.doc.revision(),
+            true,
+            restore.is_some() || navigation,
+            split_scroll::Anchor {
+                byte: source_anchor.0,
+                fraction: source_anchor.1,
+                viewport_y: source_anchor.2,
+                text: true,
+            },
+        );
         self.reading.viewport(source_key, source_output.inner_rect);
         let precise = self.reading.geometry_frame(
             &self.doc,
             source_key,
             &source_galleys,
             source_output.inner_rect,
-            [source_output.state.offset.x, source_output.state.offset.y],
+            [
+                source_output.state.offset.x,
+                if self.large.split_scroll.enabled() {
+                    source_drawn_offset
+                } else {
+                    source_output.state.offset.y
+                },
+            ],
             [
                 (source_output.content_size.x - source_output.inner_rect.width()).max(0.),
                 (source_output.content_size.y - source_output.inner_rect.height()).max(0.),
@@ -2140,7 +2219,16 @@ if response.clicked(){clicked=Some(*byte);}});
         if precise.is_some() {
             restore_target = precise;
         }
-        if let Some(target) = restore_target {
+        if let Some(mut target) = restore_target {
+            if split_source_fill {
+                // Older reading records may include the former forty-row
+                // artificial tail. Never keep restoring that unreachable Y.
+                target[1] = target[1].clamp(
+                    0.,
+                    (source_output.content_size.y - source_output.inner_rect.height()).max(0.),
+                );
+                restore_target = Some(target);
+            }
             let commit_started = std::time::Instant::now();
             scroll_state.offset = egui::vec2(target[0], target[1]);
             scroll_state.store(ui.ctx(), source_output.id);
@@ -2160,7 +2248,14 @@ if response.clicked(){clicked=Some(*byte);}});
                 &self.doc,
                 source_key,
                 layout,
-                [scroll_state.offset.x, scroll_state.offset.y],
+                [
+                    scroll_state.offset.x,
+                    if self.large.split_scroll.enabled() && restore_target.is_none() {
+                        source_drawn_offset
+                    } else {
+                        scroll_state.offset.y
+                    },
+                ],
                 [
                     source_output.inner_rect.width(),
                     source_output.inner_rect.height(),
@@ -2213,6 +2308,15 @@ if response.clicked(){clicked=Some(*byte);}});
                         .as_ref()
                         .is_some_and(|parsed| parsed.revision == self.large.revision)));
         let displayable = !markdown || self.rich.displayable(&self.doc, self.document_generation);
+        let session = (self.last_visible_mode == Mode::Split && markdown)
+            .then_some((self.doc.buffer_id(), self.document_generation));
+        self.large.split_scroll.session(
+            session,
+            self.doc.revision(),
+            coordinates_current,
+            self.rich.parser_epoch(),
+            self.preferences.reduce_motion,
+        );
         self.rich.source_interactions = coordinates_current;
         ui.set_clip_rect(ui.clip_rect().intersect(ui.max_rect()));
         theme::pane_toolbar(ui, |ui| {
@@ -2281,10 +2385,23 @@ if response.clicked(){clicked=Some(*byte);}});
                     ui.available_rect_before_wrap(),
                     self.large.preview_jump.is_some()
                         || self.global.jump.is_some()
-                        || self.large.sync_from_source,
+                        || self.large.sync_from_source
+                        || self
+                            .large
+                            .split_scroll
+                            .operating(split_scroll::Pane::Preview),
                 )
             })
             .flatten();
+        if reading_restore.is_some()
+            && self
+                .large
+                .split_scroll
+                .following(split_scroll::Pane::Preview)
+        {
+            self.reading.cancel(reading_key, "split-follow");
+            reading_restore = None;
+        }
         if !coordinates_current {
             self.reading.await_source_layout(reading_key);
             self.large.sync_from_source = false;
@@ -2320,23 +2437,40 @@ if response.clicked(){clicked=Some(*byte);}});
         let explicit_scroll = self.large.preview_jump.is_some()
             || self.global.jump.is_some()
             || self.large.sync_from_source
-            || manual_preview_scroll;
+            || manual_preview_scroll
+            || self
+                .large
+                .split_scroll
+                .following(split_scroll::Pane::Preview);
         if explicit_scroll {
             self.rich.finish_snapshot_scroll();
         }
         let snapshot_scroll = self
             .rich
             .take_snapshot_scroll(ui.available_width(), self.font_size);
+        let snapshot_without_proof = self.reading.live_snapshot_without_proof(
+            &self.doc,
+            reading_key,
+            self.document_generation,
+        );
+        let certified_snapshot = self.large.split_scroll.enabled()
+            && self.rich.verified_snapshot_scroll()
+            && self
+                .reading
+                .live_snapshot_session(&self.doc, reading_key, self.document_generation)
+            && reading_restore
+                .as_ref()
+                .is_none_or(|restore| !restore.exact && restore.tier != "text-relocation");
+        // Keep the pixels stable while an old proof is being matched, but let
+        // that task finish. A proven text relocation takes precedence; only a
+        // coarse fallback may be replaced by the unchanged-block certificate.
+        let snapshot_awaiting_text =
+            certified_snapshot && !snapshot_without_proof && reading_restore.is_none();
         let live_snapshot_scroll = snapshot_scroll.is_some()
             && !explicit_scroll
-            && (!coordinates_current
-                || self.reading.live_snapshot_without_proof(
-                    &self.doc,
-                    reading_key,
-                    self.document_generation,
-                ));
+            && (!coordinates_current || snapshot_without_proof || certified_snapshot);
         if live_snapshot_scroll && let Some(offset) = snapshot_scroll {
-            if coordinates_current {
+            if coordinates_current && !snapshot_awaiting_text {
                 // An unchanged content key is a pixel anchor for this live
                 // commit. A coarse old reading record must not override it.
                 // Recapture source geometry solely from the current galleys.
@@ -2391,7 +2525,42 @@ if response.clicked(){clicked=Some(*byte);}});
             && self.large.active
             && (self.large.preview_jump.is_some() || self.large.sync_from_source);
         let mut preview_anchor_delta = 0.;
+        self.large.split_scroll.layout(
+            split_scroll::Pane::Preview,
+            ui.available_width(),
+            self.font_size,
+            true,
+        );
+        self.large
+            .split_scroll
+            .geometry_stamp(split_scroll::Pane::Preview, self.rich.height_stamp);
+        let preview_sync_target = self.large.split_scroll.target(
+            split_scroll::Pane::Preview,
+            &self.doc.text,
+            ui.ctx(),
+            |a| {
+                Some({
+                    if a.text {
+                        self.rich.text_bootstrap_y(a.byte) - a.viewport_y
+                    } else {
+                        self.rich.reading_y(a.byte, a.fraction, a.viewport_y)
+                    }
+                })
+            },
+        );
+        if let Some(y) = preview_sync_target {
+            scroll = scroll.vertical_scroll_offset(y);
+        }
+        let preview_keyboard = self.large.split_scroll.keyboard_preview();
+        if let Some(y) =
+            self.large
+                .split_scroll
+                .keyboard(ui, split_scroll::Pane::Preview, preview_keyboard)
+        {
+            scroll = scroll.vertical_scroll_offset(y);
+        }
         let mut preview_galleys = Vec::new();
+        let mut preview_drawn_offset = 0.;
         let preview_source_pin = coordinates_current
             .then(|| self.reading.precise_byte(reading_key))
             .flatten();
@@ -2408,6 +2577,7 @@ if response.clicked(){clicked=Some(*byte);}});
             }
         }
         let preview_scroll = scroll.show_viewport(ui, |ui, viewport| {
+            preview_drawn_offset = viewport.min.y;
             // Overflowing tables/code can expand this Ui as blocks are mounted.
             // Keep every block tied to the viewport, not that expanded content width.
             let content_width = viewport.width();
@@ -2567,6 +2737,7 @@ if response.clicked(){clicked=Some(*byte);}});
                                 }
                                 let trimmed = snippet.trim_start_matches('\u{feff}');
                                 let bom = snippet.len() - trimmed.len();
+                                let source_lines = self.reading.current_line_starts(&self.doc);
                                 for actual in painted {
                                     let mapped = self.reading.geometry_cache.markdown(
                                         actual,
@@ -2577,6 +2748,7 @@ if response.clicked(){clicked=Some(*byte);}});
                                                 bom + range.start..bom + range.end,
                                             )
                                         },
+                                        source_lines.as_deref().map(Vec::as_slice),
                                     );
                                     preview_galleys.push(mapped);
                                 }
@@ -2616,10 +2788,34 @@ if response.clicked(){clicked=Some(*byte);}});
             ui.ctx().request_repaint();
         }
         self.rich.remember_viewport(scroll_state.offset.y);
-        self.rich.trace_preview_scroll(serde_json::json!({"frame":ui.ctx().cumulative_frame_nr(),"source":self.doc.revision(),"current":coordinates_current,"snapshot":snapshot_scroll,"live":live_snapshot_scroll,"explicit":explicit_scroll,"manual":manual_preview_scroll,"restore":reading_restore.is_some(),"area_offset":preview_scroll.state.offset.y,"delta":preview_anchor_delta,"offset":scroll_state.offset.y,"source_sync":self.large.sync_from_source,"preview_jump":self.large.preview_jump}));
+        self.rich.trace_preview_scroll(serde_json::json!({"frame":ui.ctx().cumulative_frame_nr(),"source":self.doc.revision(),"current":coordinates_current,"snapshot":snapshot_scroll,"verified_snapshot":self.rich.verified_snapshot_scroll(),"live":live_snapshot_scroll,"explicit":explicit_scroll,"manual":manual_preview_scroll,"restore":reading_restore.is_some(),"area_offset":preview_scroll.state.offset.y,"delta":preview_anchor_delta,"offset":scroll_state.offset.y,"source_sync":self.large.sync_from_source,"preview_jump":self.large.preview_jump}));
         self.rich.preview_painted(
             coordinates_current,
             preview_started.elapsed().as_secs_f64() * 1000.,
+        );
+        let block_anchor = self.rich.scroll_block_anchor(preview_scroll.state.offset.y);
+        self.large.split_scroll.observe(
+            split_scroll::Pane::Preview,
+            ui,
+            preview_scroll.id,
+            preview_scroll.inner_rect,
+            preview_drawn_offset,
+            preview_scroll.state.offset.y,
+            (preview_scroll.content_size.y - preview_scroll.inner_rect.height()).max(0.),
+            preview_galleys.clone(),
+            &self.doc.text,
+            self.doc.revision(),
+            coordinates_current,
+            reading_target.is_some()
+                || live_snapshot_scroll
+                || preview_anchor_delta.abs() > 0.01
+                || driven_by_source,
+            split_scroll::Anchor {
+                byte: block_anchor.0,
+                fraction: block_anchor.1,
+                viewport_y: block_anchor.2,
+                text: false,
+            },
         );
         if live_snapshot_scroll && preview_anchor_delta.abs() > 0.01 {
             // These galleys were painted at the pre-compensation offset. Keep
@@ -2662,7 +2858,14 @@ if response.clicked(){clicked=Some(*byte);}});
             reading_key,
             &preview_galleys,
             preview_scroll.inner_rect,
-            [preview_scroll.state.offset.x, preview_scroll.state.offset.y],
+            [
+                preview_scroll.state.offset.x,
+                if self.large.split_scroll.enabled() {
+                    preview_drawn_offset
+                } else {
+                    preview_scroll.state.offset.y
+                },
+            ],
             [
                 (preview_scroll.content_size.x - preview_scroll.inner_rect.width()).max(0.),
                 (preview_scroll.content_size.y - preview_scroll.inner_rect.height()).max(0.),
@@ -2704,7 +2907,14 @@ if response.clicked(){clicked=Some(*byte);}});
                 &self.doc,
                 reading_key,
                 reading_layout,
-                [scroll_state.offset.x, scroll_state.offset.y],
+                [
+                    scroll_state.offset.x,
+                    if self.large.split_scroll.enabled() && reading_target.is_none() {
+                        preview_drawn_offset
+                    } else {
+                        scroll_state.offset.y
+                    },
+                ],
                 [
                     preview_scroll.inner_rect.width(),
                     preview_scroll.inner_rect.height(),
@@ -2729,12 +2939,17 @@ if response.clicked(){clicked=Some(*byte);}});
             if (offset - self.large.last_preview_offset).abs() > 0.5 {
                 self.large.last_preview_offset = offset;
                 self.large.preview_anchor = self.large.preview_byte(offset);
-                if manual_preview_scroll && !driven_by_source && reading_target.is_none() {
+                if !self.large.split_scroll.enabled()
+                    && manual_preview_scroll
+                    && !driven_by_source
+                    && reading_target.is_none()
+                {
                     self.large.sync_from_preview = true;
                 }
             }
         }
         if live_snapshot_scroll
+            && !snapshot_awaiting_text
             && self
                 .reading
                 .live_snapshot_geometry_ready(&self.doc, reading_key)
@@ -3342,6 +3557,14 @@ impl eframe::App for Editor {
                     } else {
                         self.mode
                     };
+                let sync_session=(mode==Mode::Split && text_files::markdown(self.doc.path.as_deref()))
+                    .then_some((self.doc.buffer_id(),self.document_generation));
+                let sync_current=self.rich.source_ready(&self.doc,self.document_generation)
+                    && (!self.large.active || self.large.parsed.as_ref().is_some_and(|p|p.revision==self.large.revision));
+                self.large.split_scroll.session(sync_session,self.doc.revision(),sync_current,
+                    self.rich.parser_epoch(),self.preferences.reduce_motion);
+                self.large.split_scroll.input(ctx);
+                if sync_session.is_some(){self.large.sync_from_source=false;self.large.sync_from_preview=false;}
                 if mode != self.last_visible_mode {
                     if self.last_visible_mode == Mode::Read && mode != Mode::Read {
                         self.restore_edit_focus();
@@ -3396,8 +3619,17 @@ impl eframe::App for Editor {
                         ui.columns(2, |columns| {
                             columns[0].spacing_mut().item_spacing.x = 8.0;
                             columns[1].spacing_mut().item_spacing.x = 8.0;
-                            self.editor(&mut columns[0]);
-                            self.preview(&mut columns[1]);
+                            if self.large.split_scroll.preview_first(ctx) {
+                                // A native preview delta is consumed at the end
+                                // of its ScrollArea. Paint it first so the source
+                                // can follow in this pass. Editing and stale
+                                // snapshots retain source-first version ordering.
+                                self.preview(&mut columns[1]);
+                                self.editor(&mut columns[0]);
+                            } else {
+                                self.editor(&mut columns[0]);
+                                self.preview(&mut columns[1]);
+                            }
                         });
                     }
                 }
@@ -3594,6 +3826,7 @@ impl eframe::App for Editor {
                 .diagnostic_reports
                 .write(diagnostic_sink::Kind::Reading, path, &bytes);
         }
+        self.large.split_scroll.report();
         if let Some(path) = std::env::var_os("MDCARD_UI_REPORT") {
             let visible = self.last_visible_mode;
             let mode = match visible {
@@ -3718,16 +3951,17 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             options.viewport = options.viewport.with_inner_size([parts[0], parts[1]]);
         }
     }
-    // Task-scoped placement can create an inspection window on a chosen screen
-    // without taking activation from another desktop workspace.
-    if let Ok(position) = std::env::var("MDCARD_WINDOW_POSITION") {
-        let parts: Vec<f32> = position.split('x').filter_map(|n| n.parse().ok()).collect();
-        if parts.len() == 2 && parts.iter().all(|v| v.is_finite()) {
-            options.viewport = options
-                .viewport
-                .with_position([parts[0], parts[1]])
-                .with_active(false);
-        }
+    if std::env::var("MDCARD_WINDOW_NO_ACTIVATE").is_ok_and(|value| value == "1") {
+        options.viewport = options.viewport.with_active(false);
+    }
+    // Task-scoped placement preserves main's non-activating inspection startup.
+    if let Ok(position) = std::env::var("MDCARD_WINDOW_POSITION")
+        && let Some((x, y)) = position.split_once('x')
+        && let (Ok(x), Ok(y)) = (x.parse::<f32>(), y.parse::<f32>())
+        && x.is_finite()
+        && y.is_finite()
+    {
+        options.viewport = options.viewport.with_position([x, y]).with_active(false);
     }
     let creation_started = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     let creation_observer = creation_started.clone();
@@ -4546,6 +4780,148 @@ mod ui_polish_tests {
 
 #[cfg(test)]
 mod preview_layout_tests {
+    #[test]
+    fn enriched_code_proof_keeps_a_unique_live_viewport_through_prefix_edit_history() {
+        use std::time::Duration;
+        let ctx = egui::Context::default();
+        let original = format!(
+            "# Heading\n\n```text\n{}```\n",
+            (0..400)
+                .map(|i| format!("let ANCHOR_{i:04} = {i};\n"))
+                .collect::<String>()
+        );
+        let prefix = (0..25)
+            .map(|i| format!("INSERT_ABOVE_{i:02}\n"))
+            .collect::<String>();
+        let mut app = editor(&ctx, &original);
+        app.reading.bind(&mut app.doc, "main", 0);
+        let mut frame = 0;
+        let mut render = |app: &mut Editor, wheel: bool| {
+            frame += 1;
+            let mut events = vec![egui::Event::PointerMoved(egui::pos2(400., 300.))];
+            if wheel {
+                events.push(egui::Event::MouseWheel {
+                    unit: egui::MouseWheelUnit::Point,
+                    delta: egui::vec2(0., -3900.),
+                    modifiers: egui::Modifiers::NONE,
+                });
+            }
+            let _ = ctx.run(
+                egui::RawInput {
+                    time: Some(frame as f64 / 60.),
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(700., 600.),
+                    )),
+                    events,
+                    ..Default::default()
+                },
+                |ctx| {
+                    app.large.split_scroll.session(
+                        Some((app.doc.buffer_id(), app.document_generation)),
+                        app.doc.revision(),
+                        app.rich.source_ready(&app.doc, app.document_generation),
+                        app.rich.parser_epoch(),
+                        false,
+                    );
+                    egui::CentralPanel::default().show(ctx, |ui| app.preview(ui));
+                },
+            );
+        };
+        let has_proof = |app: &Editor| {
+            app.reading.report(&app.doc,None)["views"]["main/preview"]["position"]["text_anchor"]["source"]["proof"].is_object()
+        };
+        for i in 0..100 {
+            render(&mut app, i == 4);
+            std::thread::sleep(std::time::Duration::from_millis(2));
+        }
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while !has_proof(&app) {
+            render(&mut app, false);
+            assert!(
+                Instant::now() < deadline,
+                "fixture needs an enriched original text proof"
+            );
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        let before =
+            app.reading.report(&app.doc, None)["views"]["main/preview"]["geometry"].clone();
+        let byte = before["source_byte"].as_u64().unwrap();
+        let y = before["viewport_y"].as_f64().unwrap();
+        assert!(byte > 1000);
+        for (stage, with_prefix) in [
+            ("insert", true),
+            ("delete", false),
+            ("undo-delete", true),
+            ("redo-delete", false),
+        ] {
+            assert!(
+                has_proof(&app),
+                "{stage} must start after the reading proof was enriched"
+            );
+            app.doc.text = if with_prefix {
+                format!("{prefix}{original}")
+            } else {
+                original.clone()
+            };
+            app.doc.mark_text_changed();
+            render(&mut app, false);
+            std::thread::sleep(Duration::from_millis(135));
+            let expected = byte + if with_prefix { prefix.len() as u64 } else { 0 };
+            let deadline = Instant::now() + Duration::from_secs(2);
+            loop {
+                render(&mut app, false);
+                let after =
+                    app.reading.report(&app.doc, None)["views"]["main/preview"]["geometry"].clone();
+                if after["source_byte"].as_u64() == Some(expected) {
+                    assert!(
+                        (after["viewport_y"].as_f64().unwrap() - y).abs() <= 17.6,
+                        "{stage}: {before} -> {after}"
+                    );
+                    break;
+                }
+                assert!(
+                    Instant::now() < deadline,
+                    "{stage}: unchanged code viewport lost its original literal: {before} -> {after}"
+                );
+                std::thread::sleep(Duration::from_millis(2));
+            }
+            let deadline = Instant::now() + Duration::from_secs(2);
+            let decision = loop {
+                render(&mut app, false);
+                let view = app.reading.report(&app.doc, None)["views"]["main/preview"].clone();
+                let decision = &view["relocation"];
+                if has_proof(&app)
+                    && view["match_pending"].is_null()
+                    && decision["metadata"]["revision"].as_u64() == Some(app.doc.revision())
+                    && decision["status"] != "matching"
+                    && decision["exact"].is_boolean()
+                {
+                    break decision.clone();
+                }
+                assert!(
+                    Instant::now() < deadline,
+                    "{stage} requires the real match result and enriched current proof: {view}"
+                );
+                std::thread::sleep(Duration::from_millis(2));
+            };
+            for _ in 0..24 {
+                render(&mut app, false);
+                let after =
+                    app.reading.report(&app.doc, None)["views"]["main/preview"]["geometry"].clone();
+                assert_eq!(
+                    after["source_byte"].as_u64(),
+                    Some(expected),
+                    "{stage}: {decision}"
+                );
+                assert!((after["viewport_y"].as_f64().unwrap() - y).abs() <= 17.6);
+                std::thread::sleep(Duration::from_millis(2));
+            }
+            eprintln!(
+                "LIVE_UNIQUE_CODE stage={stage} original_byte={byte} expected_byte={expected} enriched=true match={decision}"
+            );
+        }
+    }
     #[test]
     fn live_snapshot_pixel_anchor_precedes_unverified_reading_fallback() {
         for scroll_offset in [180., 900.] {

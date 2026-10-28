@@ -103,6 +103,20 @@ pub struct PaintedText {
     pub pos: egui::Pos2,
     pub galley: std::sync::Arc<egui::Galley>,
     pub spans: Vec<TextSourceSpan>,
+    /// Semantic row identity and measured geometry from the same renderer pass.
+    pub table_row: Option<PaintedTableRow>,
+    /// Measured by this label's real layout, but fully clipped before painting.
+    pub layout_only: bool,
+}
+#[derive(Clone, Debug)]
+pub struct PaintedTableRow {
+    /// First source text of this row through the first text of the next row.
+    pub source: std::ops::Range<usize>,
+    /// Last AST row uses its own final text and measured lower edge.
+    pub end_after_row: bool,
+    pub header: bool,
+    /// Actual first-cell text top through the next row's text top.
+    pub rect: egui::Rect,
 }
 
 /// Status of an image URI rendered in the current pass (no alternate loader).

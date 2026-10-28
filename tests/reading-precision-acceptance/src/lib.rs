@@ -135,7 +135,7 @@ mod independent {
                     source,
                 );
                 for shape in painted {
-                    let mapped = geometry.markdown(shape, source, &Some);
+                    let mapped = geometry.markdown(shape, source, &Some, None);
                     for (index, needle) in needles.iter().enumerate() {
                         let expected_byte = source.find(needle).unwrap();
                         if let Some(glyph) = mapped.target(expected_byte, source, ui.max_rect(), 1)

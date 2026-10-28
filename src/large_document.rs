@@ -1759,6 +1759,7 @@ pub struct LargeDocument {
     pub last_preview_offset: f32,
     pub sync_from_source: bool,
     pub sync_from_preview: bool,
+    pub split_scroll: crate::split_scroll::SplitScroll,
     pub input_ms: VecDeque<f64>,
     pub frame_cpu_ms: VecDeque<f64>,
     pub frame_intervals_ms: VecDeque<f64>,
@@ -1783,8 +1784,10 @@ pub struct LargeDocument {
     pub toc_controls: Vec<serde_json::Value>,
     pub selection: [usize; 2],
     pending_drag_anchor: Option<usize>,
+    drag_scroll_suppressed: bool,
     pending_external_selection: bool,
     last_window: Range<usize>,
+    last_window_origin: egui::Vec2,
     kernel_state: egui::text_edit::TextEditState,
     reporter: Option<mpsc::SyncSender<Vec<u8>>>,
     report_path: Option<std::path::PathBuf>,
@@ -1855,6 +1858,7 @@ impl LargeDocument {
     }
     pub fn opening(&mut self) {
         self.load_started = Some(Instant::now());
+        self.drag_scroll_suppressed = false;
     }
     pub fn preview_wait(&self) -> Option<std::time::Duration> {
         self.parse_wait_started.map(|t| t.elapsed())
@@ -1881,6 +1885,7 @@ impl LargeDocument {
     ) {
         self.active = text.len() >= THRESHOLD;
         if !self.active {
+            self.drag_scroll_suppressed = false;
             // Leaving the viewport adapter invalidates its tree/result lifecycle.
             // The small-document renderer can now install a newer snapshot.
             self.generation = None;
@@ -1893,6 +1898,7 @@ impl LargeDocument {
             return;
         }
         if self.generation != Some(generation) {
+            self.drag_scroll_suppressed = false;
             self.parser_epoch = self.parser_epoch.wrapping_add(1);
             self.rope = Rope::from_str(text);
             self.generation = Some(generation);
@@ -2170,6 +2176,10 @@ impl LargeDocument {
             );
         }
         let manual_source_scroll = scroll_gesture(ui, ui.available_rect_before_wrap());
+        self.split_scroll
+            .layout(crate::split_scroll::Pane::Source, width, font, wrap);
+        self.split_scroll
+            .geometry_stamp(crate::split_scroll::Pane::Source, self.line_height_stamp);
         let mut state = egui::text_edit::TextEditState::load(ui.ctx(), id).unwrap_or_default();
         let reading_layout = format!("large-source:{width:.1}:{font}:{wrap}");
         if let Some(heights) = reading.take_calibration(document, reading_key, &reading_layout) {
@@ -2207,6 +2217,22 @@ impl LargeDocument {
         });
         let focused = focus || ui.memory(|m| m.has_focus(id));
         let mut changed = false;
+        // Native IME ranges belong to the previous bounded editor window.
+        // Commit/Disabled must be consumed in that same coordinate system
+        // before a following viewport may choose a different window.
+        let preserve_ime_window = self.ime_composing
+            || ui.input(|i| {
+                i.events.iter().any(|event| {
+                    matches!(
+                        event,
+                        egui::Event::Ime(
+                            egui::ImeEvent::Preedit(_)
+                                | egui::ImeEvent::Commit(_)
+                                | egui::ImeEvent::Disabled
+                        )
+                    )
+                })
+            });
         ui.input(|i| {
             for event in &i.events {
                 if let egui::Event::Ime(ime) = event {
@@ -2447,15 +2473,27 @@ impl LargeDocument {
         }
         .id_salt(("source-scroll", document.id, id))
         .auto_shrink([false; 2]);
-        let reading_restore = reading.plan(
+        let mut reading_restore = reading.plan(
             document,
             reading_key,
             open_generation,
             &reading_layout,
             ui.ctx(),
             ui.available_rect_before_wrap(),
-            source_jump.is_some() || self.sync_from_preview,
+            source_jump.is_some()
+                || self.sync_from_preview
+                || self
+                    .split_scroll
+                    .operating(crate::split_scroll::Pane::Source),
         );
+        if reading_restore.is_some()
+            && self
+                .split_scroll
+                .following(crate::split_scroll::Pane::Source)
+        {
+            reading.cancel(reading_key, "split-follow");
+            reading_restore = None;
+        }
         if self.last_window.is_empty()
             && reading.awaiting_initial_source_index(document, reading_key)
         {
@@ -2506,7 +2544,39 @@ impl LargeDocument {
                 .horizontal_scroll_offset(target[0])
                 .vertical_scroll_offset(target[1]);
         }
+        self.split_scroll
+            .layout(crate::split_scroll::Pane::Source, width, font, wrap);
+        self.split_scroll
+            .geometry_stamp(crate::split_scroll::Pane::Source, self.line_height_stamp);
         let driven_by_preview = self.sync_from_preview;
+        if source_jump.is_some() {
+            self.split_scroll.navigating();
+        }
+        let keyboard_scroll = self.split_scroll.keyboard(
+            ui,
+            crate::split_scroll::Pane::Source,
+            ui.ctx().memory(|m| m.has_focus(id)),
+        );
+        let rope = &self.rope;
+        let line_heights = &self.line_heights;
+        let sync_target = self.split_scroll.target(
+            crate::split_scroll::Pane::Source,
+            &document.text,
+            ui.ctx(),
+            |a| {
+                let byte = a.byte.min(rope.len_bytes());
+                let line = rope.byte_to_line(byte);
+                if a.fraction == 1. {
+                    return Some(line_heights.prefix(line + 1) - a.viewport_y);
+                }
+                let start = rope.line_to_byte(line);
+                let fraction = (byte - start) as f32 / rope.line(line).len_bytes().max(1) as f32;
+                Some(line_heights.prefix(line) + fraction * line_heights.value(line) - a.viewport_y)
+            },
+        );
+        if let Some(y) = keyboard_scroll.or(sync_target) {
+            area = area.vertical_scroll_offset(y);
+        }
         if source_jump.is_some() || self.sync_from_preview {
             let byte = source_jump.unwrap_or(self.preview_anchor);
             area = area.vertical_scroll_offset(self.source_y(byte));
@@ -2518,7 +2588,16 @@ impl LargeDocument {
             }
             self.sync_from_preview = false;
         }
+        let mut selection_scroll = false;
+        if !ui.input(|i| i.pointer.primary_down()) {
+            self.drag_scroll_suppressed = false;
+        } else if self.pending_drag_anchor.is_some() && self.split_scroll.intent.is_some() {
+            // A newer wheel/bar/page intent in either pane owns subsequent
+            // frames too; an older held selection cannot cancel it next pass.
+            self.drag_scroll_suppressed = true;
+        }
         if self.pending_drag_anchor.is_some()
+            && !self.drag_scroll_suppressed
             && ui.input(|i| i.pointer.primary_down())
             && let (Some(rect), Some(pointer)) =
                 (self.source_rect, ui.input(|i| i.pointer.interact_pos()))
@@ -2530,7 +2609,11 @@ impl LargeDocument {
             } else {
                 0.
             };
-            if delta != 0. {
+            if delta != 0. && self.split_scroll.intent.is_none() {
+                // Drag selection reveals the caret locally. It cannot replay
+                // the last wheel driver's content anchor into the other pane.
+                self.split_scroll.navigating();
+                selection_scroll = true;
                 area = area.vertical_scroll_offset((self.last_source_offset + delta).max(0.));
                 ui.ctx().request_repaint();
             }
@@ -2542,7 +2625,9 @@ impl LargeDocument {
         // same glyph after pending ends. Otherwise the estimated row window can
         // change at every compensation and produce a feedback loop.
         let precise_byte = reading.precise_byte(reading_key);
+        let mut source_drawn_offset = 0.;
         let mut out=area.show_viewport(ui,|ui,viewport|{
+            source_drawn_offset=viewport.min.y;
             let total=self.line_heights.total();ui.set_min_height(total.max(viewport.height()));ui.set_min_width(width);
             let mut first=self.line_heights.at(viewport.min.y.max(0.));let mut last=self.line_heights.at(viewport.max.y+OVERSCAN)+1;
             if let Some(byte)=precise_byte {
@@ -2555,7 +2640,7 @@ impl LargeDocument {
             let start=self.rope.line_to_char(first);let mut end=self.rope.line_to_char(last.min(self.rope.len_lines()-1));if last>=self.rope.len_lines(){end=self.rope.len_chars();}
             // A giant line is a separate bounded window, with its own row estimate.
             let mut window_start=start;let mut extra_y=0.;let mut extra_x=0.;
-            let partial_logical_line=self.rope.line(first.min(self.rope.len_lines()-1)).len_chars()>MAX_WINDOW_CHARS;
+            let mut partial_logical_line=self.rope.line(first.min(self.rope.len_lines()-1)).len_chars()>MAX_WINDOW_CHARS;
             if partial_logical_line{
                 let line_start=self.rope.line_to_char(first);let chars_per_row=(width/(font*0.61)).max(1.)as usize;
                 let budget=if wrap{((viewport.height()+OVERSCAN*2.)/(font*1.3)).ceil()as usize*chars_per_row}else{chars_per_row*4};
@@ -2565,7 +2650,13 @@ impl LargeDocument {
                 if wrap{extra_y=(window_start-line_start)as f32/chars_per_row as f32*(font*1.3).ceil();}else{extra_x=(window_start-line_start)as f32*font*0.61;ui.set_min_width(self.rope.line(first).len_chars()as f32*font*0.61);}
                 last=first+1;
             }
-            if self.ime_composing&&!self.last_window.is_empty(){window_start=self.last_window.start.min(self.rope.len_chars());end=self.last_window.end.min(self.rope.len_chars());}
+            let pinned_origin=if preserve_ime_window&&!self.last_window.is_empty(){
+                window_start=self.last_window.start.min(self.rope.len_chars());end=self.last_window.end.min(self.rope.len_chars());
+                first=self.rope.char_to_line(window_start);last=self.rope.char_to_line(end.saturating_sub(1))+1;
+                partial_logical_line=self.rope.line(first).len_chars()>MAX_WINDOW_CHARS;
+                extra_x=self.last_window_origin.x;extra_y=self.last_window_origin.y-self.line_heights.prefix(first);
+                Some(self.last_window_origin)
+            }else{None};
             if end<window_start{end=window_start;}
             let old_window_start=window_start;
             let start_byte=self.rope.char_to_byte(window_start);
@@ -2580,7 +2671,7 @@ impl LargeDocument {
                 else {extra_x+=delta*font*0.61;}
             }
             let mut window=self.rope.slice(window_start..end).to_string();let before_window=window.clone();
-            let y=self.line_heights.prefix(first)+extra_y;let min=ui.max_rect().min+egui::vec2(extra_x,y);
+            let y=pinned_origin.map_or(self.line_heights.prefix(first)+extra_y,|origin|origin.y);let min=ui.max_rect().min+egui::vec2(extra_x,y);
             let child_rect=egui::Rect::from_min_size(min,egui::vec2(width,(total-y).max(1.)));
             let global_before=global;
             let mut local_state=self.kernel_state.clone();local_state.set_undoer(egui::util::undoer::Undoer::with_settings(egui::util::undoer::Settings{max_undos:0,..Default::default()}));
@@ -2604,7 +2695,7 @@ impl LargeDocument {
             // Global cursor survives window changes and offscreen selection anchors.
             let pointer_pressed=ui.input(|i|i.pointer.primary_pressed());let pointer_down=ui.input(|i|i.pointer.primary_down());
             let local_after=output.cursor_range.unwrap_or(local);
-            if pointer_pressed&&output.response.hovered(){self.pending_drag_anchor=Some(window_start+local_after.secondary.index);self.pending_external_selection=false;}
+            if pointer_pressed&&output.response.hovered(){self.pending_drag_anchor=Some(window_start+local_after.secondary.index);self.drag_scroll_suppressed=false;self.pending_external_selection=false;}
             let keyboard=output.response.has_focus()&&ui.input(|i|i.events.iter().any(|e|matches!(e,egui::Event::Text(_)|egui::Event::Paste(_)|egui::Event::Ime(egui::ImeEvent::Commit(_)|egui::ImeEvent::Preedit(_))|egui::Event::Key{pressed:true,..})));
             if (pointer_down&&self.pending_drag_anchor.is_some())||(keyboard&&!self.pending_external_selection&&(local_after.primary.index!=local.primary.index||local_after.secondary.index!=local.secondary.index))||output.response.changed(){
                 global=cursor_range(egui::text::CCursor::new(window_start+local_after.primary.index),egui::text::CCursor::new(if pointer_down{self.pending_drag_anchor.unwrap_or(window_start+local_after.secondary.index)}else{window_start+local_after.secondary.index}));
@@ -2623,19 +2714,50 @@ impl LargeDocument {
                 let mut logical=first;let mut height=0.;for row in &output.galley.rows{height+=row.height();if row.ends_with_newline||std::ptr::eq(row,output.galley.rows.last().unwrap()){if logical<self.line_heights.len(){let measured=height.max(font);if (self.line_heights.value(logical)-measured).abs()>0.1{self.line_height_stamp=self.line_height_stamp.wrapping_add(1);}self.line_heights.set(logical,measured);if self.measured_line_heights.len()<10000||self.measured_line_heights.contains_key(&logical){self.measured_line_heights.insert(logical,measured);}}logical+=1;height=0.;}}
             }
             if let Some(byte)=self.jump.take().or(self.source_reveal.take()){let char_index=self.rope.byte_to_char(byte.min(self.rope.len_bytes()));if char_index>=window_start&&char_index<=end{let rect=output.galley.pos_from_cursor(egui::text::CCursor::new(char_index-window_start)).translate(output.galley_pos.to_vec2());ui.scroll_to_rect_animation(rect,Some(egui::Align::TOP),egui::style::ScrollAnimation::none());}}
-            self.last_window=window_start..end;
+            self.last_window=window_start..end;self.last_window_origin=egui::vec2(extra_x,y);
             state.cursor.set_char_range(Some(global));state.store(ui.ctx(),id);
             self.selection=[global.primary.index,global.secondary.index];
             if std::env::var_os("MDCARD_PERFORMANCE_REPORT").is_some()&&!entry_events.is_empty(){if self.selection_trace.len()>=32{self.selection_trace.pop_front();}self.selection_trace.push_back(serde_json::json!({"frame":self.frame_count,"entry":entry_selection,"exit":self.selection,"window":[window_start,end],"keyboard":keyboard,"bridge":self.pending_external_selection,"events":entry_events}));}
             response=Some(output.response);
         });
         reading.viewport(reading_key, out.inner_rect);
+        let line = self
+            .line_heights
+            .at(out.state.offset.y)
+            .min(self.rope.len_lines().saturating_sub(1));
+        self.split_scroll.observe(
+            crate::split_scroll::Pane::Source,
+            ui,
+            out.id,
+            out.inner_rect,
+            source_drawn_offset,
+            out.state.offset.y,
+            (out.content_size.y - out.inner_rect.height()).max(0.),
+            source_galleys.clone(),
+            &document.text,
+            document.revision(),
+            true,
+            reading_target.is_some() || source_jump.is_some() || selection_scroll,
+            crate::split_scroll::Anchor {
+                byte: self.rope.line_to_byte(line),
+                fraction: 0.,
+                viewport_y: self.line_heights.prefix(line) - out.state.offset.y,
+                text: true,
+            },
+        );
         let precise = reading.geometry_frame(
             document,
             reading_key,
             &source_galleys,
             out.inner_rect,
-            [out.state.offset.x, out.state.offset.y],
+            [
+                out.state.offset.x,
+                if self.split_scroll.enabled() {
+                    source_drawn_offset
+                } else {
+                    out.state.offset.y
+                },
+            ],
             [
                 (out.content_size.x - out.inner_rect.width()).max(0.),
                 (out.content_size.y - out.inner_rect.height()).max(0.),
@@ -2678,7 +2800,14 @@ impl LargeDocument {
                 document,
                 reading_key,
                 reading_layout,
-                [out.state.offset.x, offset],
+                [
+                    out.state.offset.x,
+                    if self.split_scroll.enabled() && reading_target.is_none() {
+                        source_drawn_offset
+                    } else {
+                        offset
+                    },
+                ],
                 [out.inner_rect.width(), out.inner_rect.height()],
                 self.rope.line_to_byte(line),
                 ((offset - self.line_heights.prefix(line)) / self.line_heights.value(line).max(1.))
@@ -2697,7 +2826,8 @@ impl LargeDocument {
             self.last_source_offset = offset;
             let line = self.line_heights.at(offset);
             self.source_anchor = self.rope.line_to_byte(line.min(self.rope.len_lines() - 1));
-            if manual_source_scroll
+            if !self.split_scroll.enabled()
+                && manual_source_scroll
                 && !driven_by_preview
                 && !source_only_reveal
                 && reading_target.is_none()
@@ -3531,6 +3661,48 @@ mod tests {
         assert_eq!(body.len(), 1400);
         assert_eq!(body[0], "row-0000");
         assert_eq!(body.last().unwrap(), "data-0699-中文");
+    }
+    #[test]
+    fn semantic_table_geometry_rejects_repeated_page_headers_and_keeps_terminal_body_rows() {
+        let source = format!(
+            "| Name | Value |\n| --- | --- |\n{}",
+            (0..700)
+                .map(|i| format!("| ROW_{i:04} | data-{i:04}-中文 |\n"))
+                .collect::<String>()
+        );
+        let pages = semantic_pages(&source);
+        let maps = page_source_maps(&source, &[], &pages);
+        let lines: Vec<_> = std::iter::once(0)
+            .chain(source.match_indices('\n').map(|(at, _)| at + 1))
+            .collect();
+        let ctx = egui::Context::default();
+        let mut cache = egui_commonmark::CommonMarkCache::default();
+        let mut geometry = crate::reading_geometry::GeometryCache::default();
+        let mut last_rows = 0;
+        for (page_index, ((_, page, _), map)) in pages.iter().zip(&maps).enumerate() {
+            let _ = ctx.run(egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(600., 100000.))), ..Default::default() }, |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    for painted in egui_commonmark::CommonMarkViewer::new().show_with_geometry(ui, &mut cache, page).1 {
+                        let mapped = geometry.markdown(painted, page, &|range| map_preview_range(map, range), Some(&lines));
+                        if page_index > 0 && mapped.galley.text().contains("Name") {
+                            assert!(mapped.table_row.is_none(), "synthetic header on page {page_index} has no original row identity");
+                        }
+                        if let Some(row) = mapped.table_row {
+                            assert!(source[row.source.clone()].contains("ROW_") || page_index == 0);
+                            last_rows += usize::from(row.end_after_row);
+                        }
+                    }
+                });
+            });
+        }
+        assert!(
+            pages.len() > 3 && last_rows >= pages.len(),
+            "each virtual page must keep its last body-row extent"
+        );
+        eprintln!(
+            "SEMANTIC_TABLE_PAGES pages={} terminal_observations={last_rows}",
+            pages.len()
+        );
     }
     #[test]
     fn source_selection_direction_survives_window_mapping() {

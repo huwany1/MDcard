@@ -317,6 +317,7 @@ dependencies = [
  "egui",
  "egui_commonmark",
  "encoding_rs",
+ "libc",
  "pulldown-cmark",
  "pulldown-cmark-to-cmark",
  "ropey",

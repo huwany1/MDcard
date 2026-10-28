@@ -71,6 +71,7 @@ pub struct CommonMarkViewerInternal {
     pub(crate) observe_text: bool,
     pub(crate) painted_text: Vec<crate::PaintedText>,
     pub(crate) assets: Vec<crate::AssetObservation>,
+    label_layout: Option<(egui::Pos2, std::sync::Arc<egui::Galley>)>,
     buffered_text: Vec<(String, Range<usize>)>,
     curr_table: usize,
     text_style: Style,
@@ -100,6 +101,7 @@ impl CommonMarkViewerInternal {
             observe_text: false,
             painted_text: Vec::new(),
             assets: Vec::new(),
+            label_layout: None,
             buffered_text: Vec::new(),
             curr_table: 0,
             text_style: Style::default(),
@@ -424,15 +426,19 @@ impl CommonMarkViewerInternal {
             self.line.should_not_start_newline_forced = false;
             if let Some(alert) = parse_alerts(&options.alerts, &mut collected_events) {
                 egui_commonmark_backend::alert_ui(alert, ui, |ui| {
-                    for (event, src_span) in collected_events {
+                    let mut events = collected_events.into_iter().enumerate().peekable();
+                    while let Some((_, (event, src_span))) = events.next() {
                         self.event(ui, event, src_span, cache, options, max_width);
+                        self.table(&mut events, cache, options, ui, max_width);
                     }
                 })
             } else {
                 blockquote(ui, ui.visuals().weak_text_color(), |ui| {
                     self.text_style.quote = true;
-                    for (event, src_span) in collected_events {
+                    let mut events = collected_events.into_iter().enumerate().peekable();
+                    while let Some((_, (event, src_span))) = events.next() {
                         self.event(ui, event, src_span, cache, options, max_width);
+                        self.table(&mut events, cache, options, ui, max_width);
                     }
                     self.text_style.quote = false;
                 });
@@ -462,8 +468,51 @@ impl CommonMarkViewerInternal {
             self.curr_table += 1;
 
             egui::Frame::group(ui.style()).show(ui, |ui| {
-                let Table { header, rows } = parse_table(events);
+                let mut row_spans = Vec::new();
+                let Table { header, rows } =
+                    parse_table(&mut events.by_ref().inspect(|(_, (event, span))| {
+                        if matches!(
+                            event,
+                            pulldown_cmark::Event::Start(
+                                pulldown_cmark::Tag::TableHead | pulldown_cmark::Tag::TableRow
+                            )
+                        ) {
+                            row_spans.push(span.clone());
+                        }
+                    }));
                 let columns = header.len().max(1);
+                let rows: Vec<_> = std::iter::once(header).chain(rows).collect();
+                let row_text_starts: Vec<_> = rows
+                    .iter()
+                    .map(|row| {
+                        row.iter().flatten().find_map(|(event, span)| {
+                            matches!(
+                                event,
+                                pulldown_cmark::Event::Text(_)
+                                    | pulldown_cmark::Event::Code(_)
+                                    | pulldown_cmark::Event::InlineHtml(_)
+                            )
+                            .then_some(span.start)
+                        })
+                    })
+                    .collect();
+                let row_text_ends: Vec<_> = rows
+                    .iter()
+                    .map(|row| {
+                        row.iter()
+                            .flatten()
+                            .filter_map(|(event, span)| {
+                                matches!(
+                                    event,
+                                    pulldown_cmark::Event::Text(_)
+                                        | pulldown_cmark::Event::Code(_)
+                                        | pulldown_cmark::Event::InlineHtml(_)
+                                )
+                                .then_some(span.end)
+                            })
+                            .max()
+                    })
+                    .collect();
                 ui.push_id(id, |ui| {
                     ui.vertical(|ui| {
                         let width = ui.available_width();
@@ -478,7 +527,8 @@ impl CommonMarkViewerInternal {
                         // Measure all cells in this frame before placing the next row.
                         // Grid's cached row heights and vertically centered wrapping
                         // layouts can move text outside its row after a width change.
-                        for (row_index, row) in std::iter::once(header).chain(rows).enumerate() {
+                        for (row_index, row) in rows.into_iter().enumerate() {
+                            let first_painted = self.painted_text.len();
                             let background = ui.painter().add(egui::Shape::Noop);
                             let mut height = ui.text_style_height(&TextStyle::Body);
                             for (column, events) in row.into_iter().enumerate() {
@@ -517,6 +567,37 @@ impl CommonMarkViewerInternal {
                                 egui::pos2(origin.x, top),
                                 egui::vec2(width, height),
                             );
+                            // A partially visible row needs both measured row
+                            // boundaries even if its first label is clipped.
+                            // Entirely offscreen rows supply no layout anchors.
+                            if !rect.intersects(ui.clip_rect()) {
+                                self.painted_text.truncate(first_painted);
+                            }
+                            let next = row_text_starts.get(row_index + 1).copied().flatten();
+                            let end = next.or(row_text_ends[row_index]);
+                            if let (Some(Some(start)), Some(end)) =
+                                (row_text_starts.get(row_index), end)
+                            {
+                                if *start < end && row_spans.get(row_index).is_some() {
+                                    let glyph_top = self.painted_text[first_painted..]
+                                        .iter()
+                                        .map(|g| g.pos.y)
+                                        .min_by(f32::total_cmp)
+                                        .unwrap_or(top + padding);
+                                    let metadata = crate::PaintedTableRow {
+                                        source: *start..end,
+                                        end_after_row: next.is_none(),
+                                        header: row_index == 0,
+                                        rect: egui::Rect::from_min_size(
+                                            egui::pos2(origin.x, glyph_top),
+                                            egui::vec2(width, height),
+                                        ),
+                                    };
+                                    for painted in &mut self.painted_text[first_painted..] {
+                                        painted.table_row = Some(metadata.clone());
+                                    }
+                                }
+                            }
                             if row_index % 2 == 1 {
                                 ui.painter().set(
                                     background,
@@ -556,6 +637,7 @@ impl CommonMarkViewerInternal {
         max_width: f32,
     ) {
         let mut trace = Vec::new();
+        self.label_layout = None;
         let mut complete_code = false;
         if self.observe_text {
             match &event {
@@ -663,14 +745,14 @@ impl CommonMarkViewerInternal {
                     source,
                 });
             }
-            let shapes = ui.ctx().graphics(|g| {
+            let mut shapes = ui.ctx().graphics(|g| {
                 g.get(ui.layer_id())
                     .map(|l| {
                         l.all_entries()
                             .skip(first_shape)
                             .filter_map(|s| {
                                 if let egui::Shape::Text(painted) = &s.shape {
-                                    Some((painted.pos, painted.galley.clone()))
+                                    Some((painted.pos, painted.galley.clone(), false))
                                 } else {
                                     None
                                 }
@@ -679,8 +761,16 @@ impl CommonMarkViewerInternal {
                     })
                     .unwrap_or_default()
             });
+            if let Some((pos, galley)) = self.label_layout.take() {
+                if !shapes
+                    .iter()
+                    .any(|(p, g, _)| *p == pos && std::sync::Arc::ptr_eq(g, &galley))
+                {
+                    shapes.push((pos, galley, true));
+                }
+            }
             let mut consumed = 0;
-            for (pos, galley) in shapes {
+            for (pos, galley, layout_only) in shapes {
                 if complete_code
                     && galley.text() != text
                     && galley.text() != text.trim_end_matches(['\r', '\n'])
@@ -710,6 +800,8 @@ impl CommonMarkViewerInternal {
                     pos,
                     galley,
                     spans: source,
+                    table_row: None,
+                    layout_only,
                 });
                 consumed = end;
             }
@@ -724,6 +816,38 @@ impl CommonMarkViewerInternal {
             block.content.push_str(&text);
         } else if let Some(link) = &mut self.link {
             link.text.push(rich_text);
+        } else if self.observe_text && self.is_table {
+            // Use Label's actual allocation once, retaining its galley even
+            // when clipping omits the paint shape. Keep native label selection.
+            let (pos, galley, mut response) = egui::Label::new(rich_text).layout_in_ui(ui);
+            response.widget_info(|| {
+                egui::WidgetInfo::labeled(egui::WidgetType::Label, ui.is_enabled(), galley.text())
+            });
+            self.label_layout = Some((pos, galley.clone()));
+            if ui.is_rect_visible(response.rect) {
+                if galley.elided {
+                    response = response.on_hover_text(egui::text::LayoutJob {
+                        sections: galley.job.sections.clone(),
+                        text: galley.job.text.clone(),
+                        ..Default::default()
+                    });
+                }
+                let color = ui.visuals().text_color();
+                let underline = if response.has_focus() || response.highlighted() {
+                    egui::Stroke::new(1., color)
+                } else {
+                    egui::Stroke::NONE
+                };
+                if ui.style().interaction.selectable_labels {
+                    egui::text_selection::LabelSelectionState::label_text_selection(
+                        ui, &response, pos, galley, color, underline,
+                    );
+                } else {
+                    ui.painter().add(
+                        egui::epaint::TextShape::new(pos, galley, color).with_underline(underline),
+                    );
+                }
+            }
         } else {
             ui.label(rich_text);
         }
