@@ -1,11 +1,13 @@
+> 主干同步状态：2026-10-28 已将滚动同步检查点 rebase 到 `origin/main` 的 `6df8b07312496ef1af73b4ea8e9be8881d388c62`（PR #7 UI 改进）。本报告下列 R18 候选及数据仍对应旧基线；新主干组合尚待重新构建和验收，不能直接继承为新候选已通过。
+
 # Split 双向内容滚动同步验收（R18，2026-10-28）
 
-当前交付候选为 **R18**。R6、R12–R17均保留为历史/中间验证，未将旧性能数据改名。正式性能数据状态：GDI与DXGI两套六档均已完成；**首次可见响应预算仍有未达标方向，不能宣称全部验收通过。**
+当前历史验收候选为 **R18**。R6、R12–R17均保留为历史/中间验证，未将旧性能数据改名。正式性能数据状态：GDI与DXGI两套六档均已完成；**首次可见响应预算仍有未达标方向，不能宣称全部验收通过。**
 
 ## 候选身份与交付边界
 
 - [mdcard.exe](D:/MDcard/artifacts/split-scroll-2026-10-27/candidate-r18/mdcard.exe)，91,497,472 字节；SHA256 `1711ad7aaefe2deab2c326761ba105af96749ae2f4a3dac1204dc97460f9fd86`。
-- 分支 `codex/split-scroll-sync`，基线 `0cf20e35beb9bfcb5accb5f049bc6779e30669fc`；全部变更未提交，未安装、推送或发布。
+- 分支 `codex/split-scroll-sync`，基线 `0cf20e35beb9bfcb5accb5f049bc6779e30669fc`；R18 冻结时变更尚未提交；随后为安全 rebase 创建了本地 WIP 检查点。未安装、推送或发布。
 - source_inputs SHA256 `8edfec913b3a9ea79bf7461b1e55b3f65593fb6303aea705a29a4d9d22576be4`；patch SHA256 `d78a68a1048f9de92e363bc7755d6ca316ae58c1ad51358ae6c1ee547e09368d`。
 - [MDcard-source.zip](D:/MDcard/artifacts/split-scroll-2026-10-27/candidate-r18/MDcard-source.zip) SHA256 `6efa375e0ad1c9a885f223984aa1667b5634faf5b78f84eaae071e47be79cd7a`。主代理独立逐项验证309项源码与ZIP、工作树一致（另有SOURCE_IDENTITY，共310个ZIP项）。
 - [MDcard-verification-tools.zip](D:/MDcard/artifacts/split-scroll-2026-10-27/candidate-r18/MDcard-verification-tools.zip) 与 verification-tools-manifest.json 固定实际采集入口及依赖；离线renderer/运行时/许可证随候选目录保留。用户的 `docs/ui-ux-proposal-2026-10-27/` 未动。
