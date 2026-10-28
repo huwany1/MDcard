@@ -1243,13 +1243,12 @@ impl Editor {
                 ui.horizontal(|ui| {
                     ui.set_height(32.0);
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center),|ui| {
-                        close = ui.small_button(language.text("Close")).clicked();
-                        save = ui.small_button(language.text("Save")).clicked();
+                        close = crate::theme::tool_button(ui, language.text("Close")).clicked();
+                        save = crate::theme::tool_button(ui, language.text("Save")).clicked();
                         ui.add(egui::Label::new(RichText::new(language.text(if crate::text_files::markdown(doc.path.as_deref()) {"MARKDOWN"} else {"PLAIN TEXT"})).size(11.0).color(self.palette.muted)).truncate());
                     });
                 });
-                self.autosave_status(ui, true);
-                self.recovery_status(ui, true);
+                self.protection_status(ui, true);
                 ui.add_space(8.0);
                 let doc = self.global.secondary.as_mut().unwrap();
                 let large = &mut self.global.secondary_large;
