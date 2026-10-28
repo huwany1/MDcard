@@ -971,7 +971,7 @@ impl Editor {
                         true,
                         language.text("Blocks"),
                     );
-                    if ui.small_button(language.text("Insert table")).clicked() {
+                    if crate::theme::tool_button(ui, language.text("Insert table")).clicked() {
                         command = Some(Command::InsertTable {
                             at: structure::byte_at(
                                 &self.doc.text,
@@ -979,7 +979,7 @@ impl Editor {
                             ),
                         });
                     }
-                    if ui.small_button(language.text("Back to source")).clicked() {
+                    if crate::theme::tool_button(ui, language.text("Back to source")).clicked() {
                         self.editor_focus = true;
                         if self.mode == crate::Mode::Read {
                             self.mode = crate::Mode::Edit;
@@ -1045,7 +1045,7 @@ impl Editor {
                         }
                     }
                 });
-            if ui.small_button(language.text("Delete table")).clicked() {
+            if crate::theme::tool_button(ui, language.text("Delete table")).clicked() {
                 *command = Some(Command::DeleteTable {
                     table: self.structure.table,
                 });
@@ -1063,7 +1063,7 @@ impl Editor {
         ui.horizontal_wrapped(|ui| {
             let (row, column) = self.structure.cell.unwrap_or((0, 0));
             for (label, c) in table_commands(t, row, column) {
-                if ui.small_button(language.text(label)).clicked() {
+                if crate::theme::tool_button(ui, language.text(label)).clicked() {
                     *command = Some(c);
                 }
             }
@@ -1306,7 +1306,7 @@ impl Editor {
                 ("Indent", 2),
                 ("Outdent", 3),
             ] {
-                if ui.small_button(language.text(label)).clicked()
+                if crate::theme::tool_button(ui, language.text(label)).clicked()
                     && let Some(block) = self.structure.block
                 {
                     if op < 2 {

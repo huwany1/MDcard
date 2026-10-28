@@ -3,8 +3,8 @@
 use eframe::egui::{self, Color32, FontId, Response, RichText, Stroke, Vec2};
 /// Shared logical-pixel rhythm. Panel-specific document layout stays separate.
 pub const CONTROL_HEIGHT: f32 = 32.0;
-pub const SIDEBAR_WIDTH: f32 = 256.0;
-pub const CONTENT_MARGIN: f32 = 20.0;
+pub const SIDEBAR_WIDTH: f32 = 244.0;
+pub const CONTENT_MARGIN: f32 = 24.0;
 pub const SPLIT_CONTENT_MIN: f32 = 860.0;
 pub fn window_bounds(ctx: &egui::Context) -> egui::Rect {
     ctx.content_rect().shrink(12.0)
@@ -43,7 +43,7 @@ impl Palette {
     pub fn new(dark: bool, accent: usize) -> Self {
         let colors = if dark {
             [
-                [112, 157, 255],
+                [145, 177, 250],
                 [192, 152, 255],
                 [255, 138, 189],
                 [255, 182, 112],
@@ -52,7 +52,7 @@ impl Palette {
             ]
         } else {
             [
-                [45, 91, 202],
+                [58, 86, 157],
                 [120, 68, 183],
                 [183, 46, 110],
                 [165, 83, 17],
@@ -60,22 +60,22 @@ impl Palette {
                 [85, 94, 112],
             ]
         };
-        let paper = rgb(if dark { [28, 30, 34] } else { [253, 252, 250] });
+        let paper = rgb(if dark { [31, 36, 45] } else { [252, 252, 253] });
         let accent = rgb(colors[accent.min(5)]);
         Self {
-            ink: rgb(if dark { [233, 234, 238] } else { [40, 43, 49] }),
+            ink: rgb(if dark { [228, 233, 241] } else { [41, 51, 66] }),
             muted: rgb(if dark {
-                [169, 176, 188]
+                [171, 182, 199]
             } else {
-                [94, 101, 114]
+                [89, 102, 120]
             }),
             accent,
             paper,
-            sidebar: rgb(if dark { [34, 36, 41] } else { [243, 242, 239] }),
-            chrome: rgb(if dark { [34, 36, 41] } else { [247, 246, 243] }),
-            line: rgb(if dark { [62, 66, 75] } else { [222, 222, 218] }),
+            sidebar: rgb(if dark { [37, 43, 54] } else { [240, 243, 247] }),
+            chrome: rgb(if dark { [42, 49, 64] } else { [233, 237, 243] }),
+            line: rgb(if dark { [69, 79, 97] } else { [214, 221, 231] }),
             selected: mix(paper, accent, if dark { 0.18 } else { 0.11 }),
-            control: rgb(if dark { [46, 49, 56] } else { [237, 237, 233] }),
+            control: rgb(if dark { [49, 58, 73] } else { [245, 247, 250] }),
             dark,
         }
     }
@@ -111,12 +111,14 @@ impl Palette {
             v.selection.bg_fill = self.selected;
             v.selection.stroke = Stroke::new(1.0, self.accent);
             v.window_stroke = Stroke::new(1.0, self.line);
-            v.window_corner_radius = 14.into();
+            v.window_corner_radius = 10.into();
+            v.menu_corner_radius = 6.into();
+            v.window_highlight_topmost = false;
             v.window_shadow = egui::epaint::Shadow {
-                offset: [0, 6],
-                blur: 24,
+                offset: [0, 5],
+                blur: 16,
                 spread: 0,
-                color: Color32::from_black_alpha(if self.dark { 80 } else { 32 }),
+                color: Color32::from_black_alpha(if self.dark { 72 } else { 24 }),
             };
             for w in [
                 &mut v.widgets.noninteractive,
@@ -125,11 +127,12 @@ impl Palette {
                 &mut v.widgets.active,
                 &mut v.widgets.open,
             ] {
-                w.corner_radius = 7.into();
+                w.corner_radius = 5.into();
                 w.bg_stroke = Stroke::new(1.0, self.line);
                 w.fg_stroke = Stroke::new(1.0, self.ink);
             }
             v.widgets.noninteractive.bg_stroke = Stroke::new(1.0, self.line);
+            v.widgets.noninteractive.bg_fill = self.chrome;
             v.widgets.inactive.bg_fill = self.control;
             v.widgets.inactive.weak_bg_fill = self.control;
             v.widgets.hovered.bg_fill = self.selected;
@@ -145,11 +148,13 @@ impl Palette {
             style.spacing.interact_size = Vec2::new(32.0, CONTROL_HEIGHT);
             style.spacing.item_spacing = Vec2::new(8.0, 8.0);
             style.spacing.button_padding = Vec2::new(12.0, 6.0);
+            style.spacing.window_margin = egui::Margin::symmetric(18, 10);
+            style.spacing.menu_margin = egui::Margin::same(8);
             style.spacing.scroll.foreground_color = false;
             style.spacing.scroll.bar_width = 6.0;
             style
                 .text_styles
-                .insert(egui::TextStyle::Body, FontId::proportional(15.0));
+                .insert(egui::TextStyle::Body, FontId::proportional(14.0));
             style
                 .text_styles
                 .insert(egui::TextStyle::Button, FontId::proportional(13.0));
@@ -173,6 +178,51 @@ pub fn button(ui: &mut egui::Ui, text: impl Into<String>) -> Response {
     );
     record_control(ui, &response, &text);
     response
+}
+
+pub fn primary_button(ui: &mut egui::Ui, text: &str, p: Palette) -> Response {
+    let foreground = if p.dark {
+        Color32::from_rgb(24, 34, 49)
+    } else {
+        Color32::WHITE
+    };
+    let response = ui.add(
+        egui::Button::new(RichText::new(text).color(foreground))
+            .fill(p.accent)
+            .min_size(Vec2::new(0.0, CONTROL_HEIGHT)),
+    );
+    record_control(ui, &response, text);
+    response
+}
+
+/// Reserve a readable action row, wrapping only when the real labels need it.
+pub fn action_row<R>(
+    ui: &mut egui::Ui,
+    labels: &[&str],
+    contents: impl FnOnce(&mut egui::Ui) -> R,
+) -> egui::InnerResponse<R> {
+    ui.add_space(6.0);
+    ui.separator();
+    ui.add_space(6.0);
+    ui.horizontal_wrapped(|ui| {
+        let width = labels
+            .iter()
+            .map(|label| {
+                ui.painter()
+                    .layout_no_wrap(
+                        (*label).into(),
+                        FontId::proportional(13.0),
+                        ui.visuals().text_color(),
+                    )
+                    .size()
+                    .x
+                    + ui.spacing().button_padding.x * 2.0
+            })
+            .sum::<f32>()
+            + ui.spacing().item_spacing.x * labels.len().saturating_sub(1) as f32;
+        ui.add_space((ui.available_width() - width).max(0.0));
+        contents(ui)
+    })
 }
 
 pub fn search_button(ui: &mut egui::Ui, text: &str, width: f32, p: Palette) -> Response {
@@ -207,6 +257,94 @@ pub fn search_button(ui: &mut egui::Ui, text: &str, width: f32, p: Palette) -> R
     response
 }
 
+/// Flat menu chrome; popup rows keep native activation and keyboard semantics.
+pub fn menu_button<R>(
+    ui: &mut egui::Ui,
+    title: &str,
+    contents: impl FnOnce(&mut egui::Ui) -> R,
+) -> egui::InnerResponse<Option<R>> {
+    ui.scope(|ui| {
+        let inactive = &mut ui.visuals_mut().widgets.inactive;
+        inactive.bg_fill = Color32::TRANSPARENT;
+        inactive.weak_bg_fill = Color32::TRANSPARENT;
+        inactive.bg_stroke = Stroke::NONE;
+        ui.menu_button(title, |ui| {
+            ui.spacing_mut().item_spacing.y = 2.0;
+            contents(ui)
+        })
+    })
+    .inner
+}
+
+pub fn navigation_tab(
+    ui: &mut egui::Ui,
+    text: &str,
+    selected: bool,
+    width: f32,
+    p: Palette,
+) -> Response {
+    let (rect, response) = ui.allocate_exact_size(Vec2::new(width, 32.0), egui::Sense::click());
+    if response.hovered() {
+        ui.painter()
+            .rect_filled(rect.shrink2(Vec2::new(0.0, 2.0)), 4, p.selected);
+    }
+    if selected {
+        ui.painter().line_segment(
+            [rect.left_bottom(), rect.right_bottom()],
+            Stroke::new(2.0, p.accent),
+        );
+    }
+    ui.painter().text(
+        rect.center(),
+        egui::Align2::CENTER_CENTER,
+        text,
+        FontId::proportional(12.0),
+        if selected { p.accent } else { p.muted },
+    );
+    if response.has_focus() {
+        ui.painter().rect_stroke(
+            rect.shrink(1.0),
+            4,
+            Stroke::new(1.5, p.accent),
+            egui::StrokeKind::Inside,
+        );
+    }
+    response.widget_info(|| {
+        egui::WidgetInfo::selected(
+            egui::WidgetType::RadioButton,
+            ui.is_enabled(),
+            selected,
+            text,
+        )
+    });
+    response
+}
+
+pub fn pane_toolbar<R>(
+    ui: &mut egui::Ui,
+    contents: impl FnOnce(&mut egui::Ui) -> R,
+) -> egui::InnerResponse<R> {
+    ui.scope(|ui| {
+        ui.spacing_mut().interact_size.y = 28.0;
+        ui.spacing_mut().button_padding = Vec2::new(8.0, 4.0);
+        ui.horizontal_wrapped(|ui| {
+            ui.set_min_height(32.0);
+            contents(ui)
+        })
+    })
+    .inner
+}
+
+pub fn tool_button(ui: &mut egui::Ui, text: &str) -> Response {
+    let response = ui.add(
+        egui::Button::new(RichText::new(text).size(12.0))
+            .frame(false)
+            .min_size(Vec2::new(0.0, 28.0)),
+    );
+    record_control(ui, &response, text);
+    response
+}
+
 /// Shared document identity row. Focus is supplied by the real editor owner;
 /// opening a dialog therefore never changes the document or its undo history.
 pub fn document_header(
@@ -219,40 +357,62 @@ pub fn document_header(
 ) {
     let (active, dirty) = flags;
     let width = ui.available_width();
-    let top = ui.cursor().min;
-    ui.horizontal(|ui| {
-        ui.set_height(32.0);
-        if dirty {
-            ui.label(RichText::new("●").size(10.0).color(p.accent));
-        }
-        ui.allocate_ui_with_layout(
-            Vec2::new((width * 0.55).max(40.0), 32.0),
-            egui::Layout::left_to_right(egui::Align::Center),
-            |ui| ui.add(egui::Label::new(RichText::new(name).size(13.0).strong()).truncate()),
+    let (rect, response) = ui.allocate_exact_size(Vec2::new(width, 52.0), egui::Sense::hover());
+    response.widget_info(|| {
+        egui::WidgetInfo::labeled(
+            egui::WidgetType::Label,
+            ui.is_enabled(),
+            format!("{name}\n{path}\n{state}"),
         )
-        .inner
-        .on_hover_text(path);
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui.add(
-                egui::Label::new(RichText::new(state).size(11.0).color(if active {
-                    p.accent
-                } else {
-                    p.muted
-                }))
-                .truncate(),
-            )
-            .on_hover_text(state);
-        });
     });
-    let y = top.y + 35.0;
-    ui.painter().line_segment(
-        [egui::pos2(top.x, y), egui::pos2(top.x + width, y)],
-        Stroke::new(
-            if active { 1.5 } else { 0.5 },
-            if active { p.accent } else { p.line },
-        ),
+    let state_width = (width * 0.32).clamp(60.0, 260.0);
+    let left = rect.left() + 12.0;
+    let title = if dirty {
+        format!("●  {name}")
+    } else {
+        name.into()
+    };
+    let title = egui::WidgetText::from(RichText::new(title).size(15.0).strong()).into_galley(
+        ui,
+        Some(egui::TextWrapMode::Truncate),
+        (width - state_width - 24.0).max(20.0),
+        FontId::proportional(15.0),
     );
-    ui.add_space(12.0);
+    ui.painter()
+        .galley(egui::pos2(left, rect.top() + 2.0), title, p.ink);
+    let path_text = egui::WidgetText::from(RichText::new(path).size(11.0).color(p.muted))
+        .into_galley(
+            ui,
+            Some(egui::TextWrapMode::Truncate),
+            (width - 24.0).max(20.0),
+            FontId::proportional(11.0),
+        );
+    ui.painter()
+        .galley(egui::pos2(left, rect.top() + 27.0), path_text, p.muted);
+    let state_text = egui::WidgetText::from(RichText::new(state).size(11.0).color(p.muted))
+        .into_galley(
+            ui,
+            Some(egui::TextWrapMode::Truncate),
+            state_width,
+            FontId::proportional(11.0),
+        );
+    ui.painter().galley(
+        egui::pos2(rect.right() - state_text.size().x, rect.top() + 6.0),
+        state_text,
+        p.muted,
+    );
+    if active {
+        ui.painter().rect_filled(
+            egui::Rect::from_min_size(rect.min + Vec2::new(0.0, 4.0), Vec2::new(3.0, 28.0)),
+            2,
+            p.accent,
+        );
+    }
+    ui.painter().line_segment(
+        [rect.left_bottom(), rect.right_bottom()],
+        Stroke::new(0.5, p.line),
+    );
+    response.on_hover_text(format!("{name}\n{path}\n{state}"));
 }
 
 pub fn record_control(ui: &egui::Ui, response: &Response, name: &str) {
@@ -527,22 +687,43 @@ pub fn icon_button(ui: &mut egui::Ui, icon: Icon, hint: &str) -> Response {
     response.on_hover_text(hint)
 }
 pub fn modal(ctx: &egui::Context, id: &str) -> egui::Modal {
+    let size = ctx.content_rect().size();
+    let resized = ctx.data_mut(|data| {
+        let key = egui::Id::new(("modal-viewport-size", id));
+        let previous = data.get_temp::<Vec2>(key);
+        data.insert_temp(key, size);
+        previous.is_some_and(|previous| previous != size)
+    });
     let opacity = ctx.animate_bool_with_time(
         egui::Id::new((id, "fade")),
         true,
         ctx.style().animation_time,
     );
     egui::Modal::new(egui::Id::new(id))
-        .backdrop_color(Color32::from_black_alpha((95.0 * opacity) as u8))
+        // A single invisible measuring pass drops the previous Area height on resize.
+        // Keep the backdrop in the full viewport; content widths and scroll bodies
+        // supply the dialog's own safe margins, independently of the backdrop.
+        .area(
+            egui::Modal::default_area(egui::Id::new(id))
+                .constrain_to(ctx.content_rect())
+                .sizing_pass(resized),
+        )
+        .frame(
+            egui::Frame::popup(&ctx.style())
+                .inner_margin(18)
+                .corner_radius(10),
+        )
+        .backdrop_color(Color32::from_black_alpha((75.0 * opacity) as u8))
 }
 pub fn toggle(ui: &mut egui::Ui, value: &mut bool, text: &str) -> Response {
-    let label = ui.painter().layout_no_wrap(
-        text.to_owned(),
+    let width = ui.available_width().max(120.0);
+    let label = egui::WidgetText::from(RichText::new(text).size(14.0)).into_galley(
+        ui,
+        Some(egui::TextWrapMode::Truncate),
+        (width - 54.0).max(20.0),
         FontId::proportional(14.0),
-        ui.visuals().text_color(),
     );
-    let (rect, mut response) =
-        ui.allocate_exact_size(Vec2::new(label.size().x + 54.0, 30.0), egui::Sense::click());
+    let (rect, mut response) = ui.allocate_exact_size(Vec2::new(width, 32.0), egui::Sense::click());
     if response.clicked() {
         *value = !*value;
         response.mark_changed();
@@ -553,28 +734,35 @@ pub fn toggle(ui: &mut egui::Ui, value: &mut bool, text: &str) -> Response {
         ui.style().animation_time,
     );
     let track = egui::Rect::from_center_size(
-        egui::pos2(rect.left() + 20.0, rect.center().y),
-        Vec2::new(40.0, 22.0),
+        egui::pos2(rect.right() - 18.0, rect.center().y),
+        Vec2::new(36.0, 20.0),
     );
     let color = mix(
-        ui.visuals().widgets.inactive.bg_fill,
+        ui.visuals().widgets.noninteractive.bg_stroke.color,
         ui.visuals().hyperlink_color,
         amount,
     );
     ui.painter().rect(
         track,
-        11,
+        10,
         color,
-        Stroke::new(0.8, ui.visuals().window_stroke.color),
+        Stroke::new(
+            0.8,
+            mix(
+                ui.visuals().weak_text_color(),
+                ui.visuals().hyperlink_color,
+                amount,
+            ),
+        ),
         egui::StrokeKind::Inside,
     );
     ui.painter().circle_filled(
-        egui::pos2(track.left() + 11.0 + 18.0 * amount, track.center().y),
-        8.5,
+        egui::pos2(track.left() + 10.0 + 16.0 * amount, track.center().y),
+        7.0,
         Color32::WHITE,
     );
     ui.painter().galley(
-        egui::pos2(rect.left() + 52.0, rect.center().y - label.size().y * 0.5),
+        egui::pos2(rect.left(), rect.center().y - label.size().y * 0.5),
         label,
         ui.visuals().text_color(),
     );

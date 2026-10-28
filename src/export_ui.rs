@@ -240,6 +240,8 @@ impl ExportUi {
         .id(egui::Id::new("lossless-export"))
         .open(&mut open)
         .default_width(610.)
+        .default_height(600.)
+        .default_pos(ctx.content_rect().center()-egui::vec2(323.,330.))
         .min_width(260.)
         .max_width(crate::theme::window_bounds(ctx).width()-16.)
         .constrain_to(crate::theme::window_bounds(ctx))
@@ -251,10 +253,17 @@ impl ExportUi {
             .id_salt("export-configuration")
             .max_height((ui.available_height()-110.).max(40.))
             .show(ui,|ui|{
-                ui.label(format!("{}: {}",language.text("Source document"),source_path.map(|p|p.display().to_string()).unwrap_or_else(||language.text("Untitled").into())));
-                ui.label(language.text("Export a snapshot of your current document. You can keep editing."));
+                ui.label(crate::theme::label(language.text("Source document"),palette));
+                let source_label=source_path.map(|p|p.display().to_string()).unwrap_or_else(||language.text("Untitled").into());
+                ui.add(egui::Label::new(egui::RichText::new(&source_label).small().color(palette.muted)).truncate()).on_hover_text(source_label);
+                ui.label(egui::RichText::new(language.text("Export a snapshot of your current document. You can keep editing.")).small().color(palette.muted));
+                ui.add_space(6.0);ui.separator();ui.add_space(6.0);
                 ui.add_enabled_ui(!running,|ui|{
+                    let field_width=(ui.available_width().min(610.)-120.).max(100.);
+                    ui.horizontal_wrapped(|ui|{
+                    ui.allocate_ui_with_layout(egui::vec2(100.,32.),egui::Layout::left_to_right(egui::Align::Center),|ui|{ui.set_min_width(100.);ui.label(language.text("Format"));});
                     let r=egui::ComboBox::from_id_salt("export-format")
+                    .width(field_width)
                     .selected_text(language.text(FORMATS[self.settings.format.min(8)].1))
                     .show_ui(ui,|ui|{
                         for(i,(_,label,_)) in FORMATS.iter().enumerate(){
@@ -264,6 +273,7 @@ impl ExportUi {
                     }
                     );
                     self.rects.insert("format".into(),rect(r.response.rect));
+                    });
                     let kind=FORMATS[self.settings.format.min(8)].0;
                     if kind=="docx"||kind=="epub"{
                         self.settings.pipeline="pandoc".into();
@@ -274,8 +284,9 @@ impl ExportUi {
                         ui.label(language.text("Built-in pipeline · bundled runtimes"));
                     }
                     ui.horizontal_wrapped(|ui|{
-                        ui.label(language.text("Theme"));
+                        ui.allocate_ui_with_layout(egui::vec2(100.,32.),egui::Layout::left_to_right(egui::Align::Center),|ui|{ui.set_min_width(100.);ui.label(language.text("Theme"));});
                         egui::ComboBox::from_id_salt("export-theme")
+                        .width(field_width)
                         .selected_text(language.text(["Current editor theme","Light","Dark"][self.settings.theme.min(2)]))
                         .show_ui(ui,|ui|{
                             for(i,label)in["Current editor theme","Light","Dark"].iter().enumerate(){
@@ -283,8 +294,11 @@ impl ExportUi {
                             }
                         }
                         );
-                        ui.label(language.text("Paper"));
+                    });
+                    ui.horizontal_wrapped(|ui|{
+                        ui.allocate_ui_with_layout(egui::vec2(100.,32.),egui::Layout::left_to_right(egui::Align::Center),|ui|{ui.set_min_width(100.);ui.label(language.text("Paper"));});
                         egui::ComboBox::from_id_salt("export-paper")
+                        .width(field_width)
                         .selected_text(&self.settings.paper)
                         .show_ui(ui,|ui|{
                             ui.selectable_value(&mut self.settings.paper,"A4".into(),"A4");
@@ -293,6 +307,7 @@ impl ExportUi {
                         );
                     }
                     );
+                    ui.add_space(6.0);ui.separator();ui.add_space(6.0);
                     ui.horizontal_wrapped(|ui|{
                         ui.label(language.text("Font size"));
                         ui.add(egui::DragValue::new(&mut self.settings.font_size).range(10.0..=28.0));
@@ -307,6 +322,7 @@ impl ExportUi {
                         ui.checkbox(&mut self.settings.line_numbers,language.text("Code line numbers"));
                     }
                     );
+                    ui.add_space(6.0);ui.separator();ui.add_space(6.0);
                     ui.collapsing(language.text("Document metadata"),|ui|{
                         for(label,value)in[("Title",&mut self.settings.title),("Author",&mut self.settings.author),("Book identifier",&mut self.settings.identifier),("Book language",&mut self.settings.book_language)]{
                             ui.horizontal_wrapped(|ui|{
@@ -398,7 +414,7 @@ impl ExportUi {
             }
             else{
                 let same_source=self.source_identity.as_deref()==source_path&&self.source_generation==generation;
-                let r=ui.add_enabled(same_source,egui::Button::new(language.text("Export…")));
+                let r=ui.allocate_ui_with_layout(egui::vec2(ui.available_width(),crate::theme::CONTROL_HEIGHT),egui::Layout::right_to_left(egui::Align::Center),|ui|ui.add_enabled_ui(same_source,|ui|crate::theme::primary_button(ui,language.text("Export…"),palette)).inner).inner;
                 if ui.clip_rect().contains_rect(r.rect){
                     self.rects.insert("export".into(),rect(r.rect));
                 }

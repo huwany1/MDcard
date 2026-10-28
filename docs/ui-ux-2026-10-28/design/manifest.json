@@ -1,0 +1,248 @@
+{
+  "kind": "design-expectation",
+  "version": 1.4,
+  "views": [
+    {
+      "name": "01-main-split",
+      "kind": "static-design-expectation-not-runtime",
+      "logical_size": [
+        1240,
+        820
+      ],
+      "image": "/work/docs/ui-ux-2026-10-28/design/01-main-split.png",
+      "html": "/work/docs/ui-ux-2026-10-28/design/01-main-split.html",
+      "recorded_utc": "2026-10-28T12:07:06.722205+00:00"
+    },
+    {
+      "name": "02-write",
+      "kind": "static-design-expectation-not-runtime",
+      "logical_size": [
+        1240,
+        820
+      ],
+      "image": "/work/docs/ui-ux-2026-10-28/design/02-write.png",
+      "html": "/work/docs/ui-ux-2026-10-28/design/02-write.html",
+      "recorded_utc": "2026-10-28T12:07:08.808146+00:00"
+    },
+    {
+      "name": "03-read",
+      "kind": "static-design-expectation-not-runtime",
+      "logical_size": [
+        1240,
+        820
+      ],
+      "image": "/work/docs/ui-ux-2026-10-28/design/03-read.png",
+      "html": "/work/docs/ui-ux-2026-10-28/design/03-read.html",
+      "recorded_utc": "2026-10-28T12:07:09.403829+00:00"
+    },
+    {
+      "name": "04-dark",
+      "kind": "static-design-expectation-not-runtime",
+      "logical_size": [
+        1240,
+        820
+      ],
+      "image": "/work/docs/ui-ux-2026-10-28/design/04-dark.png",
+      "html": "/work/docs/ui-ux-2026-10-28/design/04-dark.html",
+      "recorded_utc": "2026-10-28T12:07:11.303805+00:00"
+    },
+    {
+      "name": "05-narrow",
+      "kind": "static-design-expectation-not-runtime",
+      "logical_size": [
+        680,
+        480
+      ],
+      "image": "/work/docs/ui-ux-2026-10-28/design/05-narrow.png",
+      "html": "/work/docs/ui-ux-2026-10-28/design/05-narrow.html",
+      "recorded_utc": "2026-10-28T12:07:13.319974+00:00"
+    },
+    {
+      "name": "06-empty",
+      "kind": "static-design-expectation-not-runtime",
+      "logical_size": [
+        1240,
+        820
+      ],
+      "image": "/work/docs/ui-ux-2026-10-28/design/06-empty.png",
+      "html": "/work/docs/ui-ux-2026-10-28/design/06-empty.html",
+      "recorded_utc": "2026-10-28T12:07:15.306669+00:00"
+    },
+    {
+      "name": "07-longname",
+      "kind": "static-design-expectation-not-runtime",
+      "logical_size": [
+        1240,
+        820
+      ],
+      "image": "/work/docs/ui-ux-2026-10-28/design/07-longname.png",
+      "html": "/work/docs/ui-ux-2026-10-28/design/07-longname.html",
+      "recorded_utc": "2026-10-28T12:07:17.043571+00:00"
+    },
+    {
+      "name": "08-preferences",
+      "kind": "static-design-expectation-not-runtime",
+      "logical_size": [
+        1240,
+        820
+      ],
+      "image": "/work/docs/ui-ux-2026-10-28/design/08-preferences.png",
+      "html": "/work/docs/ui-ux-2026-10-28/design/08-preferences.html",
+      "recorded_utc": "2026-10-28T12:07:17.691869+00:00"
+    },
+    {
+      "name": "09-preferences-bottom",
+      "kind": "static-design-expectation-not-runtime",
+      "logical_size": [
+        1240,
+        820
+      ],
+      "image": "/work/docs/ui-ux-2026-10-28/design/09-preferences-bottom.png",
+      "html": "/work/docs/ui-ux-2026-10-28/design/09-preferences-bottom.html",
+      "recorded_utc": "2026-10-28T12:07:20.175711+00:00"
+    },
+    {
+      "name": "10-preferences-narrow",
+      "kind": "static-design-expectation-not-runtime",
+      "logical_size": [
+        680,
+        480
+      ],
+      "image": "/work/docs/ui-ux-2026-10-28/design/10-preferences-narrow.png",
+      "html": "/work/docs/ui-ux-2026-10-28/design/10-preferences-narrow.html",
+      "recorded_utc": "2026-10-28T12:07:20.740803+00:00"
+    },
+    {
+      "name": "11-export",
+      "kind": "static-design-expectation-not-runtime",
+      "logical_size": [
+        1240,
+        820
+      ],
+      "image": "/work/docs/ui-ux-2026-10-28/design/11-export.png",
+      "html": "/work/docs/ui-ux-2026-10-28/design/11-export.html",
+      "recorded_utc": "2026-10-28T12:07:22.613620+00:00"
+    },
+    {
+      "name": "12-search",
+      "kind": "static-design-expectation-not-runtime",
+      "logical_size": [
+        1240,
+        820
+      ],
+      "image": "/work/docs/ui-ux-2026-10-28/design/12-search.png",
+      "html": "/work/docs/ui-ux-2026-10-28/design/12-search.html",
+      "recorded_utc": "2026-10-28T12:07:24.531708+00:00"
+    },
+    {
+      "name": "13-quick",
+      "kind": "static-design-expectation-not-runtime",
+      "logical_size": [
+        1240,
+        820
+      ],
+      "image": "/work/docs/ui-ux-2026-10-28/design/13-quick.png",
+      "html": "/work/docs/ui-ux-2026-10-28/design/13-quick.html",
+      "recorded_utc": "2026-10-28T12:07:26.322207+00:00"
+    },
+    {
+      "name": "14-structure",
+      "kind": "static-design-expectation-not-runtime",
+      "logical_size": [
+        1240,
+        820
+      ],
+      "image": "/work/docs/ui-ux-2026-10-28/design/14-structure.png",
+      "html": "/work/docs/ui-ux-2026-10-28/design/14-structure.html",
+      "recorded_utc": "2026-10-28T12:59:42.401009+00:00"
+    },
+    {
+      "name": "15-encoding",
+      "kind": "static-design-expectation-not-runtime",
+      "logical_size": [
+        1240,
+        820
+      ],
+      "image": "/work/docs/ui-ux-2026-10-28/design/15-encoding.png",
+      "html": "/work/docs/ui-ux-2026-10-28/design/15-encoding.html",
+      "recorded_utc": "2026-10-28T12:07:30.158343+00:00"
+    },
+    {
+      "name": "16-unsaved",
+      "kind": "static-design-expectation-not-runtime",
+      "logical_size": [
+        1240,
+        820
+      ],
+      "image": "/work/docs/ui-ux-2026-10-28/design/16-unsaved.png",
+      "html": "/work/docs/ui-ux-2026-10-28/design/16-unsaved.html",
+      "recorded_utc": "2026-10-28T12:07:30.802346+00:00"
+    },
+    {
+      "name": "17-error",
+      "kind": "static-design-expectation-not-runtime",
+      "logical_size": [
+        1240,
+        820
+      ],
+      "image": "/work/docs/ui-ux-2026-10-28/design/17-error.png",
+      "html": "/work/docs/ui-ux-2026-10-28/design/17-error.html",
+      "recorded_utc": "2026-10-28T12:07:32.626441+00:00"
+    },
+    {
+      "name": "18-rename",
+      "kind": "static-design-expectation-not-runtime",
+      "logical_size": [
+        1240,
+        820
+      ],
+      "image": "/work/docs/ui-ux-2026-10-28/design/18-rename.png",
+      "html": "/work/docs/ui-ux-2026-10-28/design/18-rename.html",
+      "recorded_utc": "2026-10-28T12:07:34.437595+00:00"
+    },
+    {
+      "name": "19-recovery",
+      "kind": "static-design-expectation-not-runtime",
+      "logical_size": [
+        1240,
+        820
+      ],
+      "image": "/work/docs/ui-ux-2026-10-28/design/19-recovery.png",
+      "html": "/work/docs/ui-ux-2026-10-28/design/19-recovery.html",
+      "recorded_utc": "2026-10-28T12:07:36.490715+00:00"
+    },
+    {
+      "name": "20-secondary",
+      "kind": "static-design-expectation-not-runtime",
+      "logical_size": [
+        1240,
+        820
+      ],
+      "image": "/work/docs/ui-ux-2026-10-28/design/20-secondary.png",
+      "html": "/work/docs/ui-ux-2026-10-28/design/20-secondary.html",
+      "recorded_utc": "2026-10-28T12:07:38.321081+00:00"
+    },
+    {
+      "name": "21-history",
+      "kind": "static-design-expectation-not-runtime",
+      "logical_size": [
+        1240,
+        820
+      ],
+      "image": "/work/docs/ui-ux-2026-10-28/design/21-history.png",
+      "html": "/work/docs/ui-ux-2026-10-28/design/21-history.html",
+      "recorded_utc": "2026-10-28T12:07:40.858183+00:00"
+    },
+    {
+      "name": "22-menu",
+      "kind": "static-design-expectation-not-runtime",
+      "logical_size": [
+        1240,
+        820
+      ],
+      "image": "/work/docs/ui-ux-2026-10-28/design/22-menu.png",
+      "html": "/work/docs/ui-ux-2026-10-28/design/22-menu.html",
+      "recorded_utc": "2026-10-28T12:07:42.538132+00:00"
+    }
+  ]
+}

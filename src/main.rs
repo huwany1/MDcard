@@ -326,6 +326,7 @@ impl Editor {
         let language = self.language;
         let p = self.palette;
         ui.set_min_width(270.0);
+        ui.spacing_mut().item_spacing.y = 6.0;
         ui.label(RichText::new(format!("MDcard {APP_VERSION}")).strong());
         ui.separator();
         ui.label(theme::label(language.text("LANGUAGE"), p));
@@ -336,7 +337,7 @@ impl Editor {
                     .map(Language::name)
                     .unwrap_or(language.text("Follow system")),
             )
-            .width(250.0)
+            .width(160.0)
             .show_ui(ui, |ui| {
                 ui.selectable_value(
                     &mut self.preferences.language,
@@ -1184,37 +1185,46 @@ impl Editor {
         let language = self.language;
         let p = self.palette;
         egui::TopBottomPanel::top("toolbar")
-            .exact_height(44.0)
+            .exact_height(48.0)
             .frame(
                 egui::Frame::new()
                     .fill(p.paper)
-                    .inner_margin(egui::Margin::symmetric(12, 6))
+                    .inner_margin(egui::Margin::symmetric(16, 6))
                     .stroke(Stroke::new(0.5, p.line)),
             )
             .show(ctx, |ui| {
                 ui.horizontal_centered(|ui| {
-                    for (icon, label, action) in [
-                        (theme::Icon::New, language.text("+  New"), 0),
-                        (theme::Icon::Open, language.text("Open"), 1),
-                        (theme::Icon::Save, language.text("Save"), 2),
-                    ] {
-                        if action < 2 && ctx.content_rect().width() < 900.0 {
-                            continue;
-                        }
-                        let response = theme::icon_button(ui, icon, label)
-                            .on_hover_text(["Ctrl+N", "Ctrl+O", "Ctrl+S"][action]);
-                        if response.clicked() {
-                            match action {
-                                0 => self.request(Action::New, ctx),
-                                1 => self.request(Action::Open, ctx),
-                                _ => {
-                                    self.save(false, ctx);
+                    egui::Frame::new()
+                        .fill(p.sidebar)
+                        .corner_radius(5)
+                        .inner_margin(2)
+                        .show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                ui.spacing_mut().item_spacing.x = 4.0;
+                                for (icon, label, action) in [
+                                    (theme::Icon::New, language.text("+  New"), 0),
+                                    (theme::Icon::Open, language.text("Open"), 1),
+                                    (theme::Icon::Save, language.text("Save"), 2),
+                                ] {
+                                    if action < 2 && ctx.content_rect().width() < 900.0 {
+                                        continue;
+                                    }
+                                    let response = theme::icon_button(ui, icon, label)
+                                        .on_hover_text(["Ctrl+N", "Ctrl+O", "Ctrl+S"][action]);
+                                    if response.clicked() {
+                                        match action {
+                                            0 => self.request(Action::New, ctx),
+                                            1 => self.request(Action::Open, ctx),
+                                            _ => {
+                                                self.save(false, ctx);
+                                            }
+                                        }
+                                    }
                                 }
-                            }
-                        }
-                    }
-                    ui.separator();
-                    ui.menu_button(language.text("File"), |ui| {
+                            });
+                        });
+                    ui.add_space(4.0);
+                    theme::menu_button(ui, language.text("File"), |ui| {
                         ui.set_max_width(320.0_f32.min(ctx.content_rect().width() - 48.0));
                         for (key, action) in [("+  New", 0), ("Open", 1), ("Save", 2)] {
                             if button(ui, language.text(key)).clicked() {
@@ -1283,7 +1293,7 @@ impl Editor {
                             }
                         }
                     });
-                    ui.menu_button(language.text("Search"), |ui| {
+                    theme::menu_button(ui, language.text("Search"), |ui| {
                         if button(ui, language.text("Find files…  Ctrl+P")).clicked() {
                             ui.close();
                             self.open_search(ctx);
@@ -1300,7 +1310,7 @@ impl Editor {
                             self.open_global_search(ctx, false);
                         }
                     });
-                    ui.menu_button("···", |ui| {
+                    theme::menu_button(ui, "···", |ui| {
                         if text_files::markdown(self.doc.path.as_deref())
                             && button(ui, language.text("Structure…     Ctrl+Shift+T")).clicked()
                         {
@@ -1324,7 +1334,7 @@ impl Editor {
                             if ctx.content_rect().width() < 900.0 {
                                 128.0
                             } else {
-                                230.0
+                                214.0
                             },
                             p,
                         );
@@ -1459,6 +1469,31 @@ impl Editor {
                     });
                 });
             });
+    }
+    /// Compact presentation of the existing independent protection states.
+    /// The original status methods retain all labels, errors and retry actions.
+    fn protection_status(&mut self, ui: &mut egui::Ui, secondary: bool) {
+        ui.scope(|ui| {
+            ui.spacing_mut().interact_size.y = 18.0;
+            ui.spacing_mut().button_padding = Vec2::new(6.0, 2.0);
+            ui.spacing_mut().item_spacing.y = 4.0;
+            ui.spacing_mut().item_spacing.x = 24.0;
+            ui.visuals_mut().override_text_color = Some(self.palette.muted);
+            ui.horizontal(|ui| {
+                let width = (ui.available_width() * 0.48).min(160.0);
+                ui.allocate_ui_with_layout(
+                    Vec2::new(width, 18.0),
+                    egui::Layout::top_down(egui::Align::Min),
+                    |ui| self.autosave_status(ui, secondary),
+                );
+                ui.allocate_ui_with_layout(
+                    Vec2::new(ui.available_width(), 18.0),
+                    egui::Layout::top_down(egui::Align::Min),
+                    |ui| self.recovery_status(ui, secondary),
+                );
+            });
+        });
+        ui.add_space(6.0);
     }
     fn choose_workspace(&mut self, ctx: &egui::Context) {
         if self.global.busy {
@@ -1614,18 +1649,25 @@ impl Editor {
             .show_animated(ctx, expanded, |ui| {
                 let sidebar_height = ui.available_height();
                 egui::ScrollArea::vertical().id_salt("workspace-sections").show(ui, |ui| {
+                ui.spacing_mut().item_spacing.y = 4.0;
                 ui.horizontal(|ui| {
                     let folder = self.files.root.file_name().unwrap_or(self.files.root.as_os_str()).to_string_lossy();
-                    ui.allocate_ui_with_layout(Vec2::new(ui.available_width()-80.0,32.0),egui::Layout::left_to_right(egui::Align::Center),|ui|ui.add(egui::Label::new(RichText::new(folder).size(13.0).strong()).truncate())).inner.on_hover_text(self.files.root.display().to_string());
+                    let width = (ui.available_width()-80.0).max(20.0);
+                    let (rect, response) = ui.allocate_exact_size(Vec2::new(width,32.0),egui::Sense::hover());
+                    let name = egui::WidgetText::from(RichText::new(folder).size(13.0).strong()).into_galley(ui,Some(egui::TextWrapMode::Truncate),width,FontId::proportional(13.0));
+                    ui.painter().galley(egui::pos2(rect.left(),rect.center().y-name.size().y*0.5),name,p.ink);
+                    response.on_hover_text(self.files.root.display().to_string());
                     if ui.add_enabled_ui(!self.global.busy,|ui| theme::icon_button(ui,theme::Icon::Open,language.text("Open folder…"))).inner.on_disabled_hover_text(language.text("Working in background…")).clicked() { self.choose_workspace(ctx); }
                     if theme::icon_button(ui,theme::Icon::Refresh,language.text("Refresh")).clicked() { self.files.restart(self.files.root.clone()); }
                 });
                 ui.add_space(8.0);
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 4.0;
+                    let width = (ui.available_width()-8.0)/3.0;
                     for (i,key) in ["Files","Outline","Recent"].iter().enumerate() {
-                        let r=ui.selectable_value(&mut self.navigation,i as u8,RichText::new(language.text(key)).size(12.0));
+                        let r=theme::navigation_tab(ui,language.text(key),self.navigation==i as u8,width,p);
                         theme::record_control(ui,&r,&format!("navigation:{key}"));
+                        if r.clicked() { self.navigation=i as u8; }
                     }
                 });
                 ui.add_space(8.0);
@@ -1654,6 +1696,7 @@ impl Editor {
                     .show_rows(ui, 28.0, self.tree.rows.len(), |ui, range| {
                         ui.spacing_mut().interact_size.y = 28.0;
                         ui.spacing_mut().button_padding = Vec2::new(4.0, 2.0);
+                        ui.spacing_mut().item_spacing.y = 0.0;
                         for row in range {
                             let (id, depth) = self.tree.rows[row];
                             let node = &self.files.scan.tree[id];
@@ -1665,7 +1708,10 @@ impl Editor {
                                 let path = self.files.root.join(&node.relative);
                                 let selected = !directory && self.doc.path.as_ref() == Some(&path);
                                 if selected || response.hovered() {
-                                    ui.painter().rect_filled(rect, 5, if selected { p.selected } else { p.selected.gamma_multiply(0.5) });
+                                    ui.painter().rect_filled(rect, 4, if selected { p.selected } else { p.selected.gamma_multiply(0.5) });
+                                }
+                                if selected {
+                                    ui.painter().rect_filled(egui::Rect::from_min_size(rect.min+Vec2::new(0.0,4.0),Vec2::new(2.0,20.0)),1,p.accent);
                                 }
                                 let icon = egui::Rect::from_min_size(rect.min + Vec2::new((depth as f32 * 12.0).min(84.0), 0.0), Vec2::new(27.0, 26.0));
                                 let center = icon.center();
@@ -1821,7 +1867,7 @@ if response.clicked(){clicked=Some(*byte);}});
         let language = self.language;
         let p = self.palette;
         ui.set_clip_rect(ui.clip_rect().intersect(ui.max_rect()));
-        ui.horizontal_wrapped(|ui| {
+        theme::pane_toolbar(ui, |ui| {
             ui.label(
                 RichText::new(
                     language.text(if text_files::markdown(self.doc.path.as_deref()) {
@@ -1835,8 +1881,7 @@ if response.clicked(){clicked=Some(*byte);}});
                 .color(p.muted),
             );
             if text_files::markdown(self.doc.path.as_deref())
-                && ui
-                    .small_button(language.text("Structure"))
+                && theme::tool_button(ui, language.text("Structure"))
                     .on_hover_text("Ctrl+Shift+T")
                     .clicked()
             {
@@ -1857,7 +1902,7 @@ if response.clicked(){clicked=Some(*byte);}});
             let wrap_combo =
                 egui::ComboBox::from_id_salt("source-line-wrap")
                     .width(110.)
-                    .selected_text(language.text(label))
+                    .selected_text(RichText::new(language.text(label)).size(12.0))
                     .show_ui(ui, |ui| {
                         let automatic_response = ui.selectable_value(
                             &mut self.preferences.source_wrap,
@@ -2174,7 +2219,7 @@ if response.clicked(){clicked=Some(*byte);}});
         let displayable = !markdown || self.rich.displayable(&self.doc, self.document_generation);
         self.rich.source_interactions = coordinates_current;
         ui.set_clip_rect(ui.clip_rect().intersect(ui.max_rect()));
-        ui.horizontal(|ui| {
+        theme::pane_toolbar(ui, |ui| {
             ui.label(
                 RichText::new(
                     language.text(if text_files::markdown(self.doc.path.as_deref()) {
@@ -2719,7 +2764,7 @@ if response.clicked(){clicked=Some(*byte);}});
         let mut reopen = false;
         let mut use_for_saving = false;
         let result = theme::modal(ctx, "encoding").show(ctx, |ui| {
-            ui.set_width(420.0_f32.min(ctx.content_rect().width() - 64.0));
+            ui.set_width(464.0_f32.min(ctx.content_rect().width() - 88.0));
             ui.label(RichText::new(language.text("Text encoding")).size(20.0).strong());
             egui::ScrollArea::vertical().max_height((ctx.content_rect().height() - 150.0).max(140.0)).show(ui, |ui| {
                 ui.label(language.text("Reopen reads the file again. Save encoding converts your current text on the next save."));
@@ -2745,10 +2790,10 @@ if response.clicked(){clicked=Some(*byte);}});
                 ui.label(language.text("Reopen discards edits only after the unsaved changes dialog. Conversion never replaces unsupported characters."));
             });
                 ui.add_space(12.0);
-                ui.horizontal_wrapped(|ui| {
+                theme::action_row(ui, &[language.text("Cancel"),language.text("Reopen with encoding"),language.text("Use for saving")], |ui| {
                     if button(ui, language.text("Cancel")).clicked() { self.encoding_open = false; }
                     if ui.add_enabled(self.encoding_target.is_some(), egui::Button::new(language.text("Reopen with encoding"))).clicked() { reopen = true; }
-                    if current_document && button(ui, language.text("Use for saving")).clicked() { use_for_saving = true; }
+                    if current_document && theme::primary_button(ui, language.text("Use for saving"), self.palette).clicked() { use_for_saving = true; }
                 });
         });
         if result.should_close() {
@@ -2786,15 +2831,19 @@ if response.clicked(){clicked=Some(*byte);}});
             let mut apply = false;
             let mut cancel = false;
             theme::modal(ctx, "rename-document").show(ctx, |ui| {
-                ui.set_width(360.);
+                ui.set_width(404.0_f32.min(ctx.content_rect().width() - 88.0));
                 ui.label(RichText::new(language.text("Rename document…")).size(20.));
                 ui.label(language.text("New filename in the same folder"));
                 let response = ui.text_edit_singleline(&mut self.rename_name);
                 theme::record_control(ui, &response, "rename-filename");
-                ui.horizontal(|ui| {
-                    apply = button(ui, language.text("Rename")).clicked();
-                    cancel = button(ui, language.text("Cancel")).clicked();
-                });
+                theme::action_row(
+                    ui,
+                    &[language.text("Rename"), language.text("Cancel")],
+                    |ui| {
+                        apply = theme::primary_button(ui, language.text("Rename"), p).clicked();
+                        cancel = button(ui, language.text("Cancel")).clicked();
+                    },
+                );
             });
             if cancel {
                 self.rename_open = false;
@@ -2834,7 +2883,7 @@ if response.clicked(){clicked=Some(*byte);}});
         }
         if self.settings_open {
             let result = theme::modal(ctx, "settings").show(ctx, |ui| {
-                ui.set_width(390.0_f32.min(ctx.content_rect().width() - 64.0));
+                ui.set_width(484.0_f32.min(ctx.content_rect().width() - 88.0));
                 ui.label(
                     RichText::new(language.text("Preferences"))
                         .size(20.0)
@@ -2842,12 +2891,12 @@ if response.clicked(){clicked=Some(*byte);}});
                 );
                 ui.add_space(8.0);
                 egui::ScrollArea::vertical()
-                    .max_height((ctx.content_rect().height() - 160.0).max(160.0))
+                    .max_height((ctx.content_rect().height() - 210.0).max(120.0))
                     .show(ui, |ui| self.preferences_ui(ui));
                 ui.add_space(8.0);
                 ui.separator();
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if button(ui, language.text("Done")).clicked() {
+                    if theme::primary_button(ui, language.text("Done"), p).clicked() {
                         self.settings_open = false;
                     }
                 });
@@ -2866,7 +2915,7 @@ if response.clicked(){clicked=Some(*byte);}});
                     ui.style().animation_time,
                 );
                 ui.multiply_opacity(fade);
-                ui.set_width(380.0_f32.min(ctx.content_rect().width() - 64.0));
+                ui.set_width(404.0_f32.min(ctx.content_rect().width() - 88.0));
                 ui.label(
                     RichText::new(language.text("Keep your changes?"))
                         .size(20.0)
@@ -2889,34 +2938,42 @@ if response.clicked(){clicked=Some(*byte);}});
                     ctx.request_repaint_after(std::time::Duration::from_millis(20));
                 }
                 ui.add_space(18.0);
-                ui.horizontal_wrapped(|ui| {
-                    if button(ui, language.text("Cancel")).clicked() {
-                        decision = Some(0);
-                    }
-                    let discard = ui.add_enabled(
-                        !self.saves.active(false),
-                        egui::Button::new(language.text("Discard")),
-                    );
-                    theme::record_control(ui, &discard, "unsaved-discard");
-                    if discard.clicked() {
-                        decision = Some(1);
-                    }
-                    if ui
-                        .add(
-                            egui::Button::new(RichText::new(language.text("Save changes")).color(
-                                if p.dark {
-                                    Color32::from_rgb(20, 22, 28)
-                                } else {
-                                    Color32::WHITE
-                                },
-                            ))
-                            .fill(p.accent),
-                        )
-                        .clicked()
-                    {
-                        decision = Some(2);
-                    }
-                });
+                theme::action_row(
+                    ui,
+                    &[
+                        language.text("Cancel"),
+                        language.text("Discard"),
+                        language.text("Save changes"),
+                    ],
+                    |ui| {
+                        if button(ui, language.text("Cancel")).clicked() {
+                            decision = Some(0);
+                        }
+                        let discard = ui.add_enabled(
+                            !self.saves.active(false),
+                            egui::Button::new(language.text("Discard")),
+                        );
+                        theme::record_control(ui, &discard, "unsaved-discard");
+                        if discard.clicked() {
+                            decision = Some(1);
+                        }
+                        if ui
+                            .add(
+                                egui::Button::new(
+                                    RichText::new(language.text("Save changes")).color(if p.dark {
+                                        Color32::from_rgb(20, 22, 28)
+                                    } else {
+                                        Color32::WHITE
+                                    }),
+                                )
+                                .fill(p.accent),
+                            )
+                            .clicked()
+                        {
+                            decision = Some(2);
+                        }
+                    },
+                );
                 if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
                     decision = Some(0);
                 }
@@ -2939,7 +2996,7 @@ if response.clicked(){clicked=Some(*byte);}});
         }
         if let Some(message) = self.error.clone() {
             theme::modal(ctx, "error").show(ctx, |ui| {
-                ui.set_width(420.0_f32.min(ctx.content_rect().width() - 64.0));
+                ui.set_width(424.0_f32.min(ctx.content_rect().width() - 88.0));
                 ui.label(
                     RichText::new(language.text("Something needs attention"))
                         .size(20.0)
@@ -2954,7 +3011,7 @@ if response.clicked(){clicked=Some(*byte);}});
                     self.show_encoding(Some(path), ctx);
                 }
                 ui.add_space(12.0);
-                if button(ui, language.text("OK")).clicked()
+                if theme::primary_button(ui, language.text("OK"), p).clicked()
                     || ui.input(|i| i.key_pressed(egui::Key::Escape))
                 {
                     self.error = None;
@@ -3166,11 +3223,11 @@ impl eframe::App for Editor {
         self.titlebar(ctx);
         self.toolbar(ctx);
         egui::TopBottomPanel::bottom("status")
-            .exact_height(32.0)
+            .exact_height(28.0)
             .frame(
                 egui::Frame::new()
                     .fill(p.chrome)
-                    .inner_margin(egui::Margin::symmetric(16, 5))
+                    .inner_margin(egui::Margin::symmetric(16, 4))
                     .stroke(Stroke::new(0.5, p.line)),
             )
             .show(ctx, |ui| {
@@ -3266,7 +3323,7 @@ impl eframe::App for Editor {
             .frame(
                 egui::Frame::new()
                     .fill(p.paper)
-                    .inner_margin(egui::Margin::symmetric(theme::CONTENT_MARGIN as i8, 8)),
+                    .inner_margin(egui::Margin::symmetric(theme::CONTENT_MARGIN as i8, 12)),
             )
             .show(ctx, |ui| {
                 let pressed=ctx.input(|i|i.pointer.any_pressed().then(||i.pointer.interact_pos()).flatten());
@@ -3307,8 +3364,7 @@ impl eframe::App for Editor {
                 let path = self.doc.path.as_ref().map(|p|p.display().to_string()).unwrap_or_else(||language.text("Untitled").into());
                 let state = format!("{}{}",language.text(if !self.last_secondary {"Active"} else {"Main document"}),if self.doc.presentation_dirty() {format!(" · {}",language.text("Unsaved changes"))} else {String::new()});
                 theme::document_header(ui,&self.doc.name(language),&path,&state,(!self.last_secondary,self.doc.presentation_dirty()),p);
-                self.autosave_status(ui, false);
-                self.recovery_status(ui, false);
+                self.protection_status(ui, false);
                 match mode {
                     Mode::Edit => self.editor(ui),
                     Mode::Read => {
@@ -3659,6 +3715,17 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         let parts: Vec<f32> = size.split('x').filter_map(|n| n.parse().ok()).collect();
         if parts.len() == 2 {
             options.viewport = options.viewport.with_inner_size([parts[0], parts[1]]);
+        }
+    }
+    // Task-scoped placement can create an inspection window on a chosen screen
+    // without taking activation from another desktop workspace.
+    if let Ok(position) = std::env::var("MDCARD_WINDOW_POSITION") {
+        let parts: Vec<f32> = position.split('x').filter_map(|n| n.parse().ok()).collect();
+        if parts.len() == 2 && parts.iter().all(|v| v.is_finite()) {
+            options.viewport = options
+                .viewport
+                .with_position([parts[0], parts[1]])
+                .with_active(false);
         }
     }
     let creation_started = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));

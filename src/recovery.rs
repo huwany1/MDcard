@@ -1076,116 +1076,137 @@ impl Editor {
         if self.recovery.open {
             let mut open = true;
             let mut restore = None;
-            egui::Window::new(language.text("Recover manuscripts…"))
-                .open(&mut open)
-                .default_width(650.)
-                .max_height((ctx.content_rect().height() - 80.).max(200.))
-                .show(ctx, |ui| {
-                    ui.label(language.text(
-                        "Recovery opens a new unsaved copy. The original file will not be written.",
-                    ));
-                    egui::ScrollArea::vertical()
-                        .max_height((ctx.content_rect().height() - 230.).max(100.))
-                        .show(ui, |ui| {
-                            for (index, item) in self.recovery.catalog.iter().enumerate() {
-                                ui.separator();
-                                if let Some(s) = &item.snapshot {
-                                    ui.strong(&s.name);
-                                    ui.label(s.path.as_ref().map_or_else(
-                                        || language.text("Untitled").to_owned(),
-                                        |p| p.display().to_string(),
-                                    ));
-                                    ui.small(language.format(
-                                        "{time} · {pane} · {bytes} bytes · {encoding} · {bom}",
-                                        &[
-                                            ("time", &timestamp(s.time_ms)),
-                                            (
-                                                "pane",
-                                                language.text(if s.pane == "secondary" {
-                                                    "Second document"
-                                                } else {
-                                                    "Main document"
-                                                }),
-                                            ),
-                                            ("bytes", &item.bytes.to_string()),
-                                            ("encoding", s.encoding.name()),
-                                            (
-                                                "bom",
-                                                language.text(if s.bom {
-                                                    "With BOM"
-                                                } else {
-                                                    "Without BOM"
-                                                }),
-                                            ),
-                                        ],
-                                    ));
-                                    ui.label(
-                                        s.text
-                                            .chars()
-                                            .take(180)
-                                            .collect::<String>()
-                                            .replace(['\r', '\n'], " "),
-                                    );
-                                    if !s.drafts.is_empty() {
-                                        ui.label(format!(
-                                            "{}: {}",
-                                            language.text("Independent drafts"),
-                                            s.drafts.len()
-                                        ));
-                                    }
-                                    let response = ui.button(language.text("Recover"));
-                                    if std::env::var_os("MDCARD_UI_REPORT").is_some()
-                                        && response.hovered()
-                                        && ui.input(|i| {
-                                            i.pointer.any_pressed() || i.pointer.any_released()
-                                        })
-                                    {
-                                        if self.recovery.trace.len() >= 24 {
-                                            self.recovery.trace.pop_front();
-                                        }
-                                        self.recovery.trace.push_back(format!(
-                                            "restore {index}: pressed={} released={} clicked={}",
-                                            ui.input(|i| i.pointer.any_pressed()),
-                                            ui.input(|i| i.pointer.any_released()),
-                                            response.clicked()
-                                        ));
-                                    }
-                                    crate::theme::record_control(
-                                        ui,
-                                        &response,
-                                        &format!("recovery-restore-{index}"),
-                                    );
-                                    if response.clicked() {
-                                        restore = Some(item.key.clone());
-                                    }
-                                } else {
-                                    ui.colored_label(
-                                        ui.visuals().error_fg_color,
-                                        language.text("Unreadable recovery copy was retained"),
-                                    );
-                                    ui.label(recovery_error(
-                                        language,
-                                        item.error.as_deref().unwrap_or(""),
+            egui::Window::new(crate::theme::window_title(
+                language.text("Recover manuscripts…"),
+            ))
+            .open(&mut open)
+            .default_width(650.)
+            .min_width(260.)
+            .max_width((crate::theme::window_bounds(ctx).width() - 36.).max(260.))
+            .constrain_to(crate::theme::window_bounds(ctx))
+            .max_height((ctx.content_rect().height() - 80.).max(200.))
+            .show(ctx, |ui| {
+                ui.label(language.text(
+                    "Recovery opens a new unsaved copy. The original file will not be written.",
+                ));
+                egui::ScrollArea::vertical()
+                    .max_height((ctx.content_rect().height() - 230.).max(100.))
+                    .show(ui, |ui| {
+                        for (index, item) in self.recovery.catalog.iter().enumerate() {
+                            ui.separator();
+                            if let Some(s) = &item.snapshot {
+                                ui.strong(&s.name);
+                                ui.label(s.path.as_ref().map_or_else(
+                                    || language.text("Untitled").to_owned(),
+                                    |p| p.display().to_string(),
+                                ));
+                                ui.small(language.format(
+                                    "{time} · {pane} · {bytes} bytes · {encoding} · {bom}",
+                                    &[
+                                        ("time", &timestamp(s.time_ms)),
+                                        (
+                                            "pane",
+                                            language.text(if s.pane == "secondary" {
+                                                "Second document"
+                                            } else {
+                                                "Main document"
+                                            }),
+                                        ),
+                                        ("bytes", &item.bytes.to_string()),
+                                        ("encoding", s.encoding.name()),
+                                        (
+                                            "bom",
+                                            language.text(if s.bom {
+                                                "With BOM"
+                                            } else {
+                                                "Without BOM"
+                                            }),
+                                        ),
+                                    ],
+                                ));
+                                egui::Frame::new()
+                                    .fill(self.palette.control)
+                                    .inner_margin(10)
+                                    .corner_radius(4)
+                                    .show(ui, |ui| {
+                                        ui.label(
+                                            s.text
+                                                .chars()
+                                                .take(180)
+                                                .collect::<String>()
+                                                .replace(['\r', '\n'], " "),
+                                        );
+                                    });
+                                if !s.drafts.is_empty() {
+                                    ui.label(format!(
+                                        "{}: {}",
+                                        language.text("Independent drafts"),
+                                        s.drafts.len()
                                     ));
                                 }
-                                let response = ui.button(language.text("Delete recovery copy…"));
+                                let response = crate::theme::primary_button(
+                                    ui,
+                                    language.text("Recover"),
+                                    self.palette,
+                                );
+                                if std::env::var_os("MDCARD_UI_REPORT").is_some()
+                                    && response.hovered()
+                                    && ui.input(|i| {
+                                        i.pointer.any_pressed() || i.pointer.any_released()
+                                    })
+                                {
+                                    if self.recovery.trace.len() >= 24 {
+                                        self.recovery.trace.pop_front();
+                                    }
+                                    self.recovery.trace.push_back(format!(
+                                        "restore {index}: pressed={} released={} clicked={}",
+                                        ui.input(|i| i.pointer.any_pressed()),
+                                        ui.input(|i| i.pointer.any_released()),
+                                        response.clicked()
+                                    ));
+                                }
                                 crate::theme::record_control(
                                     ui,
                                     &response,
-                                    &format!("recovery-delete-{index}"),
+                                    &format!("recovery-restore-{index}"),
                                 );
                                 if response.clicked() {
-                                    self.recovery.delete = Some(item.key.clone());
+                                    restore = Some(item.key.clone());
                                 }
+                            } else {
+                                ui.colored_label(
+                                    ui.visuals().error_fg_color,
+                                    language.text("Unreadable recovery copy was retained"),
+                                );
+                                ui.label(recovery_error(
+                                    language,
+                                    item.error.as_deref().unwrap_or(""),
+                                ));
                             }
-                        });
-                    ui.separator();
-                    let later = ui.button(language.text("Later"));
-                    crate::theme::record_control(ui, &later, "recovery-later");
-                    if later.clicked() {
-                        self.recovery.open = false;
-                    }
-                });
+                            let response = ui.button(language.text("Delete recovery copy…"));
+                            crate::theme::record_control(
+                                ui,
+                                &response,
+                                &format!("recovery-delete-{index}"),
+                            );
+                            if response.clicked() {
+                                self.recovery.delete = Some(item.key.clone());
+                            }
+                        }
+                    });
+                ui.separator();
+                let later = ui
+                    .allocate_ui_with_layout(
+                        egui::vec2(ui.available_width(), crate::theme::CONTROL_HEIGHT),
+                        egui::Layout::right_to_left(egui::Align::Center),
+                        |ui| ui.button(language.text("Later")),
+                    )
+                    .inner;
+                crate::theme::record_control(ui, &later, "recovery-later");
+                if later.clicked() {
+                    self.recovery.open = false;
+                }
+            });
             self.recovery.open &= open;
             if let Some(key) = restore {
                 // Preserve any current buffer; recovery never replaces unsaved work.
@@ -1207,28 +1228,30 @@ impl Editor {
             }
         }
         if let Some(key) = self.recovery.delete.clone() {
-            egui::Window::new(language.text("Delete recovery copy?"))
-                .collapsible(false)
-                .show(ctx, |ui| {
-                    ui.label(language.text(
-                        "This permanently discards this recovery copy and its independent drafts.",
-                    ));
-                    let cancel = ui.button(language.text("Cancel"));
-                    crate::theme::record_control(ui, &cancel, "recovery-delete-cancel");
-                    if cancel.clicked() {
-                        self.recovery.delete = None;
-                    }
-                    let delete = ui.button(language.text("Delete"));
-                    crate::theme::record_control(ui, &delete, "recovery-delete-confirm");
-                    if delete.clicked() {
-                        self.recovery.operation(key.clone(), true, ctx);
-                    }
-                });
+            egui::Window::new(crate::theme::window_title(
+                language.text("Delete recovery copy?"),
+            ))
+            .collapsible(false)
+            .show(ctx, |ui| {
+                ui.label(language.text(
+                    "This permanently discards this recovery copy and its independent drafts.",
+                ));
+                let cancel = ui.button(language.text("Cancel"));
+                crate::theme::record_control(ui, &cancel, "recovery-delete-cancel");
+                if cancel.clicked() {
+                    self.recovery.delete = None;
+                }
+                let delete = ui.button(language.text("Delete"));
+                crate::theme::record_control(ui, &delete, "recovery-delete-confirm");
+                if delete.clicked() {
+                    self.recovery.operation(key.clone(), true, ctx);
+                }
+            });
         }
         if !self.recovery.slots[0].restored_drafts.is_empty() && self.recovery.inspect_drafts {
             let mut open = true;
             let mut close = false;
-            egui::Window::new(language.text("Independent drafts")).open(&mut open).default_width(600.).vscroll(true).show(ctx, |ui| {
+            egui::Window::new(crate::theme::window_title(language.text("Independent drafts"))).open(&mut open).default_width(600.).max_width((crate::theme::window_bounds(ctx).width()-36.).max(260.)).constrain_to(crate::theme::window_bounds(ctx)).vscroll(true).show(ctx, |ui| {
                     ui.label(language.text("Drafts are kept separately. Review and copy text; no automatic merge is performed."));
                     for (index,draft) in self.recovery.slots[0].restored_drafts.iter().enumerate() {
                         ui.strong(&draft.kind);
@@ -1246,21 +1269,23 @@ impl Editor {
             self.recovery.inspect_drafts = open && !close;
         }
         if self.recovery.discard_restored {
-            egui::Window::new(language.text("Discard independent drafts?"))
-                .collapsible(false)
-                .show(ctx, |ui| {
-                    ui.label(language.text(
-                        "The document source will be kept. Discarded drafts cannot be recovered.",
-                    ));
-                    if ui.button(language.text("Cancel")).clicked() {
-                        self.recovery.discard_restored = false;
-                    }
-                    if ui.button(language.text("Discard")).clicked()
-                        && self.recovery.discard_drafts(false)
-                    {
-                        self.recovery.discard_restored = false;
-                    }
-                });
+            egui::Window::new(crate::theme::window_title(
+                language.text("Discard independent drafts?"),
+            ))
+            .collapsible(false)
+            .show(ctx, |ui| {
+                ui.label(language.text(
+                    "The document source will be kept. Discarded drafts cannot be recovered.",
+                ));
+                if ui.button(language.text("Cancel")).clicked() {
+                    self.recovery.discard_restored = false;
+                }
+                if ui.button(language.text("Discard")).clicked()
+                    && self.recovery.discard_drafts(false)
+                {
+                    self.recovery.discard_restored = false;
+                }
+            });
         }
     }
     pub(crate) fn recovery_report(&self) -> serde_json::Value {
