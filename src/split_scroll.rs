@@ -23,6 +23,7 @@ pub struct Anchor {
 }
 #[derive(Default)]
 pub(crate) struct View {
+    pub(crate) drawn_frame: u64,
     pub(crate) rect: Option<egui::Rect>,
     pub(crate) scrollbar: Option<egui::Rect>,
     pub(crate) offset: f32,
@@ -79,6 +80,20 @@ pub struct SplitScroll {
     pub(crate) repaint_requests: u64,
 }
 impl SplitScroll {
+    pub(crate) fn virtual_input_state(&self, text: &str, frame: u64) -> serde_json::Value {
+        let views = [Pane::Source,Pane::Preview].map(|pane| {
+            let v=&self.views[pane.index()];
+            let line=self.anchor.and_then(|a|Self::mapped_glyph(v,a.byte,text,v.rect?,frame)).map(|g|g.rect[3]-g.rect[1]);
+            serde_json::json!({"pane":pane,"rect":v.rect.map(|r|[r.min.x,r.min.y,r.max.x,r.max.y]),
+                "drawn_frame":v.drawn_frame,"drawn_offset":v.offset,"native_next_offset":self.native_offsets[pane.index()],
+                "max":v.max,"revision":v.revision,"target":self.targets[pane.index()],
+                "target_sequence":self.target_sequences[pane.index()],"drawn_target":self.drawn_target(pane,text,frame),"line_height":line})
+        });
+        serde_json::json!({"current":self.current,"revision":self.revision,"epoch":self.epoch,
+            "driver":self.driver,"sequence":self.sequence,"confirmed_native":self.confirmed_native,
+            "anchor_sequence":self.anchor_sequence,"pending_capture":self.pending_capture,
+            "anchor":self.anchor.map(|a|serde_json::json!({"byte":a.byte,"viewport_y":a.viewport_y,"text":a.text})),"views":views})
+    }
     pub fn session(
         &mut self,
         identity: Option<(u64, u64)>,
@@ -560,12 +575,16 @@ impl SplitScroll {
         let dt = (now - self.last_step[pane.index()]).clamp(1. / 240., 0.05) as f32;
         self.last_step[pane.index()] = now;
         let distance = target - v.offset;
-        // A table row has different physical heights in each pane. Dropping
-        // every <=1px remainder at each ownership handover compounds that
-        // remainder in the other row's scale. Finish the newest actually
-        // confirmed intent exactly once, then retain the idle deadband.
-        let final_snap = self.table_progress.is_some()
-            && measured_target.is_some()
+        // Different row heights and glyph quantization can compound a <=1px
+        // remainder at each ownership handover. Finish the newest confirmed
+        // intent once. Text requires this pass's actual target geometry;
+        // fallback/cache-only text cannot authorize a final alignment.
+        let final_snap = measured_target.is_some()
+            && (self.table_progress.is_some()
+                || (a.text
+                    && self
+                        .drawn_target(pane, text, ctx.cumulative_frame_nr())
+                        .is_some()))
             && self.anchor_sequence == Some(self.sequence)
             && self.target_sequences[pane.index()] == Some(self.sequence)
             && self
@@ -591,7 +610,12 @@ impl SplitScroll {
             v.offset + distance * (1. - (-dt / 0.018).exp())
         };
         if final_snap && (target - next).abs() <= 1. {
-            self.settled_sequences[pane.index()] = Some(self.sequence);
+            // Text's next actual layout can quantize the glyph to a slightly
+            // different target. Let that drawn feedback reach the <=1px branch
+            // before consuming its one final alignment for this sequence.
+            if self.table_progress.is_some() {
+                self.settled_sequences[pane.index()] = Some(self.sequence);
+            }
             next = target;
         }
         if (target - next).abs() > 1. {
@@ -631,6 +655,7 @@ impl SplitScroll {
         let displayed_delta = offset - self.views[n].offset;
         let previous_driver = self.driver;
         self.views[n] = View {
+            drawn_frame: ui.ctx().cumulative_frame_nr(),
             rect: Some(rect),
             scrollbar: ui.ctx().read_response(id.with(1usize)).map(|r| r.rect),
             offset,

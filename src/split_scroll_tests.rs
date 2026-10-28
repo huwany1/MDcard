@@ -844,7 +844,16 @@ fn render_native_fps(
 }
 #[test]
 fn line_native_fixture_fps_sweep_keeps_original_marker() {
-    for fps in [30u64, 60, 75, 120] {
+    line_native_fixture_marker_cycles(&[30, 60, 75, 120], 100);
+}
+
+#[test]
+fn line_native_fixture_three_hundred_cycles_keep_original_marker() {
+    line_native_fixture_marker_cycles(&[30, 120], 300);
+}
+
+fn line_native_fixture_marker_cycles(rates: &[u64], cycles: usize) {
+    for &fps in rates {
         let ctx = egui::Context::default();
         ctx.set_pixels_per_point(1.25);
         let marker = "ANCHOR_0250";
@@ -890,7 +899,7 @@ fn line_native_fixture_fps_sweep_keeps_original_marker() {
             mark(&app.large.split_scroll, Pane::Source),
             mark(&app.large.split_scroll, Pane::Preview),
         ];
-        for cycle in 0..100 {
+        for cycle in 0..cycles {
             let amount = if cycle < 10 { 0.1 } else { 1. };
             for pane in [Pane::Source, Pane::Preview] {
                 for delta in [-amount, amount] {
