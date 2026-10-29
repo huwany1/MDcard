@@ -75,6 +75,7 @@ var UpgradeBackupReady, InstallSucceeded: Boolean;
 function RunRollback(const Operation: String): Boolean;
 var Code: Integer; Args: String;
 begin
+  Code := -1;
   Args := '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{tmp}\rollback.ps1') + '" -Operation ' + Operation +
     ' -InstallRoot "' + ExpandConstant('{app}') + '" -BackupRoot "' + ExpandConstant('{app}.mdcard-rollback') +
     '" -NewManifest "' + ExpandConstant('{tmp}\rollback-new-manifest.json') + '"';
@@ -101,6 +102,8 @@ begin
   Result := '';
   if ProductRunning() then
     Result := 'Please save your documents and close MDcard before installing. / 请保存文档并关闭 MDcard 后重试。'
+  else if DirExists(ExpandConstant('{app}.mdcard-rollback')) and not UpgradeBackupReady then
+    Result := 'A previous interrupted upgrade backup exists. No files were overwritten. Follow RECOVERY.txt in: ' + ExpandConstant('{app}.mdcard-rollback')
   else if FileExists(ExpandConstant('{app}\MDcard.exe')) and not UpgradeBackupReady then begin
     ExtractTemporaryFile('rollback.ps1');
     ExtractTemporaryFile('rollback-new-manifest.json');
