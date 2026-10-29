@@ -871,9 +871,11 @@ impl Editor {
         }
         let language = self.language;
         self.restore_edit_focus();
-        let path = if !save_as && self.doc.path.is_some() {
-            self.doc.path.clone()
-        } else {
+        if !save_as && self.doc.path.is_some() {
+            self.start_current_save(false, ctx);
+            return false;
+        }
+        let path = {
             let mut dialog = rfd::FileDialog::new()
                 .add_filter(
                     language.text("Supported text files"),
