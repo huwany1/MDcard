@@ -8,11 +8,20 @@ manifest=json.loads((a.payload/'manifest.json').read_text());assert manifest['pl
 version=manifest['version'];a.output.mkdir(parents=True,exist_ok=True)
 temporary=tempfile.TemporaryDirectory(prefix='mdcard-deb-');stage=Path(temporary.name)
 shutil.copytree(a.payload,stage/'opt/mdcard')
+# Normalize permissions on the Linux staging filesystem, independently of a
+# Windows bind mount's synthetic modes or a later manifest metadata rewrite.
+for entry in (stage/'opt/mdcard').rglob('*'):
+ if entry.is_dir():entry.chmod(0o755)
+ elif entry.is_file():
+  with entry.open('rb') as handle:is_executable=handle.read(4)==b'\x7fELF'
+  entry.chmod(0o755 if is_executable else 0o644)
+(stage/'opt/mdcard').chmod(0o755)
 def write(name,data,mode=0o644):
  path=stage/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_text(data);path.chmod(mode)
 write('usr/bin/mdcard','#!/bin/sh\nexec /opt/mdcard/mdcard "$@"\n',0o755)
 write('usr/share/applications/mdcard.desktop',(root/'packaging/linux/mdcard.desktop').read_text())
 icon=stage/'usr/share/icons/hicolor/scalable/apps/mdcard.svg';icon.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(root/'assets/branding/mdcard-icon/svg/mdcard-color.svg',icon)
+icon.chmod(0o644)
 write('usr/share/doc/mdcard/copyright',(root/'LICENSE').read_text()+'\nThird-party licenses: /opt/mdcard/LICENSES.txt and /opt/mdcard/licenses\n')
 deps='libc6 (>= 2.36), libstdc++6, libgcc-s1, libx11-6, libxcb1, libxkbcommon0, libxkbcommon-x11-0, libxcursor1, libxrandr2, libxi6, libgl1, libegl1, libgl1-mesa-dri, libvulkan1, mesa-vulkan-drivers, libnss3, libnspr4, libatk1.0-0, libatk-bridge2.0-0, libatspi2.0-0, libcups2, libdrm2, libdbus-1-3, libgbm1, libasound2, libpango-1.0-0, libcairo2, libfontconfig1, libfreetype6, xdg-desktop-portal, xdg-desktop-portal-gtk'
 size=sum((f.stat().st_size+1023)//1024 for f in stage.rglob('*') if f.is_file())
