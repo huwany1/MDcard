@@ -340,7 +340,7 @@ impl ExportUi {
                     }
                     );
                     ui.collapsing(language.text("Pandoc configuration"),|ui|{
-                        ui.label(language.text("Leave blank to use bundled Pandoc, then PATH. DOCX and EPUB require Pandoc."));
+                        ui.label(language.text("Leave blank to use MDCARD_PANDOC, bundled Pandoc, then PATH. DOCX and EPUB require Pandoc."));
                         ui.horizontal_wrapped(|ui|{
                             ui.label(language.text("Pandoc executable"));
                             let r=ui.text_edit_singleline(&mut self.settings.pandoc);
@@ -479,34 +479,12 @@ impl ExportUi {
         } else {
             Palette::new(dark, 0)
         };
-        let bundled_pandoc = root.join("runtime/pandoc").join(if cfg!(windows) {
-            "pandoc.exe"
-        } else {
-            "pandoc"
-        });
-        let dev_pandoc = root
-            .join("runtime")
-            .join(if cfg!(windows) { "windows" } else { "linux" })
-            .join("pandoc")
-            .join(if cfg!(windows) {
-                "pandoc.exe"
-            } else {
-                "pandoc"
-            });
-        let pandoc = if !s.pandoc.is_empty() {
-            s.pandoc.clone()
-        } else if bundled_pandoc.exists() {
-            bundled_pandoc.display().to_string()
-        } else if dev_pandoc.exists() {
-            dev_pandoc.display().to_string()
-        } else {
-            "pandoc".into()
-        };
         let base = source_path
             .and_then(Path::parent)
             .map(Path::to_path_buf)
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
-        let request = json!({"source":source,"sourcePath":source_path,"output":output,"format":FORMATS[s.format.min(8)].0,"baseDir":base,"options":{"pipeline":s.pipeline,"dark":dark,"background":hex(p.paper),"foreground":hex(p.ink),"accent":hex(p.accent),"fontSize":s.font_size,"marginMm":s.margin,"scale":s.scale,"paper":s.paper,"lineNumbers":s.line_numbers,"toc":s.toc,"pandocPath":pandoc,"referenceDocx":s.reference,"title":s.title,"author":s.author,"identifier":s.identifier,"language":s.book_language,"customCss":s.css}});
+        // An empty path lets the renderer resolve the environment, bundle and PATH.
+        let request = json!({"source":source,"sourcePath":source_path,"output":output,"format":FORMATS[s.format.min(8)].0,"baseDir":base,"options":{"pipeline":s.pipeline,"dark":dark,"background":hex(p.paper),"foreground":hex(p.ink),"accent":hex(p.accent),"fontSize":s.font_size,"marginMm":s.margin,"scale":s.scale,"paper":s.paper,"lineNumbers":s.line_numbers,"toc":s.toc,"pandocPath":s.pandoc,"referenceDocx":s.reference,"title":s.title,"author":s.author,"identifier":s.identifier,"language":s.book_language,"customCss":s.css}});
         let (tx, rx) = mpsc::channel();
         let cancel = Arc::new(AtomicBool::new(false));
         let cancelling = cancel.clone();
@@ -801,6 +779,78 @@ fn same_path(a: &Path, b: &Path) -> bool {
 #[cfg(test)]
 mod stream_tests {
     use super::*;
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn desktop_export_passes_pandoc_override_or_empty_path_to_renderer() {
+        use std::os::unix::fs::PermissionsExt;
+        if std::env::var_os("MDCARD_TEST_EXPORT_CHILD").is_some() {
+            let mut ui = ExportUi {
+                settings: Settings {
+                    format: 2,
+                    pandoc: std::env::var("MDCARD_TEST_EXPLICIT").unwrap(),
+                    ..Settings::default()
+                },
+                ..ExportUi::default()
+            };
+            ui.start(
+                &egui::Context::default(),
+                "# Test",
+                None,
+                PathBuf::from(std::env::var_os("MDCARD_TEST_OUTPUT").unwrap()),
+                Palette::new(false, 0),
+            );
+            let deadline = Instant::now() + Duration::from_secs(10);
+            while ui.task.is_some() && Instant::now() < deadline {
+                ui.poll();
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            assert!(ui.task.is_none(), "export process did not finish");
+            assert_eq!(ui.last["type"], "complete", "{:?}", ui.error);
+            return;
+        }
+
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("renderer");
+        let runtime = root.join("runtime");
+        std::fs::create_dir_all(runtime.join("pandoc")).unwrap();
+        std::fs::write(runtime.join("pandoc/pandoc"), "bundled fixture").unwrap();
+        std::fs::write(root.join("export.mjs"), "fixture").unwrap();
+        let node = runtime.join("node");
+        std::fs::write(
+            &node,
+            "#!/usr/bin/python3\nimport json, os, sys\nwith open(sys.argv[2]) as f: request = json.load(f)\nwith open(os.environ['MDCARD_TEST_CAPTURE'], 'w') as f: json.dump({'request': request, 'env': os.environ.get('MDCARD_PANDOC')}, f)\nprint(json.dumps({'type': 'complete'}), flush=True)\n",
+        )
+        .unwrap();
+        std::fs::set_permissions(&node, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let capture = dir.path().join("capture.json");
+        for explicit in ["", "/chosen/pandoc"] {
+            let child = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "export_ui::stream_tests::desktop_export_passes_pandoc_override_or_empty_path_to_renderer",
+                    "--nocapture",
+                ])
+                .env("MDCARD_TEST_EXPORT_CHILD", "1")
+                .env("MDCARD_RENDERER_DIR", &root)
+                .env("MDCARD_SETTINGS_PATH", dir.path().join("settings.json"))
+                .env("MDCARD_TEST_OUTPUT", dir.path().join("out.docx"))
+                .env("MDCARD_TEST_CAPTURE", &capture)
+                .env("MDCARD_TEST_EXPLICIT", explicit)
+                .env("MDCARD_PANDOC", "/configured/pandoc")
+                .output()
+                .unwrap();
+            assert!(
+                child.status.success(),
+                "{}",
+                String::from_utf8_lossy(&child.stdout)
+            );
+            let captured: Value =
+                serde_json::from_slice(&std::fs::read(&capture).unwrap()).unwrap();
+            assert_eq!(captured["request"]["format"], "docx");
+            assert_eq!(captured["request"]["options"]["pandocPath"], explicit);
+            assert_eq!(captured["env"], "/configured/pandoc");
+        }
+    }
     #[test]
     fn successful_cleanup_without_eof_has_a_deadline_even_after_complete() {
         let (release, held) = mpsc::channel();

@@ -1419,15 +1419,16 @@ impl Editor {
     }
     pub fn save_secondary(&mut self) -> bool {
         let ctx = self.saves.context.clone().unwrap_or_default();
-        let Some(path) = self
+        if self
             .global
             .secondary
             .as_ref()
-            .and_then(|doc| doc.path.clone())
-        else {
+            .and_then(|doc| doc.path.as_ref())
+            .is_none()
+        {
             return true;
-        };
-        self.start_save(true, path, false, &ctx);
+        }
+        self.start_current_save(true, &ctx);
         false
     }
     fn search_report(&mut self) {

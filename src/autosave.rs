@@ -47,6 +47,11 @@ struct Job {
     gate: Arc<AtomicU8>,
     result: mpsc::Receiver<Result<Document, String>>,
 }
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum SaveTarget {
+    Current,
+    Explicit(PathBuf),
+}
 #[derive(Default)]
 struct Slot {
     observed: Option<Version>,
@@ -56,7 +61,7 @@ struct Slot {
     // New documents can replace the buffer, but cannot accumulate worker threads.
     retiring: Option<Job>,
     error: Option<String>,
-    manual: Option<PathBuf>,
+    manual: Option<SaveTarget>,
 }
 #[derive(Default)]
 pub struct SaveCoordinator {
@@ -169,12 +174,24 @@ impl Editor {
         automatic: bool,
         ctx: &egui::Context,
     ) {
+        self.start_save_target(secondary, SaveTarget::Explicit(path), automatic, ctx);
+    }
+    pub(crate) fn start_current_save(&mut self, secondary: bool, ctx: &egui::Context) {
+        self.start_save_target(secondary, SaveTarget::Current, false, ctx);
+    }
+    fn start_save_target(
+        &mut self,
+        secondary: bool,
+        target: SaveTarget,
+        automatic: bool,
+        ctx: &egui::Context,
+    ) {
         if self.global.busy {
             return;
         }
         if self.saves.active(secondary) || self.saves.slot(secondary).retiring.is_some() {
             if !automatic {
-                self.saves.slot_mut(secondary).manual = Some(path);
+                self.saves.slot_mut(secondary).manual = Some(target);
             }
             return;
         }
@@ -185,6 +202,13 @@ impl Editor {
             (doc, self.global.secondary_identity())
         } else {
             (&self.doc, self.document_generation)
+        };
+        let path = match target {
+            SaveTarget::Current => {
+                let Some(path) = doc.path.clone() else { return };
+                path
+            }
+            SaveTarget::Explicit(path) => path,
         };
         let version = Version::of(doc, generation);
         let mut snapshot = doc.clone();
@@ -239,8 +263,8 @@ impl Editor {
                 });
             if retired {
                 self.saves.slot_mut(secondary).retiring = None;
-                if let Some(path) = self.saves.slot_mut(secondary).manual.take() {
-                    self.start_save(secondary, path, false, ctx);
+                if let Some(target) = self.saves.slot_mut(secondary).manual.take() {
+                    self.start_save_target(secondary, target, false, ctx);
                 }
             }
             let slot = self.saves.slot_mut(secondary);
@@ -319,8 +343,8 @@ impl Editor {
                 }
             }
             let manual = self.saves.slot_mut(secondary).manual.take();
-            if let Some(path) = manual {
-                self.start_save(secondary, path, false, ctx);
+            if let Some(target) = manual {
+                self.start_save_target(secondary, target, false, ctx);
             }
         }
         if self.save_then_action
@@ -557,7 +581,10 @@ mod tests {
                 &gate,
                 &app.saves.slot(false).retiring.as_ref().unwrap().gate
             ));
-            assert_eq!(app.saves.slot(false).manual.as_ref(), Some(&path));
+            assert_eq!(
+                app.saves.slot(false).manual.as_ref(),
+                Some(&SaveTarget::Explicit(path.clone()))
+            );
             app.poll_saves(&ctx);
         }
         assert_eq!(gate.load(Ordering::SeqCst), CANCELLED);
@@ -658,6 +685,90 @@ mod tests {
         app.tick_autosave(&ctx, t);
         app.tick_autosave(&ctx, t + DELAY);
         wait_for_saves(&mut app, &ctx);
+        assert_eq!(fs::read_to_string(target).unwrap(), "B");
+        assert_eq!(fs::read_to_string(old).unwrap(), "original\r\n");
+    }
+    #[test]
+    fn normal_save_queued_during_save_as_uses_new_path() {
+        let (dir, mut app, ctx) = fixture();
+        let old = app.doc.path.clone().unwrap();
+        let target = dir.path().join("copy.md");
+        edit(&mut app.doc, "A");
+        let (mut snapshot, tx, gate) = controlled(&mut app, false, false);
+        edit(&mut app.doc, "B");
+        app.save(false, &ctx);
+        assert_eq!(app.saves.slot(false).manual, Some(SaveTarget::Current));
+        gate.store(COMMITTING, Ordering::SeqCst);
+        snapshot.save_to(&target).unwrap();
+        fs::write(&old, "external change to original").unwrap();
+        tx.send(Ok(snapshot)).unwrap();
+        app.poll_saves(&ctx);
+        wait_for_saves(&mut app, &ctx);
+        assert_eq!(app.doc.path, Some(target.canonicalize().unwrap()));
+        assert!(!app.doc.dirty());
+        assert_eq!(fs::read_to_string(target).unwrap(), "B");
+        assert_eq!(
+            fs::read_to_string(old).unwrap(),
+            "external change to original"
+        );
+    }
+    #[test]
+    fn normal_save_queued_during_save_as_detects_new_target_conflict() {
+        let (dir, mut app, ctx) = fixture();
+        let old = app.doc.path.clone().unwrap();
+        let target = dir.path().join("copy.md");
+        edit(&mut app.doc, "A");
+        let (mut snapshot, tx, gate) = controlled(&mut app, false, false);
+        edit(&mut app.doc, "B");
+        app.save(false, &ctx);
+        gate.store(COMMITTING, Ordering::SeqCst);
+        snapshot.save_to(&target).unwrap();
+        fs::write(&target, "external change to copy").unwrap();
+        tx.send(Ok(snapshot)).unwrap();
+        app.poll_saves(&ctx);
+        wait_for_saves(&mut app, &ctx);
+        assert_eq!(app.doc.path, Some(target.canonicalize().unwrap()));
+        assert!(app.doc.dirty());
+        assert!(app.saves.slot(false).error.is_some());
+        assert_eq!(
+            fs::read_to_string(target).unwrap(),
+            "external change to copy"
+        );
+        assert_eq!(fs::read_to_string(old).unwrap(), "original\r\n");
+    }
+    #[test]
+    fn failed_save_as_discards_queued_normal_save() {
+        let (_dir, mut app, ctx) = fixture();
+        let old = app.doc.path.clone().unwrap();
+        edit(&mut app.doc, "unsaved");
+        let (_snapshot, tx, _gate) = controlled(&mut app, false, false);
+        app.save(false, &ctx);
+        tx.send(Err("Save As failed".into())).unwrap();
+        app.poll_saves(&ctx);
+        assert!(!app.saves.active(false));
+        assert!(app.doc.dirty());
+        assert_eq!(app.doc.path, Some(old.clone()));
+        assert_eq!(fs::read_to_string(old).unwrap(), "original\r\n");
+    }
+    #[test]
+    fn secondary_normal_save_resolves_current_path_after_prior_save() {
+        let (dir, mut app, ctx) = fixture();
+        let old = app.doc.path.clone().unwrap();
+        let target = dir.path().join("secondary-copy.md");
+        app.global.secondary = Some(Document::open(&old).unwrap());
+        edit(app.global.secondary.as_mut().unwrap(), "A");
+        let (mut snapshot, tx, gate) = controlled(&mut app, true, false);
+        edit(app.global.secondary.as_mut().unwrap(), "B");
+        app.save_secondary();
+        assert_eq!(app.saves.slot(true).manual, Some(SaveTarget::Current));
+        gate.store(COMMITTING, Ordering::SeqCst);
+        snapshot.save_to(&target).unwrap();
+        tx.send(Ok(snapshot)).unwrap();
+        app.poll_saves(&ctx);
+        wait_for_saves(&mut app, &ctx);
+        let secondary = app.global.secondary.as_ref().unwrap();
+        assert_eq!(secondary.path, Some(target.canonicalize().unwrap()));
+        assert!(!secondary.dirty());
         assert_eq!(fs::read_to_string(target).unwrap(), "B");
         assert_eq!(fs::read_to_string(old).unwrap(), "original\r\n");
     }
