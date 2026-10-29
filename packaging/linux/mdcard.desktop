@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=MDcard
+Comment=Local Markdown editor with offline diagrams and exports
+Exec=/usr/bin/mdcard %F
+Icon=mdcard
+Terminal=false
+Categories=Office;TextEditor;
+MimeType=text/markdown;text/x-markdown;
+StartupNotify=true

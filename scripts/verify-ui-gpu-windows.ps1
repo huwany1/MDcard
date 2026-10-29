@@ -13,6 +13,10 @@ public class MdcardUi {
  [DllImport("user32.dll")] public static extern uint GetDpiForWindow(IntPtr h);
  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+ [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h,IntPtr p);
+ [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
+ [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint from,uint to,bool attach);
+ [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr h);
  [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h,IntPtr after,int x,int y,int cx,int cy,uint flags);
  [DllImport("user32.dll")] public static extern bool MoveWindow(IntPtr h,int x,int y,int w,int h2,bool b);
  [DllImport("user32.dll")] public static extern bool SetCursorPos(int x,int y);
@@ -30,6 +34,11 @@ function Keys([string]$Keys) {[Windows.Forms.SendKeys]::SendWait($Keys);Start-Sl
 function Click([float]$X,[float]$Y) {$r=Bounds;$s=[MdcardUi]::GetDpiForWindow($script:app.MainWindowHandle)/96.0;[void][MdcardUi]::SetCursorPos($r.Left+[int]($X*$s),$r.Top+[int]($Y*$s));[MdcardUi]::mouse_event(2,0,0,0,[UIntPtr]::Zero);[MdcardUi]::mouse_event(4,0,0,0,[UIntPtr]::Zero);Start-Sleep -Milliseconds 350}
 function Launch([string]$Report,[string]$Gpu='',[string]$Document='') {
  $launch=[Diagnostics.ProcessStartInfo]::new((Resolve-Path -LiteralPath $Exe).Path);$launch.UseShellExecute=$false
+ if($env:MDCARD_QA_CLEAN_ENV-eq'1') {
+  foreach($name in @('MDCARD_RENDERER_DIR','MDCARD_CHROMIUM','MDCARD_JAVA','MDCARD_PANDOC','JAVA_HOME','NODE_PATH','NODE_OPTIONS','CARGO_HOME','RUSTUP_HOME')) {[void]$launch.Environment.Remove($name)}
+  $launch.Environment['PATH']=Join-Path $env:SystemRoot 'System32'
+  $launch.WorkingDirectory=$output
+ }
  $launch.Environment['MDCARD_SETTINGS_PATH']=$settings;$launch.Environment['MDCARD_RENDERER_REPORT']=(Join-Path $output "$Report.json")
  if($Gpu) {$launch.ArgumentList.Add('--gpu');$launch.ArgumentList.Add($Gpu)}
  if($Document) {$launch.ArgumentList.Add($Document)}
@@ -38,7 +47,13 @@ function Launch([string]$Report,[string]$Gpu='',[string]$Document='') {
  foreach($name in @($launch.Environment.Keys)) {
   if($name.StartsWith('MDCARD_')-and$name.EndsWith('_REPORT')-and[string]::IsNullOrWhiteSpace($launch.Environment[$name])) {[void]$launch.Environment.Remove($name)}
  }
- $script:app=[Diagnostics.Process]::Start($launch);Start-Sleep -Seconds 3;$script:app.Refresh()
+ $startupClock=[Diagnostics.Stopwatch]::StartNew()
+ $script:app=[Diagnostics.Process]::Start($launch)
+ if($env:MDCARD_QA_STARTUP_TIMING_PATH) {
+  do { Start-Sleep -Milliseconds 10; $script:app.Refresh() } while(!$script:app.HasExited-and($script:app.MainWindowHandle-eq0-or!(Test-Path -LiteralPath $env:MDCARD_UI_REPORT))-and$startupClock.Elapsed.TotalSeconds-lt30)
+  @{process_to_native_window_and_first_report_seconds=$startupClock.Elapsed.TotalSeconds;measurement='native window + first diagnostic report; not scanout/presentation'}|ConvertTo-Json|Set-Content -LiteralPath $env:MDCARD_QA_STARTUP_TIMING_PATH -Encoding utf8
+ } else { Start-Sleep -Seconds 3 }
+ $script:app.Refresh()
  if($script:app.HasExited -or $script:app.MainWindowHandle -eq 0) {throw 'No app window'}
  [void][MdcardUi]::MoveWindow($script:app.MainWindowHandle,50,50,1550,1025,$true)
  # Windows may reject SetForegroundWindow while another process owns the foreground.
@@ -47,7 +62,20 @@ function Launch([string]$Report,[string]$Gpu='',[string]$Document='') {
  [void][MdcardUi]::SetForegroundWindow($script:app.MainWindowHandle);Start-Sleep -Milliseconds 350
  Click 500 27
  [void][MdcardUi]::SetWindowPos($script:app.MainWindowHandle,[IntPtr]::new(-2),0,0,0,0,0x43)
- if ([MdcardUi]::GetForegroundWindow() -ne $script:app.MainWindowHandle) {throw 'Actual test window did not receive keyboard focus'}
+ for($focusAttempt=0;$focusAttempt-lt5-and[MdcardUi]::GetForegroundWindow()-ne$script:app.MainWindowHandle;$focusAttempt++) {
+  Start-Sleep -Milliseconds 250;$script:app.Refresh()
+  $currentThread=[MdcardUi]::GetCurrentThreadId();$foregroundThread=[MdcardUi]::GetWindowThreadProcessId([MdcardUi]::GetForegroundWindow(),[IntPtr]::Zero)
+  [void][MdcardUi]::AttachThreadInput($currentThread,$foregroundThread,$true)
+  [void][MdcardUi]::SetWindowPos($script:app.MainWindowHandle,[IntPtr]::new(-1),0,0,0,0,0x43)
+  [void][MdcardUi]::BringWindowToTop($script:app.MainWindowHandle)
+  [void][MdcardUi]::SetForegroundWindow($script:app.MainWindowHandle);Click 500 27
+  [void][MdcardUi]::SetWindowPos($script:app.MainWindowHandle,[IntPtr]::new(-2),0,0,0,0,0x43)
+  [void][MdcardUi]::AttachThreadInput($currentThread,$foregroundThread,$false)
+ }
+ if ([MdcardUi]::GetForegroundWindow() -ne $script:app.MainWindowHandle) {
+  @{pid=$script:app.Id;main_handle=$script:app.MainWindowHandle.ToInt64();foreground=[MdcardUi]::GetForegroundWindow().ToInt64();main_title=$script:app.MainWindowTitle;utc=[DateTime]::UtcNow.ToString('o')}|ConvertTo-Json|Set-Content (Join-Path $output 'focus-failure.json')
+  throw 'Actual test window did not receive keyboard focus'
+ }
 }
 if($FunctionsOnly) {return}
 if($CaptureOnly) {$script:app=Get-Process mdcard;Shot 'inspect';return}

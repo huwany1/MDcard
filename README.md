@@ -39,6 +39,8 @@ MDcard 面向技术文档、学习笔记与长文写作，把 Markdown 源码、
 
 ## 下载与安装
 
+本地 **0.1.5** Windows `.exe` / Debian `.deb` 安装包准备与验收见 [安装迁移指南](docs/releases/0.1.5-INSTALL.md)及本次交付目录；尚未公开发布，以下公开下载仍为历史正式版 0.1.0。
+
 当前正式版为 **[v0.1.0](https://github.com/huwany1/MDcard/releases/tag/v0.1.0)**，提供完整便携包。
 
 | 平台 | 下载 | 运行环境 |

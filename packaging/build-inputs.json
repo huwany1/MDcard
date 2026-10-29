@@ -1,0 +1,26 @@
+{
+  "innoSetup": {
+    "version": "7.1.1-x64",
+    "url": "https://github.com/jrsoftware/issrc/releases/download/is-7_1_1/innosetup-7.1.1-x64.exe",
+    "sha256": "8a5a6711c3766a6e5fb74f280ba0e3551e719ce94538d901fdbd1f8f9920b3f0",
+    "authenticodePublisher": "Pyrsys B.V."
+  },
+  "jdk": {
+    "windows": {
+      "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1%2B1/OpenJDK21U-jdk_x64_windows_hotspot_21.0.12.1_1.zip",
+      "sha256": "f9d6e191ab098c0d416e7d588a24420a8621cd2f4720dab2459b8b7b2d2d8b4e"
+    },
+    "linux": {
+      "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1%2B1/OpenJDK21U-jdk_x64_linux_hotspot_21.0.12.1_1.tar.gz",
+      "sha256": "ce79869e1307ed8ee1e2baa86a412b1eb5b75d10a01006d788a6f968bcfaee94"
+    }
+  },
+  "jlink": {
+    "modules": "java.base,java.desktop,java.logging,java.prefs,java.scripting,jdk.localedata",
+    "locales": "en,zh,ja,ko,ru",
+    "options": ["--strip-debug", "--no-header-files", "--no-man-pages", "--compress=2"]
+  },
+  "rust": "1.92.0",
+  "linuxBuildBase": "rust:1.92-bookworm@sha256:e90e846de4124376164ddfbaab4b0774c7bdeef5e738866295e5a90a34a307a2",
+  "runtimeLocks": ["renderer/runtime-sources.json", "renderer/export-runtime-sources.json", "renderer/package-lock.json", "scripts/release-tools/package-lock.json"]
+}

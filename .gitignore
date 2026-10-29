@@ -11,6 +11,7 @@
 /renderer/node_modules/
 /renderer/vendor/
 /renderer/runtime/
+/scripts/release-tools/node_modules/
 
 # Editor and operating-system metadata.
 /.idea/
