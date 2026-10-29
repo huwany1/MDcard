@@ -4,6 +4,50 @@ use crate::egui;
 use crate::split_scroll::*;
 use eframe::App;
 #[test]
+fn non_text_preview_anchor_scrolls_normal_source_to_its_byte() {
+    let ctx = egui::Context::default();
+    let text = format!(
+        "{}![图片](large-image.png)\n\n{}",
+        "前文 paragraph\n\n".repeat(100),
+        "后文 paragraph\n\n".repeat(100),
+    );
+    let byte = text.find("图片").unwrap() + 1; // Inside a UTF-8 character.
+    let mut app = crate::preview_layout_tests::editor(&ctx, &text);
+    let mut frame = 0;
+    app.reading.bind(&mut app.doc, "main", 0);
+    for _ in 0..8 {
+        render(&mut app, &ctx, &mut frame, vec![]);
+    }
+    let view = &app.large.split_scroll.views[Pane::Source.index()];
+    let galley = &view.galleys[0];
+    let character = text[..text.find("图片").unwrap()].chars().count();
+    let expected = (view.offset
+        + galley.pos.y
+        + galley
+            .galley
+            .pos_from_cursor(egui::text::CCursor::new(character))
+            .top()
+        - view.rect.unwrap().top())
+    .clamp(0., view.max);
+    assert!(expected > 1.);
+    app.large.split_scroll.driver = Some(Pane::Preview);
+    app.large.split_scroll.anchor = Some(Anchor {
+        byte,
+        fraction: 0.5,
+        viewport_y: 0.,
+        text: false,
+    });
+    for _ in 0..25 {
+        render(&mut app, &ctx, &mut frame, vec![]);
+    }
+    let actual = app.large.split_scroll.views[Pane::Source.index()].offset;
+    assert!(
+        (actual - expected).abs() <= 1.,
+        "actual={actual}, expected={expected}"
+    );
+    assert_eq!(app.doc.text, text);
+}
+#[test]
 fn line_wheel_180ms_takeovers_do_not_accumulate_top_code_marker_drift() {
     let ctx = egui::Context::default();
     ctx.set_pixels_per_point(1.25);
