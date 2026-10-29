@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Windows build host: Python 3.11+, Node 24.21.0/npm, Docker Desktop Linux engine, Git.
 # Does not install the product, alter the portable App, or publish anything.
-param([string]$OutputDirectory='dist\0.1.5',[string]$BuildImage='mdcard-release-build:1.92')
+param([string]$OutputDirectory='dist\0.1.5',[string]$BuildImage='mdcard-release-build:1.92',[string]$CargoCacheVolume='mdcard-release-cargo',[string]$TargetCacheVolume='mdcard-release-target')
 $ErrorActionPreference='Stop'
 $repoRoot=Split-Path $PSScriptRoot
 Set-Location -LiteralPath $repoRoot
@@ -27,7 +27,7 @@ Remove-Item Env:\MDCARD_JAVA
 Run python @('scripts/prepare-release-jre.py')
 $relativeStage=[IO.Path]::GetRelativePath($repoRoot,$stageRoot).Replace('\','/')
 $buildShell='set -eu; cargo build --locked --release --target x86_64-pc-windows-gnu; cp /target/x86_64-pc-windows-gnu/release/mdcard.exe '+$relativeStage+'/MDcard.exe; cargo build --locked --release; cp /target/release/mdcard '+$relativeStage+'/mdcard; cargo test --locked; rustc -Vv; dpkg-query -W'
-Run docker @('run','--rm','-v',"${repoRoot}:/work",'-v','mdcard-release-cargo:/usr/local/cargo','-v','mdcard-release-target:/target','-e','CARGO_TARGET_DIR=/target','-e','CARGO_BUILD_JOBS=2',$BuildImage,'bash','-c',$buildShell)
+Run docker @('run','--rm','-v',"${repoRoot}:/work",'-v',"${CargoCacheVolume}:/usr/local/cargo",'-v',"${TargetCacheVolume}:/target",'-e','CARGO_TARGET_DIR=/target','-e','CARGO_BUILD_JOBS=2',$BuildImage,'bash','-c',$buildShell)
 $trace=Join-Path $stageRoot 'dependency-trace.json'
 Run node @('scripts/trace-release-runtime.cjs','renderer',$trace)
 $win=Join-Path $stageRoot 'windows';$linux=Join-Path $stageRoot 'linux'
