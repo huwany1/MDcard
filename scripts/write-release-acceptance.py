@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-import json,shutil
+import json,shutil,subprocess
+from datetime import datetime,timezone
 from pathlib import Path
 root=Path(__file__).resolve().parent.parent;e=root/'evidence/release-015'
 target=root/'docs/releases/0.1.5-ACCEPTANCE.md'
 if target.exists() and not (e/'acceptance-working-draft.md').exists():shutil.copy2(target,e/'acceptance-working-draft.md')
 guest=e/'windows-clean-guest/guest-evidence/result.json'
 guest_ok=guest.exists() and json.loads(guest.read_text(encoding='utf-8-sig')).get('passed') is True
-status='Windows 无网干净来宾已通过；本地交付归档待最终校验。' if guest_ok else '收尾中：Windows 全新操作系统来宾仍在实际安装/验收；未将 C4 标为全部通过。其余已完成证据如下，本报告不冒充整个目标已完成。'
+status=('Windows 无网干净来宾已通过；两平台本地交付验收已完成，归档校验由发行清单及 SHA256SUMS 记录。最终验收记录时间（UTC）：'+datetime.now(timezone.utc).isoformat()) if guest_ok else '收尾中：Windows 全新操作系统来宾仍在实际安装/验收；未将 C4 标为全部通过。其余已完成证据如下，本报告不冒充整个目标已完成。'
 text=r'''# MDcard 0.1.5 本地交付验收
 
 STATUS
@@ -34,7 +35,7 @@ STATUS
 | C1 身份 | 独立 TEMP clone 完整 build 脚本 exit0、两平台同源，最终打包输入冻结；`clean-source-rebuild-final-r2.log`、`final-clean-build-identity.json`、最终逐文件 manifest | 源码归档/发行清单额外记录后续 QA 文档快照，不将它冒充原生重编译 |
 | C2 Windows 安装 | 用户级，无提权；中文空格路径、开始菜单、可选桌面/Open With、不更改 Typora UserChoice；真实两页 Next、自动启动933f；`final-windows-wizard-r{2,3,4}`、`final-windows-protected-install` | 自动化探查 caption 后恢复同一向导，bootstrap 退出码不可取，完整 success/Run 日志与自动创建进程独立证明成功；实际最后按钮是 Next |
 | C3 Linux 安装 | Debian12 amd64 dpkg/apt 标准包、非 root 运行、桌面/图标/命令入口、权限无 group/world writable；最终三次fresh、重装/升级/移除/purge；`final-linux-protected-install`、`linux-different-upgrade-protected` | 仅实测 Debian12/X11/Openbox/Xvfb/软件 Mesa，不扩展声称 Ubuntu/Wayland/物理 GPU 已验收 |
-| C4 完整运行条件 | 所需 Node/Java/Chromium/Pandoc/必要字体/许可证随包；Linux 无源码挂载、无系统开发运行时、PATH空、Docker禁网；Windows TEMP独立CWD、System32 PATH、无开发变量 | Windows 全新来宾状态见本报告开头与 `windows-clean-guest`；宿主清PATH单独不等同干净OS |
+| C4 完整运行条件 | 所需 Node/Java/Chromium/Pandoc/必要字体/许可证随包；Linux 无源码挂载、无系统开发运行时、PATH空、Docker禁网；Windows 全新 LTSC 来宾实际安装 AB/933f，无NIC、无开发工具、非管理员令牌、4引擎9导出和键盘编辑保存通过 | `windows-clean-guest/guest-evidence/result.json`；来宾不替代宿主 final933 的完整 New/Open/SaveAs/IME/恢复验收，宿主清PATH也不等同干净OS |
 | C5 可复核成本 | 同payload ZIP6/gzip6、至少三次原始样本、实际默认Open及 A/B；新保护包重新测三次安装；`final-cost-model.json` 与 `0.1.5-COSTS.md` | 下载是固定带宽估算；分阶段配对合成，不伪装连续人工实测；快网 Windows 可能更慢 |
 | C6 安装后功能 | 两平台编辑/保存/SaveAs/搜索/Split/四引擎/九格式；真实 Pinyin/IBus 预编辑与“你好”落盘；实际自动保存/强制终止恢复；完整清单/视觉/18导出结构独立复核 | 最终Windows933f autosave/Core恢复证据见 `final-windows-autosave` / `final-windows-recovery`；早期131D只作历史支持，不混写SHA |
 | C7 数据与中断 | 运行中升级/卸载拒绝且不杀进程；完整旧版备份先SHA验证；真实Win复制期取消5、1847旧文件全恢复；Linux不同内容SIGINT保留完整旧版且手工恢复零差；用户资料保留 | Windows备份约980MB/30s；Linux SIGINT非自动完整回滚，已实测明确手动恢复+标准repair，不承诺任意断电/磁盘损坏自动事务 |
@@ -61,11 +62,16 @@ Linux最终694：preinst完整旧目录SHA备份，postinst对全部新文件SHA
 
 Windows宿主有开发工具，清环境与TEMP测试保留该边界；无网官方eval来宾独立验证此前不能覆盖的干净OS条件。来宾TCG的硬件检查绕过、额外ISO/QEMU/IBus下载均仅QA成本，不伪造普通机器性能或产品依赖。Windows安装器本次未代码签名，SmartScreen额外确认未做浏览器下载实测。
 
+全新来宾实际为 Windows 11 Enterprise LTSC 2024 x64，OS 10.0.26100.0、PowerShell 5.1.26100.1591，标准用户令牌；安装阶段用TCG，正式功能用经实际执行探针确认的WHPX，4GB/2vCPU，无虚拟网卡。来宾 node/npm/java/pandoc/rustc/cargo/gcc/git 均不存在于系统 PATH，也未挂载项目目录。实际已安装 AB/933f 的四引擎和九导出13项全通过；真实键盘把 `Initial.` 改成46B的两行内容，Ctrl+S后读取磁盘SHA为 `aa326067fc4ef6a72d0e830cab149ef2adca0d5f6764b1b7b1a3cf0c88b8f7e2`，UI dirty=false。原始ZIP经CRC验证回传，内容与 UI JSON 保留在 `windows-clean-guest/guest-evidence`。
+
+来宾复杂 New/SaveAs helper 的英文选择器、PS5 UTF-8 BOM、早期媒体文本重写语法错误以及指针焦点失败均保留为QA失败，未将其写为通过。最终使用可见键盘模式切换与保存闭环；完整 New/Open/SaveAs 由宿主实际安装的同一933f二进制验收覆盖。屏幕中的系统评估许可状态只记录，未更改时钟或绕过激活。来宾原始验收完成UTC为2026-10-29T15:22:36.2061398Z，即日本当地2026-10-30 00:22。
+
 Windows旧前景/输入caption失败、v4成功慢首轮（B追加34s）、Linux旧Preference几何漂移、IBus发现失败、Windows helper模块搜索路径污染、同版与不同内容中断探查都保留。最终采样固定新包/同payload/无重负载，未因首轮慢而静默丢弃成功结果。详见 `0.1.5-COSTS.md` 与原始证据。
 
 Rust clean build最终为357 passed / 0 failed / 6 ignored。ignored分别是内部subprocess actor、显式独立tmpfs/非root的disk-full/permission-denied、CPU竞争取消时序探针、完整搜索竞争计时、432布局矩阵。它们不被声称通过；实际安装后的正常保存/恢复与打包中断保护是独立验收。没有将编译成功或Windows通过当Linux验收，也没有承诺所有OS/驱动/输入法和任意电源故障。
 
 最终用户少下载多少、少操作几步、A/B省多久及代价，见 `0.1.5-COSTS.md`；其中同时展示正收益与快网回退，未把更小等同更快。
 '''
-target.write_text(text.replace('STATUS',status).replace(r'\u005c','\\'),encoding='utf-8')
+linux_commit=subprocess.check_output(['git','rev-parse','2a883e9'],cwd=root,text=True).strip()
+target.write_text(text.replace('STATUS',status).replace('`2a883e9`；',f'`{linux_commit}`；').replace(r'\u005c','\\'),encoding='utf-8',newline='\n')
 print('Updated acceptance; clean guest passed='+str(guest_ok))

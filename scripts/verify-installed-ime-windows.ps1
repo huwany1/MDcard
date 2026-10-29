@@ -5,7 +5,7 @@ $ErrorActionPreference='Stop'
 . "$PSScriptRoot\verify-ui-gpu-windows.ps1" -Exe $Exe -FunctionsOnly
 . "$PSScriptRoot\recovery-json.ps1"
 $output=[IO.Path]::GetFullPath($OutputDirectory);New-Item -ItemType Directory -Force $output|Out-Null
-$settings=Join-Path $output 'settings.json';@{language='en';reduce_motion=$true;font_size=15}|ConvertTo-Json|Set-Content $settings -Encoding utf8
+$settings=Join-Path $output 'settings.json';$fixtureJson=@{language='en';reduce_motion=$true;font_size=15}|ConvertTo-Json;[IO.File]::WriteAllText($settings,$fixtureJson,[Text.UTF8Encoding]::new($false))
 $env:MDCARD_UI_REPORT=Join-Path $output 'ui.json';$env:MDCARD_RECOVERY_DIR=Join-Path $output 'recovery';$env:MDCARD_READING_STATE_PATH=Join-Path $output 'reading.json';$env:MDCARD_QA_CLEAN_ENV='1'
 Add-Type @'
 using System;using System.Runtime.InteropServices;

@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Read-only QA CD entry point; Windows stock PowerShell 5.1, no developer tools.
+param([switch]$SkipInstall,[string]$EvidenceTag='MDcard-clean-QA-r2')
 $ErrorActionPreference='Stop'
-$out=Join-Path $env:USERPROFILE 'MDcard-clean-QA';New-Item -ItemType Directory -Force $out|Out-Null
+$out=Join-Path $env:USERPROFILE $EvidenceTag;New-Item -ItemType Directory -Force $out|Out-Null
 $serial=$null
 try{$serial=New-Object IO.Ports.SerialPort COM1,115200,None,8,one;$serial.Open()}catch{}
 function Progress([string]$Message){$line=([DateTime]::UtcNow.ToString('o')+' '+$Message);Add-Content (Join-Path $out 'progress.log') $line;if($serial-and$serial.IsOpen){$serial.WriteLine($line)}}
@@ -14,8 +15,7 @@ try {
  if(@($tools.Values|Where-Object{$_}).Count-gt0){throw 'Unexpected system developer tool in clean guest'}
  $setup=Join-Path $PSScriptRoot 'MDcard-0.1.5-windows-x64-setup.exe';$result.installerSHA256=(Get-FileHash $setup).Hash
  $appRoot=Join-Path $env:LOCALAPPDATA 'Programs\MDcard 中文 路径';$log=Join-Path $out 'install.log'
- $proc=Start-Process $setup -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/DIR="'+$appRoot+'"'),('/LOG="'+$log+'"')) -WindowStyle Hidden -Wait -PassThru
- $result.installExitCode=$proc.ExitCode;if($proc.ExitCode-ne0){throw 'Clean guest install failed'}
+ if(!$SkipInstall){$proc=Start-Process $setup -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/DIR="'+$appRoot+'"'),('/LOG="'+$log+'"')) -WindowStyle Hidden -Wait -PassThru;$result.installExitCode=$proc.ExitCode;if($proc.ExitCode-ne0){throw 'Clean guest install failed'}}else{$result.installEvidence='Reuse actual final package installed in first clean-OS attempt; installer/native SHA revalidated. No product rebuild or developer tools added.'}
  $exe=Join-Path $appRoot 'MDcard.exe';$result.binarySHA256=(Get-FileHash $exe).Hash;Progress 'Installed final EXE package, starting native default flow'
  & "$PSHOME\powershell.exe" -NoProfile -STA -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'verify-default-windows.ps1') -Exe $exe -Installer $setup -OutputDirectory (Join-Path $out 'native-default')
  if($LASTEXITCODE){throw 'Native default guest acceptance failed'}

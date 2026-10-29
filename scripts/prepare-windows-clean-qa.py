@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Prepare read-only external QA media; never part of the application package."""
-import json,re,shutil
+import json,re,shutil,subprocess
 from pathlib import Path
 root=Path(__file__).resolve().parent.parent
 media=root/'.local/windows-clean-qa/media';media.mkdir(parents=True,exist_ok=True)
@@ -14,10 +14,14 @@ for name in names:
     text=re.sub(r'\$launch\.ArgumentList\.Add\(([^;\n]+)\)',r'$launch.Arguments += (\'"\'+[string](\1)+\'" \')',text)
     text=text.replace('AddSeconds(30)','AddSeconds(300)').replace('-lt30)','-lt300)')
     text=text.replace('Start-Sleep -Seconds 3','Start-Sleep -Seconds 20').replace('Start-Sleep -Milliseconds 500','Start-Sleep -Milliseconds 1500')
+    # Product preference fixtures themselves explicitly use UTF8Encoding(false)
+    # in their owning QA sources. Do not rewrite arbitrary output statements.
     (media/name).write_text(text,encoding='utf-8-sig')
 text=(root/'scripts/verify-installed-engines.mjs').read_text(encoding='utf-8').replace('180000','1800000')
 (media/'verify-installed-engines.mjs').write_text(text,encoding='utf-8')
 (media/'guest-run.ps1').write_text((root/'scripts/windows-clean-guest.ps1').read_text(encoding='utf-8'),encoding='utf-8-sig')
+(media/'engines-only.ps1').write_text((root/'scripts/windows-clean-engines.ps1').read_text(encoding='utf-8'),encoding='utf-8-sig')
+(media/'collect-final.ps1').write_text((root/'scripts/windows-clean-collect.ps1').read_text(encoding='utf-8'),encoding='utf-8-sig')
 answer='''<?xml version="1.0" encoding="utf-8"?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
  <settings pass="windowsPE">
@@ -39,4 +43,5 @@ answer='''<?xml version="1.0" encoding="utf-8"?>
  </settings>
 </unattend>'''
 (media/'autounattend.xml').write_text(answer,encoding='utf-8')
+subprocess.run(['powershell.exe','-NoProfile','-File',str(root/'scripts/validate-qa-media.ps1'),'-Directory',str(media)],check=True)
 print(json.dumps({'media':str(media),'installer':str(final),'purpose':'QA only; offline virtual guest; no project source or development tools'}))
