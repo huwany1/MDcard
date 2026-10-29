@@ -12,6 +12,7 @@ mod large_document;
 mod localization;
 #[cfg(feature = "memory-profile")]
 mod memory_profile;
+mod mode_slider;
 mod preferences;
 #[cfg(target_os = "linux")]
 mod process_tree;
@@ -1377,11 +1378,7 @@ impl Editor {
                             Mode::Split => 1.0,
                             Mode::Read => 2.0,
                         };
-                        let x = ctx.animate_value_with_time(
-                            egui::Id::new("mode-indicator"),
-                            index,
-                            ui.style().animation_time,
-                        );
+                        let x = mode_slider::position(ctx, index, self.preferences.reduce_motion);
                         let selected = egui::Rect::from_min_size(
                             group.min + Vec2::new(2.0 + x * segment_width, 2.0),
                             Vec2::new(segment_width - 1.0, 28.0),
@@ -1422,10 +1419,9 @@ impl Editor {
                             theme::record_control(ui, &response, label);
                             let color = if !enabled {
                                 p.muted.gamma_multiply(0.55)
-                            } else if *mode == visible_mode {
-                                p.accent
                             } else {
-                                p.muted
+                                let emphasis = (1.0 - (x - i as f32).abs()).clamp(0.0, 1.0);
+                                theme::mix(p.muted, p.accent, emphasis)
                             };
                             let hover = ctx.animate_bool_with_time(
                                 response.id.with("hover"),
@@ -2892,7 +2888,12 @@ if response.clicked(){clicked=Some(*byte);}});
                 ui.add_space(8.0);
                 egui::ScrollArea::vertical()
                     .max_height((ctx.content_rect().height() - 210.0).max(120.0))
-                    .show(ui, |ui| self.preferences_ui(ui));
+                    .show(ui, |ui| {
+                        // The scrollbar overlays the scroll area's right edge. Keep
+                        // the full-width switches clear of its thumb and track.
+                        ui.set_max_width((ui.available_width() - 18.0).max(270.0));
+                        self.preferences_ui(ui);
+                    });
                 ui.add_space(8.0);
                 ui.separator();
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
