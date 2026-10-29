@@ -57,6 +57,8 @@ Name: "desktopicon"; Description: "Create a desktop shortcut / 创建桌面快�
 Name: "association"; Description: "Add MDcard to Open with for Markdown / 添加 Markdown 打开方式"; Flags: unchecked
 [Files]
 Source: "{#PayloadRoot}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "rollback.ps1"; Flags: dontcopy
+Source: "{#PayloadRoot}\manifest.json"; DestName: "rollback-new-manifest.json"; Flags: dontcopy
 [Icons]
 Name: "{userprograms}\MDcard"; Filename: "{app}\MDcard.exe"; WorkingDir: "{app}"
 Name: "{userdesktop}\MDcard"; Filename: "{app}\MDcard.exe"; WorkingDir: "{app}"; Tasks: desktopicon
@@ -69,6 +71,17 @@ Root: HKCU; Subkey: "Software\Classes\.markdown\OpenWithProgids"; ValueType: non
 [Run]
 Filename: "{app}\MDcard.exe"; Flags: nowait skipifsilent
 [Code]
+var UpgradeBackupReady, InstallSucceeded: Boolean;
+function RunRollback(const Operation: String): Boolean;
+var Code: Integer; Args: String;
+begin
+  Args := '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{tmp}\rollback.ps1') + '" -Operation ' + Operation +
+    ' -InstallRoot "' + ExpandConstant('{app}') + '" -BackupRoot "' + ExpandConstant('{app}.mdcard-rollback') +
+    '" -NewManifest "' + ExpandConstant('{tmp}\rollback-new-manifest.json') + '"';
+  Result := Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'), Args, '', SW_HIDE, ewWaitUntilTerminated, Code);
+  Result := Result and (Code = 0);
+  Log('Upgrade backup operation ' + Operation + ': ' + IntToStr(Code));
+end;
 function ProductRunning(): Boolean;
 var Locator, Service, Processes: Variant;
 begin
@@ -87,7 +100,28 @@ function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   Result := '';
   if ProductRunning() then
-    Result := 'Please save your documents and close MDcard before installing. / 请保存文档并关闭 MDcard 后重试。';
+    Result := 'Please save your documents and close MDcard before installing. / 请保存文档并关闭 MDcard 后重试。'
+  else if FileExists(ExpandConstant('{app}\MDcard.exe')) and not UpgradeBackupReady then begin
+    ExtractTemporaryFile('rollback.ps1');
+    ExtractTemporaryFile('rollback-new-manifest.json');
+    if RunRollback('Prepare') then UpgradeBackupReady := True
+    else Result := 'Could not finish a verified previous-version backup. No application files were overwritten. Check free disk space or the existing recovery folder: ' + ExpandConstant('{app}.mdcard-rollback');
+  end;
+end;
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssDone then begin
+    InstallSucceeded := True;
+    if UpgradeBackupReady and not RunRollback('Commit') then
+      Log('Installation succeeded; the redundant previous-version backup was retained for manual cleanup.');
+  end;
+end;
+procedure DeinitializeSetup();
+begin
+  if UpgradeBackupReady and not InstallSucceeded then begin
+    if not RunRollback('Restore') then
+      MsgBox('Previous-version backup is preserved. Save and close MDcard and follow RECOVERY.txt in: ' + ExpandConstant('{app}.mdcard-rollback'), mbError, MB_OK);
+  end;
 end;
 function InitializeUninstall(): Boolean;
 begin
