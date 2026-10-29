@@ -532,7 +532,9 @@ impl SplitScroll {
         if let Some(row) = self.table_progress {
             let start = self.row_y(pane, row.start, text, frame)?;
             let end = self.row_y(pane, row.end, text, frame)?;
-            return Some(start + (end - start) * row.fraction);
+            return Some(
+                (start + (end - start) * row.fraction).clamp(0., self.views[pane.index()].max),
+            );
         }
         self.precise(pane, a, text, frame)
     }
@@ -1024,6 +1026,77 @@ impl SplitScroll {
 #[cfg(test)]
 mod pending_capture_tests {
     use super::*;
+    #[test]
+    fn table_follower_stops_repainting_at_scroll_boundaries() {
+        let ctx = egui::Context::default();
+        let _ = ctx.run(Default::default(), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(400., 300.));
+                for (start, end, initial, boundary) in [
+                    (140., 160., 80., 100.),
+                    (-60., -40., 20., 0.),
+                    (40., 60., 20., 50.),
+                ] {
+                    let mut s = SplitScroll::default();
+                    s.session(Some((1, 1)), 0, true, 1, true);
+                    s.driver = Some(Pane::Preview);
+                    s.anchor = Some(Anchor {
+                        byte: 0,
+                        fraction: 0.,
+                        viewport_y: 0.,
+                        text: true,
+                    });
+                    s.table_progress = Some(TableProgress {
+                        start: 0,
+                        end: 1,
+                        fraction: 0.5,
+                        end_after_row: false,
+                    });
+                    s.views[0].max = 100.;
+                    s.views[0].offset = initial;
+                    for (byte, y) in [(0, start), (1, end)] {
+                        s.recent_positions[0].push_back(MeasuredAnchor {
+                            requested: byte,
+                            resolved: byte,
+                            content_y: y,
+                        });
+                    }
+                    let observe = |s: &mut SplitScroll, offset| {
+                        s.observe(
+                            Pane::Source,
+                            ui,
+                            egui::Id::new("source"),
+                            rect,
+                            offset,
+                            offset,
+                            100.,
+                            vec![],
+                            "",
+                            0,
+                            true,
+                            false,
+                            Anchor {
+                                byte: 0,
+                                fraction: 0.,
+                                viewport_y: 0.,
+                                text: true,
+                            },
+                        );
+                    };
+                    observe(&mut s, initial);
+                    assert_eq!(s.repaint_requests, 1, "follower still needs to move");
+                    assert_eq!(s.target(Pane::Source, "", ctx, |_| None), Some(boundary));
+                    s.layout_compensation[0] = true;
+                    for _ in 0..3 {
+                        observe(&mut s, boundary);
+                        assert_eq!(s.targets[0], Some(boundary));
+                        assert!(!s.layout_compensation[0]);
+                        assert_eq!(s.repaint_requests, 1, "settled boundary must stay idle");
+                    }
+                }
+            });
+        });
+    }
     #[test]
     fn confirmed_table_intent_finishes_once_without_subpixel_idle_rewrites() {
         let ctx = egui::Context::default();

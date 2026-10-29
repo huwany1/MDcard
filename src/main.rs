@@ -2103,11 +2103,40 @@ if response.clicked(){clicked=Some(*byte);}});
             split_scroll::Pane::Source,
             ui.ctx().memory(|m| m.has_focus(source_id)),
         );
+        // Block anchors can point into hidden syntax or whitespace, where the
+        // glyph-based precise mapping cannot provide a source target.
+        let source_view = &self.large.split_scroll.views[split_scroll::Pane::Source.index()];
+        let source_geometry = (source_view.revision == Some(self.doc.revision()))
+            .then(|| {
+                Some((
+                    source_view.galleys.first()?.clone(),
+                    source_view.rect?,
+                    source_view.offset,
+                ))
+            })
+            .flatten();
+        let source_block_character = self
+            .large
+            .split_scroll
+            .anchor
+            .filter(|a| !a.text)
+            .map(|a| self.reading.char_at_byte(&self.doc, a.byte));
         let sync_target = self.large.split_scroll.target(
             split_scroll::Pane::Source,
             &self.doc.text,
             ui.ctx(),
-            |_| None,
+            |a| {
+                let (galley, rect, offset) = source_geometry.as_ref()?;
+                if a.text {
+                    return None;
+                }
+                let character = source_block_character?;
+                let y = galley
+                    .galley
+                    .pos_from_cursor(egui::text::CCursor::new(character))
+                    .top();
+                Some(offset + galley.pos.y + y - rect.top() - a.viewport_y)
+            },
         );
         if let Some(y) = keyboard_scroll.or(sync_target) {
             source_scroll = source_scroll.vertical_scroll_offset(y);
