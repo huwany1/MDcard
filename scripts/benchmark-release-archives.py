@@ -6,17 +6,19 @@ Each output is a local benchmark artifact, not an additional supported format.
 """
 import argparse,hashlib,json,shutil,statistics,tarfile,time,zipfile
 from pathlib import Path
-p=argparse.ArgumentParser();p.add_argument('payload',type=Path);p.add_argument('output',type=Path);p.add_argument('--platform',choices=['windows','linux'],required=True);p.add_argument('--extract-root',type=Path);a=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('payload',type=Path);p.add_argument('output',type=Path);p.add_argument('--platform',choices=['windows','linux'],required=True);p.add_argument('--extract-root',type=Path);p.add_argument('--build-only',action='store_true');p.add_argument('--reuse-archive',action='store_true');a=p.parse_args()
 a.output.mkdir(parents=True,exist_ok=True);archive=a.output/('baseline.zip' if a.platform=='windows' else 'baseline.tar.gz')
 begin=time.perf_counter()
-if a.platform=='windows':
+if a.reuse_archive:
+ assert archive.is_file()
+elif a.platform=='windows':
  with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED,compresslevel=6) as z:
   for f in sorted(a.payload.rglob('*')):
    if f.is_file():z.write(f,f.relative_to(a.payload).as_posix())
 else:
  with tarfile.open(archive,'w:gz',compresslevel=6) as t:t.add(a.payload,arcname='.')
 build=time.perf_counter()-begin;samples=[]
-for i in range(3):
+for i in range(0 if a.build_only else 3):
  parent=a.extract_root or a.output;parent.mkdir(parents=True,exist_ok=True)
  dest=parent/f'extracted-{i+1}';dest.mkdir();start=time.perf_counter()
  if a.platform=='windows':
@@ -29,5 +31,5 @@ for i in range(3):
  samples.append(time.perf_counter()-start)
  # Only delete this benchmark's explicitly resolved output child.
  assert dest.resolve().parent==parent.resolve();shutil.rmtree(dest)
-result=dict(platform=a.platform,archive=str(archive),bytes=archive.stat().st_size,sha256=hashlib.file_digest(archive.open('rb'),'sha256').hexdigest(),buildSeconds=build,extractionSeconds=samples,medianExtractionSeconds=statistics.median(samples),cache='OS page cache warm; fresh destination each trial; no claim of cold disk cache',inputManifestSHA256=hashlib.file_digest((a.payload/'manifest.json').open('rb'),'sha256').hexdigest())
+result=dict(platform=a.platform,archive=str(archive),bytes=archive.stat().st_size,sha256=hashlib.file_digest(archive.open('rb'),'sha256').hexdigest(),buildSeconds=build,extractionSeconds=samples,medianExtractionSeconds=statistics.median(samples) if samples else None,cache='OS page cache warm; fresh destination each trial; no claim of cold disk cache',inputManifestSHA256=hashlib.file_digest((a.payload/'manifest.json').open('rb'),'sha256').hexdigest())
 (a.output/'baseline-measurements.json').write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result))

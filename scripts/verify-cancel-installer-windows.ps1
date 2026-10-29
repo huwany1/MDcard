@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-param([string]$Installer,[string]$InstallRoot,[string]$OutputDirectory)
+param([string]$Installer,[string]$InstallRoot,[string]$OutputDirectory,[switch]$DuringCopy,[string]$ExpectedReplacementSHA256)
 $ErrorActionPreference='Stop';New-Item -ItemType Directory -Force $OutputDirectory|Out-Null
 Add-Type @'
 using System;using System.Text;using System.Collections.Generic;using System.Runtime.InteropServices;
@@ -16,7 +16,10 @@ public static string[] Windows(uint pid,bool children){var r=new List<string>();
 }
 '@
 $exe=Join-Path $InstallRoot 'MDcard.exe';$before=if(Test-Path -LiteralPath $exe){(Get-FileHash -LiteralPath $exe).Hash}else{$null}
-$setup=Start-Process -FilePath $Installer -ArgumentList @('/LANG=english',('/DIR="'+$InstallRoot+'"'),('/LOG="'+(Join-Path $OutputDirectory 'cancel.log')+'"')) -WindowStyle Hidden -PassThru
+$beforeLength=if($before){(Get-Item -LiteralPath $exe).Length}else{0}
+$oldFiles=@{};if($DuringCopy){Get-ChildItem -LiteralPath $InstallRoot -File -Recurse|ForEach-Object{$oldFiles[$_.FullName]=(Get-FileHash -LiteralPath $_.FullName).Hash}}
+$arguments=@('/LANG=english',('/DIR="'+$InstallRoot+'"'),('/LOG="'+(Join-Path $OutputDirectory 'cancel.log')+'"'));if($DuringCopy){$arguments+='/SILENT'}
+$setup=Start-Process -FilePath $Installer -ArgumentList $arguments -WindowStyle Hidden -PassThru
 $deadline=[DateTime]::UtcNow.AddSeconds(20);$cancel=$null;$child=$null
 do {
  Start-Sleep -Milliseconds 100
@@ -25,13 +28,22 @@ do {
 }while(!$cancel-and[DateTime]::UtcNow-lt$deadline)
 if(!$cancel){throw 'No owned wizard Cancel button before timeout'}
 $rows|Set-Content (Join-Path $OutputDirectory 'wizard-controls.txt') -Encoding utf8
-[void][OwnedInstallerUi]::PostMessage([IntPtr]::new([long]($cancel.Split('|')[0])),0xF5,[IntPtr]::Zero,[IntPtr]::Zero)
+$replacementObserved=$false;$replacementHash=$null
+if($DuringCopy){
+ $deadline=[DateTime]::UtcNow.AddSeconds(180)
+ do{try{if((Get-Item -LiteralPath $exe -ErrorAction Stop).Length-ne$beforeLength){$current=(Get-FileHash -LiteralPath $exe -ErrorAction Stop).Hash;if($current-ne$before-and(!$ExpectedReplacementSHA256-or$current-eq$ExpectedReplacementSHA256)){$replacementObserved=$true;$replacementHash=$current;break}}}catch{};Start-Sleep -Milliseconds 30}while(!$setup.HasExited-and[DateTime]::UtcNow-lt$deadline)
+ if(!$replacementObserved){throw 'No old executable replacement observed before cancellation'}
+ @{observedUTC=[DateTime]::UtcNow.ToString('o');previousSHA256=$before;replacementSHA256=$replacementHash;stage='Old executable content was replaced before pressing real progress Cancel'}|ConvertTo-Json|Set-Content (Join-Path $OutputDirectory 'replacement-observed.json') -Encoding utf8
+}
+$cancelClock=[Diagnostics.Stopwatch]::StartNew();[void][OwnedInstallerUi]::PostMessage([IntPtr]::new([long]($cancel.Split('|')[0])),0xF5,[IntPtr]::Zero,[IntPtr]::Zero)
 $dialog=$null;$deadline=[DateTime]::UtcNow.AddSeconds(5)
 do {Start-Sleep -Milliseconds 100;$dialog=[OwnedInstallerUi]::Windows([uint32]$child.Id,$false)|Where-Object {$_-match'\|#32770\|Exit Setup$'}|Select-Object -First 1}while(!$dialog-and[DateTime]::UtcNow-lt$deadline)
 if(!$dialog){throw 'No owned Exit Setup confirmation'}
 [void][OwnedInstallerUi]::PostMessage([IntPtr]::new([long]($dialog.Split('|')[0])),0x111,[IntPtr]::new(6),[IntPtr]::Zero)
-if(!$setup.WaitForExit(10000)){throw 'Cancelled setup did not exit'}
+if(!$setup.WaitForExit(60000)){throw 'Cancelled setup did not exit after previous-version restoration'}
 $after=if(Test-Path -LiteralPath $exe){(Get-FileHash -LiteralPath $exe).Hash}else{$null}
-$result=@{cancelViaActualWizardButton=$true;exitConfirmedViaOwnedDialog=$true;exitCode=$setup.ExitCode;previousExeSHA256=$before;afterExeSHA256=$after;previousVersionPreserved=($before-eq$after);installedExeVersion=$(if($after){(Get-Item $exe).VersionInfo.ProductVersion}else{$null})}
+$mismatches=@();foreach($file in $oldFiles.Keys){if(!(Test-Path -LiteralPath $file)-or(Get-FileHash -LiteralPath $file).Hash-ne$oldFiles[$file]){$mismatches+=$file}}
+$result=@{installerSHA256=(Get-FileHash -LiteralPath $Installer).Hash;cancelViaActualWizardButton=$true;exitConfirmedViaOwnedDialog=$true;cancelToExitSeconds=$cancelClock.Elapsed.TotalSeconds;duringCopy=[bool]$DuringCopy;replacementObserved=$replacementObserved;replacementSHA256=$replacementHash;previousFileCount=$oldFiles.Count;previousFileMismatches=$mismatches;exitCode=$setup.ExitCode;previousExeSHA256=$before;afterExeSHA256=$after;previousVersionPreserved=($before-eq$after);installedExeVersion=$(if($after){(Get-Item $exe).VersionInfo.ProductVersion}else{$null})}
 $result|ConvertTo-Json|Set-Content (Join-Path $OutputDirectory 'result.json') -Encoding utf8
-if($setup.ExitCode-ne2-or$before-ne$after){throw 'Installer cancellation did not preserve previous installation'}
+$expectedCode=if($DuringCopy){5}else{2}
+if($setup.ExitCode-ne$expectedCode-or$before-ne$after-or$mismatches.Count){throw 'Installer cancellation did not preserve previous installation'}

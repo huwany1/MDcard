@@ -53,7 +53,8 @@ try:
    ui=work/'ui.json';rich=work/'rich.json';search=work/'search.json';export=work/'export.json'
    appenv={**env,'PATH':'','XDG_CONFIG_HOME':str(profile/'config'),'XDG_STATE_HOME':str(profile/'state'),'XDG_CACHE_HOME':str(profile/'cache'),'MDCARD_UI_REPORT':str(ui),'MDCARD_RICH_REPORT':str(rich),'MDCARD_SEARCH_REPORT':str(search),'MDCARD_EXPORT_REPORT':str(export)}
    document=work/'中文 场景A.md';document.write_text('# First use\n\nInitial.\n')
-   begin=time.monotonic();app=subprocess.Popen([str(stage/'mdcard'),str(document)],cwd=work,env=appenv,stdout=(work/'app.log').open('w'),stderr=subprocess.STDOUT)
+   open_dialog=bool(os.environ.get('MDCARD_QA_OPEN_DIALOG'))
+   begin=time.monotonic();app=subprocess.Popen([str(stage/'mdcard')]+([] if open_dialog else [str(document)]),cwd=work,env=appenv,stdout=(work/'app.log').open('w'),stderr=subprocess.STDOUT)
    wait(lambda:ui.exists(),'No first UI report');startup=time.monotonic()-begin
    window=run('xdotool','search','--all','--pid',str(app.pid),'--name','MDcard',capture_output=True).stdout.decode().splitlines()[0]
    run('xdotool','windowsize',window,'1400','1100','windowactivate','--sync',window);time.sleep(.5)
@@ -67,6 +68,8 @@ try:
      if current['rect']!=r:continue
      run('xdotool','mousedown','1');time.sleep(.08);run('xdotool','mouseup','1');time.sleep(.2);return
     raise RuntimeError('Control geometry did not stabilize: '+name)
+   if open_dialog:
+    key('ctrl+o');time.sleep(.7);key('ctrl+l');paste(str(document));key('Return');wait(lambda:read(ui)['document_path']==str(document),'Native Open did not choose the scenario document')
    control('Write');control('main-source-editor');key('ctrl+End');paste('\nEdited 中文 and English.');key('ctrl+s')
    wait(lambda:'Edited 中文 and English.' in document.read_text() and not read(ui)['dirty'],'Scene A did not save');a_seconds=time.monotonic()-begin;capture(work/'01-edited-saved.png')
    key('ctrl+f');paste('Edited');wait(lambda:read(search).get('results',0)>0,'Search did not find text');key('Escape')
@@ -77,7 +80,7 @@ try:
    r=read(export)['controls']['export'];click(r['x']+r['w']/2,r['y']+r['h']/2);time.sleep(.8)
    pdf=work/'中文 完整导出.pdf';key('ctrl+a');paste(str(pdf));key('Return')
    wait(lambda:(read(export).get('last') or {}).get('type')=='complete','Native PDF export did not finish');assert pdf.read_bytes().startswith(b'%PDF-');b_seconds=time.monotonic()-full_begin;capture(work/'03-native-pdf.png')
-   records.append(dict(kind=kind,trial=trial,binary=str(stage/'mdcard'),sha256=hashlib.file_digest((stage/'mdcard').open('rb'),'sha256').hexdigest(),startupSeconds=startup,scenarioAProcessToSavedSeconds=a_seconds,scenarioBAdditionalSeconds=b_seconds,previewReadySeconds=preview,guiPdf=str(pdf),searchPassed=True,chineseInput='Unicode clipboard paste; no Linux IME composition claim',network='Docker --network none',environment='Debian12 x64/Openbox/Xvfb/software Mesa; no system developer runtimes; native app PATH empty'))
+   records.append(dict(kind=kind,trial=trial,binary=str(stage/'mdcard'),sha256=hashlib.file_digest((stage/'mdcard').open('rb'),'sha256').hexdigest(),startupSeconds=startup,scenarioAProcessToSavedSeconds=a_seconds,scenarioBAdditionalSeconds=b_seconds,previewReadySeconds=preview,guiPdf=str(pdf),searchPassed=True,nativeOpenDialog=open_dialog,documentPassedAsArgument=not open_dialog,chineseInput='Unicode clipboard paste; no Linux IME composition claim',network='Docker --network none',environment='Debian12 x64/Openbox/Xvfb/software Mesa; no system developer runtimes; native app PATH empty'))
    key('Escape');key('ctrl+q');app.wait(timeout=10);assert app.returncode==0;app=None
    (out/'measurements.json').write_text(json.dumps(records,ensure_ascii=False,indent=2)+'\n')
  # Additional lifecycle features use only the installed product and this QA

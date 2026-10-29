@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Copyright (c) 2026 MDcard contributors
-param([string]$Exe="$PSScriptRoot\..\artifacts\recovery-2026-10-26\final-r4\mdcard.exe")
+param([string]$Exe="$PSScriptRoot\..\artifacts\recovery-2026-10-26\final-r4\mdcard.exe",[string]$OutputDirectory='')
 $ErrorActionPreference='Stop'
 . "$PSScriptRoot\verify-ui-gpu-windows.ps1" -Exe $Exe -FunctionsOnly
 . "$PSScriptRoot\recovery-json.ps1"
-$output=Join-Path $root ('evidence\recovery\2026-10-26\autosave-'+(Get-Date -Format 'HHmmss'))
+$output=if($OutputDirectory){[IO.Path]::GetFullPath($OutputDirectory)}else{Join-Path $root ('evidence\recovery\2026-10-26\autosave-'+(Get-Date -Format 'HHmmss'))}
 New-Item -ItemType Directory -Force $output | Out-Null
 $settings=Join-Path $output 'settings.json'
 $env:MDCARD_UI_REPORT=Join-Path $output 'ui.json'

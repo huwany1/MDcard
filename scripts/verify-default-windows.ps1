@@ -4,6 +4,18 @@ param([string]$Exe,[string]$Installer,[string]$OutputDirectory)
 $ErrorActionPreference='Stop'
 . "$PSScriptRoot\verify-ui-gpu-windows.ps1" -Exe $Exe -FunctionsOnly
 . "$PSScriptRoot\recovery-json.ps1"
+Add-Type @'
+using System;using System.Text;using System.Runtime.InteropServices;
+public class GuardDialogQA {
+public delegate bool Callback(IntPtr h,IntPtr p);
+[DllImport("user32.dll")]static extern bool EnumWindows(Callback c,IntPtr p);
+[DllImport("user32.dll")]static extern bool EnumChildWindows(IntPtr h,Callback c,IntPtr p);
+[DllImport("user32.dll")]static extern uint GetWindowThreadProcessId(IntPtr h,out uint p);
+[DllImport("user32.dll",CharSet=CharSet.Unicode)]static extern int GetWindowText(IntPtr h,StringBuilder b,int n);
+[DllImport("user32.dll")]static extern bool PostMessage(IntPtr h,uint m,IntPtr w,IntPtr l);
+public static bool Acknowledge(uint pid){bool found=false;EnumWindows((h,p)=>{uint owner;GetWindowThreadProcessId(h,out owner);if(owner==pid){var text=new StringBuilder();EnumChildWindows(h,(w,q)=>{var b=new StringBuilder(2048);GetWindowText(w,b,2048);text.Append(b);return true;},IntPtr.Zero);if(text.ToString().Contains("close MDcard before uninstalling")){found=PostMessage(h,0x10,IntPtr.Zero,IntPtr.Zero)||found;}}return true;},IntPtr.Zero);return found;}
+}
+'@
 $output=[IO.Path]::GetFullPath($OutputDirectory);New-Item -ItemType Directory -Force $output|Out-Null
 $profileRoot=Join-Path $output 'user-profile';$roaming=Join-Path $profileRoot 'Roaming';$local=Join-Path $profileRoot 'Local'
 New-Item -ItemType Directory -Force (Join-Path $roaming 'MDcard'),$local|Out-Null
@@ -43,7 +55,12 @@ try {
  $recovery=Join-Path $local 'MDcard\recovery';if(!(Test-Path -LiteralPath $recovery)){throw 'Recovery used wrong default user directory'}
  $hash=(Get-FileHash $Exe).Hash;$clock=[Diagnostics.Stopwatch]::StartNew();$setup=Start-Process -FilePath $Installer -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/DIR="'+(Split-Path $Exe)+'"'),('/LOG="'+(Join-Path $output 'running-install-refused.log')+'"')) -WindowStyle Hidden -Wait -PassThru
  if($setup.ExitCode-eq0-or$script:app.HasExited-or(Get-FileHash $Exe).Hash-ne$hash-or!(Report).dirty){throw 'Installer did not safely refuse a running editor'}
- $result=@{defaultStartNoDocumentArgument=$true;nativeNewSave=$true;nativeOpen=$true;nativeSaveAs=$true;standardAppData=$settings;standardLocalAppDataRecovery=$recovery;developmentVariablesRemoved=$true;path='System32 only';cwd=$output;noProjectDirectory=$true;runningInstallRefused=$true;runningInstallerExitCode=$setup.ExitCode;appPreservedDirtyBuffer=$true;binarySHA256=$hash;hostHasDeveloperTools=$true;unicodeClipboardInput=$true;imeComposition='separate test required'}
+ $uninstaller=Join-Path (Split-Path $Exe) 'unins000.exe';$remove=Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/LOG="'+(Join-Path $output 'running-uninstall-refused.log')+'"')) -WindowStyle Hidden -PassThru
+ $retainedUninstallHandle=$remove.Handle;$deadline=[DateTime]::UtcNow.AddSeconds(10);$acknowledged=$false
+ do{$acknowledged=[GuardDialogQA]::Acknowledge([uint32]$remove.Id);if(!$acknowledged){foreach($child in Get-CimInstance Win32_Process -Filter ('ParentProcessId='+$remove.Id)){$acknowledged=[GuardDialogQA]::Acknowledge([uint32]$child.ProcessId)-or$acknowledged}};if(!$acknowledged){Start-Sleep -Milliseconds 100}}while(!$acknowledged-and!$remove.HasExited-and[DateTime]::UtcNow-lt$deadline)
+ if(!$remove.WaitForExit(10000)){throw 'Running-editor uninstall guard did not exit after its owned OK notification'}
+ if($remove.ExitCode-eq0-or$script:app.HasExited-or(Get-FileHash $Exe).Hash-ne$hash-or!(Report).dirty){throw 'Uninstaller did not safely refuse a running editor'}
+ $result=@{defaultStartNoDocumentArgument=$true;nativeNewSave=$true;nativeOpen=$true;nativeSaveAs=$true;standardAppData=$settings;standardLocalAppDataRecovery=$recovery;developmentVariablesRemoved=$true;path='System32 only';cwd=$output;noProjectDirectory=$true;runningInstallRefused=$true;runningInstallerExitCode=$setup.ExitCode;runningUninstallRefused=$true;runningUninstallerExitCode=$remove.ExitCode;appPreservedDirtyBuffer=$true;binarySHA256=$hash;hostHasDeveloperTools=$true;unicodeClipboardInput=$true;imeComposition='separate test required'}
  Keys '^s';WaitFor {!(Report).dirty} 'Final test document save failed';Keys '^q';if(!$script:app.WaitForExit(10000)){throw 'Default test did not exit'}
  $result|ConvertTo-Json -Depth 6|Set-Content (Join-Path $output 'result.json') -Encoding utf8
 } finally {if($script:app-and!$script:app.HasExited){$script:app.Kill();$script:app.WaitForExit()};if($null-ne$clipboard){[Windows.Forms.Clipboard]::SetDataObject($clipboard,$true)}}

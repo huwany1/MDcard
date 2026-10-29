@@ -2,10 +2,10 @@
 """Real IBus/libpinyin XIM preedit and candidate commit on installed Linux app."""
 import ast,ctypes,hashlib,json,os,struct,subprocess,time,zlib
 from pathlib import Path
-out=Path('/qa-output/installed-linux-ime');out.mkdir(exist_ok=True)
+out=Path(os.environ.get('MDCARD_QA_IME_OUTPUT','/qa-output/installed-linux-ime'));out.mkdir(exist_ok=True)
 module=ast.parse(Path('/qa/verify-installed-linux.py').read_text());exec(compile(ast.Module(body=[n for n in module.body if isinstance(n,ast.FunctionDef) and n.name=='capture'],type_ignores=[]),'<qa-capture>','exec'))
 env=dict(os.environ,DISPLAY=':98',LANG='C.UTF-8',XDG_CURRENT_DESKTOP='Openbox',XDG_RUNTIME_DIR='/tmp/mdcard-015-ime',XMODIFIERS='@im=ibus',GTK_IM_MODULE='ibus',QT_IM_MODULE='ibus',IBUS_ADDRESS='unix:path=/tmp/mdcard-015-ime/ibus.sock',IBUS_USE_PORTAL='0',LIBGL_ALWAYS_SOFTWARE='1',LP_NUM_THREADS='2');Path(env['XDG_RUNTIME_DIR']).mkdir(mode=0o700,exist_ok=True)
-profile=Path.home()/'qa/ime';settings=profile/'config/MDcard/settings.json';settings.parent.mkdir(parents=True,exist_ok=True);settings.write_text(json.dumps(dict(language='en',font_size=15,reduce_motion=True)))
+profile=Path.home()/'qa'/out.name;settings=profile/'config/MDcard/settings.json';settings.parent.mkdir(parents=True,exist_ok=True);settings.write_text(json.dumps(dict(language='en',font_size=15,reduce_motion=True)))
 ui=out/'ui.json';document=out/'IBus 中文.md';document.write_text('# Real IBus Pinyin\n\n');services=[];app=None
 def run(*args,**kwargs):
  p=subprocess.run(args,env=env,capture_output=True,**kwargs)

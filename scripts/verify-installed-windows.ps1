@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Actual installed/native GUI path plus a byte-identical portable baseline.
-param([string]$InstalledRoot,[string]$BaselineRoot,[string]$OutputDirectory,[string[]]$Kinds=@('baseline','installed'),[int]$FirstTrial=1,[int]$LastTrial=3)
+param([string]$InstalledRoot,[string]$BaselineRoot,[string]$OutputDirectory,[string[]]$Kinds=@('baseline','installed'),[int]$FirstTrial=1,[int]$LastTrial=3,[switch]$OpenDialog)
 $ErrorActionPreference='Stop'
 $Exe=Join-Path $InstalledRoot 'MDcard.exe'
 . "$PSScriptRoot\verify-ui-gpu-windows.ps1" -Exe $Exe -FunctionsOnly
@@ -28,7 +28,11 @@ try {
   $env:MDCARD_READING_STATE_PATH=Join-Path $output 'reading.json';$env:MDCARD_RECOVERY_DIR=Join-Path $output 'recovery'
   $env:MDCARD_QA_STARTUP_TIMING_PATH=Join-Path $output 'startup.json'
   $document=Join-Path $output '中文 场景A.md';[IO.File]::WriteAllText($document,"# First use`n`nInitial.`n",[Text.UTF8Encoding]::new($false))
-  $clock=[Diagnostics.Stopwatch]::StartNew();Launch 'renderer' '' $document;Start-Sleep -Milliseconds 500
+  $clock=[Diagnostics.Stopwatch]::StartNew();Launch 'renderer' '' $(if($OpenDialog){''}else{$document});Start-Sleep -Milliseconds 500
+  if($OpenDialog){
+   Control 'Open';Start-Sleep -Milliseconds 700;Keys '%n';Paste $document;Keys '{ENTER}'
+   WaitFor {(Report).document_path-like('*'+[IO.Path]::GetFileName($document))} 'Native Open did not choose the scenario document'
+  }
   Control 'Write';Control 'main-source-editor';Keys '^{END}';Paste "`nEdited 中文 and English.";Keys '^s'
   Shot 'debug-after-paste-save'
   WaitFor {([IO.File]::ReadAllText($document)).Contains('Edited 中文 and English.')-and!(Report).dirty} 'Scene A did not save'
@@ -46,7 +50,7 @@ try {
   if(!([IO.File]::ReadAllBytes($pdf)[0..4]-join',').StartsWith('37,80,68,70,45')){throw 'GUI export did not create a PDF'}
   $bAdditional=$clock.Elapsed.TotalSeconds-$fullStart;Shot '03-native-pdf-export'
   $startup=Get-Content -Raw $env:MDCARD_QA_STARTUP_TIMING_PATH|ConvertFrom-Json
-  $records+=@{kind=$kind;trial=$trial;binary=(Resolve-Path $Exe).Path;sha256=(Get-FileHash $Exe).Hash;startupSeconds=$startup.process_to_native_window_and_first_report_seconds;scenarioAProcessToSavedSeconds=$aSeconds;scenarioBAdditionalSeconds=$bAdditional;previewReadySeconds=$previewReady;guiPdf=$pdf;searchPassed=$true;chineseInput='Unicode clipboard paste; real IME separately required';environment='Only System32 PATH; installed runtime resolution; isolated test profile; host OS has developer tools'}
+  $records+=@{kind=$kind;trial=$trial;binary=(Resolve-Path $Exe).Path;sha256=(Get-FileHash $Exe).Hash;startupSeconds=$startup.process_to_native_window_and_first_report_seconds;scenarioAProcessToSavedSeconds=$aSeconds;scenarioBAdditionalSeconds=$bAdditional;previewReadySeconds=$previewReady;guiPdf=$pdf;searchPassed=$true;nativeOpenDialog=[bool]$OpenDialog;documentPassedAsArgument=![bool]$OpenDialog;chineseInput='Unicode clipboard paste; real IME separately required';environment='Only System32 PATH; installed runtime resolution; isolated test profile; host OS has developer tools'}
   Keys '{ESC}';Keys '^q';if(!$script:app.WaitForExit(5000)){throw 'GUI did not close cleanly'}
   $records|ConvertTo-Json -Depth 7|Set-Content (Join-Path $resultRoot 'measurements.json') -Encoding utf8
  }}
