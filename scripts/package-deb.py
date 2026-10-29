@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Build one Debian 12 amd64 package. Run on Linux; no maintainer script downloads."""
-import argparse,json,os,shutil,subprocess,tempfile
+import argparse,hashlib,json,os,shutil,subprocess,tempfile
 from pathlib import Path
 root=Path(__file__).resolve().parents[1]
 p=argparse.ArgumentParser();p.add_argument('payload',type=Path);p.add_argument('output',type=Path);p.add_argument('--compression',choices=['xz','gzip'],default='xz');a=p.parse_args()
@@ -29,8 +29,17 @@ write('DEBIAN/control',f'Package: mdcard\nVersion: {version}\nArchitecture: amd6
 # Guard both first upgrades from the previous package without hooks and future
 # upgrades/removals. Rollback/repair callback parameters remain retryable.
 guard=(root/'packaging/linux/check-running.sh').read_text()
-for hook,operations in [('preinst','install|upgrade'),('prerm','remove|upgrade')]:
- write('DEBIAN/'+hook,'#!/bin/sh\nset -eu\ncase "${1-}" in '+operations+') ;; *) exit 0 ;; esac\n'+guard,0o755)
+backup=(root/'packaging/linux/upgrade-backup.sh').read_text()
+paths=[e['path'] for e in manifest['files']]+['manifest.json']
+for name in paths:
+ if '\n' in name or '\r' in name or name.startswith('/') or '..' in name.split('/'):raise RuntimeError('Unsafe package member')
+checks=''.join(e['sha256']+'  '+e['path']+'\n' for e in manifest['files'])+hashlib.file_digest((a.payload/'manifest.json').open('rb'),'sha256').hexdigest()+'  manifest.json\n'
+write('usr/share/mdcard/payload.sha256',checks)
+functions='mdcard_closed() {\n'+guard.removesuffix('exit 0\n')+'\n}\n'+backup+'\nmdcard_new_files() {\ncat <<\'MDCARD_PRODUCT_FILES\'\n'+'\n'.join(paths)+'\nMDCARD_PRODUCT_FILES\n}\n'
+write('DEBIAN/preinst','#!/bin/sh\nset -eu\n'+functions+'\ncase "${1-}" in --mdcard-restore) mdcard_closed; mdcard_backup restore ;; install|upgrade) mdcard_closed; mdcard_backup prepare ;; esac\n',0o755)
+write('DEBIAN/prerm','#!/bin/sh\nset -eu\ncase "${1-}" in remove|upgrade) ;; *) exit 0 ;; esac\n'+guard,0o755)
+write('DEBIAN/postinst','#!/bin/sh\nset -eu\n'+functions+'\ncase "${1-}" in configure) mdcard_backup commit ;; esac\n',0o755)
+write('DEBIAN/postrm','#!/bin/sh\nset -eu\n'+functions+'\ncase "${1-}" in abort-upgrade|failed-upgrade|abort-install) mdcard_closed; mdcard_backup restore ;; esac\n',0o755)
 # dpkg owns only immutable application files; no user-home deletion, no process
 # termination, no network activity, no developer-tool dependencies.
 target=a.output.resolve()/f'mdcard_{version}_amd64.deb'

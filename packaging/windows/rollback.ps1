@@ -2,11 +2,16 @@
 # Built-in Windows PowerShell 5.1. Per-user immutable app backup, never user profiles.
 param([ValidateSet('Prepare','Restore','Commit')][string]$Operation,[string]$InstallRoot,[string]$BackupRoot,[string]$NewManifest)
 $ErrorActionPreference='Stop'
+# Ignore a developer shell's inherited module search path. This process uses
+# only Windows' own PowerShell modules and .NET cryptography.
+$env:PSModulePath=Join-Path $PSHOME 'Modules'
 $app=[IO.Path]::GetFullPath($InstallRoot).TrimEnd('\');$backup=[IO.Path]::GetFullPath($BackupRoot).TrimEnd('\')
 if($backup-ne($app+'.mdcard-rollback')){throw 'Unexpected rollback path'}
 $statePath=Join-Path $backup 'state.json';$filesRoot=Join-Path $backup 'files'
+trap {try{($_|Out-String)|Set-Content -LiteralPath ($backup+'.error.log') -Encoding UTF8}catch{};Write-Error $_;exit 1}
 function SafeChild([string]$Root,[string]$Relative){$p=[IO.Path]::GetFullPath((Join-Path $Root $Relative));if(!$p.StartsWith($Root.TrimEnd('\')+'\',[StringComparison]::OrdinalIgnoreCase)){throw 'Unsafe backup member'};return $p}
 function SaveState($State){$State|ConvertTo-Json -Depth 12|Set-Content -LiteralPath $statePath -Encoding UTF8}
+function FileSHA([string]$Path){$stream=[IO.File]::OpenRead($Path);$hasher=[Security.Cryptography.SHA256]::Create();try{return [BitConverter]::ToString($hasher.ComputeHash($stream)).Replace('-','')}finally{$stream.Dispose();$hasher.Dispose()}}
 function RegTool([string[]]$Arguments){& "$env:SystemRoot\System32\reg.exe" @Arguments|Out-Null;if($LASTEXITCODE-ne0){throw 'Cannot preserve or restore product registration'}}
 function RestoreCopy([string]$From,[string]$To){New-Item -ItemType Directory -Force (Split-Path $To)|Out-Null;if(Test-Path -LiteralPath $To){[IO.File]::SetAttributes($To,[IO.FileAttributes]::Normal)};Copy-Item -LiteralPath $From -Destination $To -Force}
 if($Operation-eq'Prepare'){
@@ -22,8 +27,8 @@ if($Operation-eq'Prepare'){
  foreach($entry in $entries|Where-Object{!$_.PSIsContainer}){
   $relative=$entry.FullName.Substring($app.Length+1);$destination=SafeChild $filesRoot $relative
   New-Item -ItemType Directory -Force (Split-Path $destination)|Out-Null
-  $hash=(Get-FileHash -LiteralPath $entry.FullName).Hash;Copy-Item -LiteralPath $entry.FullName -Destination $destination
-  if((Get-FileHash -LiteralPath $destination).Hash-ne$hash){throw ('Backup verification failed: '+$relative)}
+  $hash=FileSHA $entry.FullName;Copy-Item -LiteralPath $entry.FullName -Destination $destination
+  if((FileSHA $destination)-ne$hash){throw ('Backup verification failed: '+$relative)}
   $state.files+=@{path=$relative;sha256=$hash}
  }
  $keys=@('Software\Microsoft\Windows\CurrentVersion\Uninstall\{6F259284-88A3-44E2-A5A8-7F110F5F7045}_is1','Software\Classes\MDcard.Markdown')
@@ -44,16 +49,21 @@ if($Operation-eq'Prepare'){
 if(!(Test-Path -LiteralPath $statePath)){throw 'Missing owned rollback state'}
 $state=Get-Content -Raw -LiteralPath $statePath|ConvertFrom-Json
 if($state.schema-ne1-or$state.product-ne'MDcard'-or$state.target-ne$app-or!$state.complete){throw 'Incomplete or mismatched rollback backup; no application files changed'}
+if($Operation-eq'Commit'){
+ $manifest=Get-Content -Raw -LiteralPath $NewManifest|ConvertFrom-Json
+ if((FileSHA $NewManifest)-ne(FileSHA (Join-Path $app 'manifest.json'))){throw 'Installed manifest differs; verified previous version backup retained'}
+ foreach($entry in $manifest.files){$file=SafeChild $app $entry.path;if(!(Test-Path -LiteralPath $file)-or(FileSHA $file)-ne$entry.sha256){throw ('Installed payload incomplete; previous version backup retained: '+$entry.path)}}
+}
 if($Operation-eq'Restore'){
  if(Get-Process MDcard,mdcard -ErrorAction SilentlyContinue){throw 'Save and close MDcard before restoring the previous version'}
- foreach($entry in $state.files){$file=SafeChild $filesRoot $entry.path;if(!(Test-Path -LiteralPath $file)-or(Get-FileHash -LiteralPath $file).Hash-ne$entry.sha256){throw ('Corrupt previous-version backup; preserved for manual recovery: '+$file)}}
+ foreach($entry in $state.files){$file=SafeChild $filesRoot $entry.path;if(!(Test-Path -LiteralPath $file)-or(FileSHA $file)-ne$entry.sha256){throw ('Corrupt previous-version backup; preserved for manual recovery: '+$file)}}
  $old=@{};foreach($entry in $state.files){$old[$entry.path.Replace('/','\')]=$true}
  foreach($relative in $state.newFiles){if(!$old.ContainsKey($relative.Replace('/','\'))){$file=SafeChild $app $relative;if(Test-Path -LiteralPath $file){Remove-Item -LiteralPath $file -Force}}}
  foreach($entry in $state.files){RestoreCopy (SafeChild $filesRoot $entry.path) (SafeChild $app $entry.path)}
  foreach($entry in $state.registry){$key='Registry::HKEY_CURRENT_USER\'+$entry.key;if(Test-Path -LiteralPath $key){Remove-Item -LiteralPath $key -Recurse -Force};if($entry.exists){RegTool @('import',(Join-Path $backup $entry.file))}}
  foreach($entry in $state.openWith){$key=[Microsoft.Win32.Registry]::CurrentUser.CreateSubKey($entry.key);if($entry.exists){$kind=[Microsoft.Win32.RegistryValueKind]::$($entry.kind);$value=if($kind-eq[Microsoft.Win32.RegistryValueKind]::None-or$kind-eq[Microsoft.Win32.RegistryValueKind]::Binary){[byte[]]$entry.value}else{$entry.value};$key.SetValue('MDcard.Markdown',$value,$kind)}else{$key.DeleteValue('MDcard.Markdown',$false)};$key.Close()}
  foreach($entry in $state.shortcuts){if($entry.exists){RestoreCopy (Join-Path $backup $entry.file) $entry.path}elseif(Test-Path -LiteralPath $entry.path){Remove-Item -LiteralPath $entry.path -Force}}
- foreach($entry in $state.files){if((Get-FileHash -LiteralPath (SafeChild $app $entry.path)).Hash-ne$entry.sha256){throw 'Restored previous files did not match verified backup'}}
+ foreach($entry in $state.files){if((FileSHA (SafeChild $app $entry.path))-ne$entry.sha256){throw 'Restored previous files did not match verified backup'}}
  Write-Output 'Previous application, registration and shortcuts restored; user profile untouched.'
 }
 # Only this positively identified, same-target backup is removed. Original user

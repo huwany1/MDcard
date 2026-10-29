@@ -56,9 +56,9 @@ russian.ButtonInstall=Установить и запустить(&I)
 Name: "desktopicon"; Description: "Create a desktop shortcut / 创建桌面快捷方式"; Flags: unchecked
 Name: "association"; Description: "Add MDcard to Open with for Markdown / 添加 Markdown 打开方式"; Flags: unchecked
 [Files]
-Source: "{#PayloadRoot}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "rollback.ps1"; Flags: dontcopy
 Source: "{#PayloadRoot}\manifest.json"; DestName: "rollback-new-manifest.json"; Flags: dontcopy
+Source: "{#PayloadRoot}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 [Icons]
 Name: "{userprograms}\MDcard"; Filename: "{app}\MDcard.exe"; WorkingDir: "{app}"
 Name: "{userdesktop}\MDcard"; Filename: "{app}\MDcard.exe"; WorkingDir: "{app}"; Tasks: desktopicon
@@ -79,7 +79,7 @@ begin
   Args := '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{tmp}\rollback.ps1') + '" -Operation ' + Operation +
     ' -InstallRoot "' + ExpandConstant('{app}') + '" -BackupRoot "' + ExpandConstant('{app}.mdcard-rollback') +
     '" -NewManifest "' + ExpandConstant('{tmp}\rollback-new-manifest.json') + '"';
-  Result := Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'), Args, '', SW_HIDE, ewWaitUntilTerminated, Code);
+  Result := ExecAndLogOutput(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'), Args, '', SW_HIDE, ewWaitUntilTerminated, Code, nil);
   Result := Result and (Code = 0);
   Log('Upgrade backup operation ' + Operation + ': ' + IntToStr(Code));
 end;
@@ -116,7 +116,7 @@ begin
   if CurStep = ssDone then begin
     InstallSucceeded := True;
     if UpgradeBackupReady and not RunRollback('Commit') then
-      Log('Installation succeeded; the redundant previous-version backup was retained for manual cleanup.');
+      MsgBox('The previous-version backup was retained. Check the installation log and RECOVERY.txt in: ' + ExpandConstant('{app}.mdcard-rollback'), mbError, MB_OK);
   end;
 end;
 procedure DeinitializeSetup();
