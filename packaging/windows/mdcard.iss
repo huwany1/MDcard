@@ -79,7 +79,7 @@ begin
   Args := '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{tmp}\rollback.ps1') + '" -Operation ' + Operation +
     ' -InstallRoot "' + ExpandConstant('{app}') + '" -BackupRoot "' + ExpandConstant('{app}.mdcard-rollback') +
     '" -NewManifest "' + ExpandConstant('{tmp}\rollback-new-manifest.json') + '"';
-  Result := ExecAndLogOutput(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'), Args, '', SW_HIDE, ewWaitUntilTerminated, Code, nil);
+  Result := ExecAndLogOutputWithNativeSysDir(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'), Args, '', SW_HIDE, ewWaitUntilTerminated, Code, nil);
   Result := Result and (Code = 0);
   Log('Upgrade backup operation ' + Operation + ': ' + IntToStr(Code));
 end;
