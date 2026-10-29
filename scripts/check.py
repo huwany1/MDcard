@@ -39,7 +39,8 @@ if args.renderer:
     npm = "npm.cmd" if os.name == "nt" else "npm"
     for command in ([npm, "run", "build"], [npm, "test"],
                     ["node", "--test", "export-process.test.mjs"],
-                    ["node", "--test", "entrypoint.test.mjs"]):
+                    ["node", "--test", "entrypoint.test.mjs"],
+                    ["node", "--test", "pandoc-resolution.test.mjs"]):
         run(command, ROOT / "renderer", env)
 if args.website:
     run(["node", "website/scripts/build.mjs"])
