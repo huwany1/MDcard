@@ -78,6 +78,13 @@ specpath.write_text(json.dumps(spec,indent=2)+'\n','utf-8')
 def prepare(item):
  platform,kind,record=item;archive=download(record);record['sha256']=sha(archive)
  destination=ROOT/'renderer/runtime'/platform/kind
+ # Rebuilds may reuse verified downloads. Linux JRE archives contain read-only
+ # files; on Windows chmod maps those modes to the read-only file attribute.
+ # Make only this generated destination writable before replacing its content.
+ if destination.exists():
+  for existing in destination.rglob('*'):
+   if existing.is_file():existing.chmod(0o644)
+   elif existing.is_dir():existing.chmod(0o755)
  extract(archive,destination,strip=1)
  if kind=='chromium':
   for name in ['chrome','chrome_sandbox','chrome_crashpad_handler']:
