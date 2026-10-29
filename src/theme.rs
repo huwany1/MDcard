@@ -29,7 +29,7 @@ pub struct Palette {
 fn rgb(v: [u8; 3]) -> Color32 {
     Color32::from_rgb(v[0], v[1], v[2])
 }
-fn mix(a: Color32, b: Color32, t: f32) -> Color32 {
+pub(crate) fn mix(a: Color32, b: Color32, t: f32) -> Color32 {
     let a = a.to_array();
     let b = b.to_array();
     Color32::from_rgba_unmultiplied(
